@@ -1,0 +1,45 @@
+import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+@Injectable()
+export class RouteRepository {
+  constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * 추천 루트의 상세 내역과 함께 엮여있는 경유지 정보(Stops) 및 장소(Place) 정보까지
+   * N+1 문제를 방지하며 통째로 조인(include)하여 조회합니다.
+   */
+  async findDetailWithStopsAndPlace(id: string) {
+    return this.prisma.route.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        totalDistanceMeters: true,
+        estimatedSavingsWon: true,
+        score: true,
+        routeType: true,
+        stops: {
+          orderBy: {
+            orderIndex: 'asc',
+          },
+          select: {
+            orderIndex: true,
+            transitType: true,
+            travelMinutesFromPrev: true,
+            stayMinutes: true,
+            fareWon: true,
+            estimatedPriceWon: true,
+            place: {
+              select: {
+                name: true,
+                category: true,
+                openTime: true,
+                closeTime: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+}
