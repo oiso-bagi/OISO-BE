@@ -20,7 +20,7 @@ Trigger:
 Runtime:
 
 - Node.js: 프로젝트에서 합의한 LTS 버전
-- package manager: 의존성 작업 전 `package-lock.json`과 `pnpm-lock.yaml` 중 기준 lockfile을 확인
+- package manager: CI 기준은 pnpm과 `pnpm-lock.yaml`
 - database: 테스트용 PostgreSQL service 또는 테스트 전용 DB URL 사용
 
 Secret:
@@ -44,14 +44,15 @@ Secret:
 권장 순서:
 
 ```bash
-npm ci
-npx prisma validate
-npm run build
-npm run lint
-npm run test
+pnpm install --frozen-lockfile
+pnpm run prisma:validate
+pnpm run prisma:generate
+pnpm run build
+pnpm run lint
+pnpm run test
 ```
 
-`npm run lint`는 `--fix`가 포함되어 있으므로 CI에서는 파일 수정이 발생하지 않는지 확인해야 합니다. CI에서 자동 수정을 원하지 않으면 별도 lint check script를 추가하는 방안을 검토합니다.
+`pnpm run lint`는 `--fix`가 포함되어 있으므로 CI에서는 파일 수정이 발생하지 않는지 확인해야 합니다. CI에서 자동 수정을 원하지 않으면 별도 lint check script를 추가하는 방안을 검토합니다.
 
 ## Local Verification
 
@@ -64,39 +65,40 @@ git diff --check
 일반 코드 변경:
 
 ```bash
-npm run build
-npm run test
+pnpm run build
+pnpm run test
 ```
 
 API endpoint, controller, service, repository, DTO 변경:
 
 ```bash
-npm run build
-npm run test
+pnpm run build
+pnpm run test
 ```
 
 Prisma schema 또는 migration 변경:
 
 ```bash
-npx prisma validate
-npx prisma migrate status
-npm run build
-npm run test
+pnpm run prisma:validate
+pnpm run prisma:migrate:status
+pnpm run prisma:generate
+pnpm run build
+pnpm run test
 ```
 
 coverage가 필요한 변경:
 
 ```bash
-npm run test:cov
+pnpm run test:cov
 ```
 
 ## Package Manager
 
-현재 저장소에는 `package-lock.json`과 `pnpm-lock.yaml`이 함께 있지만, CI의 기준 package manager는 npm입니다.
+현재 저장소에는 `package-lock.json`과 `pnpm-lock.yaml`이 함께 있지만, CI의 기준 package manager는 pnpm입니다.
 
-- CI는 `.github/workflows/ci.yml`의 `npm ci`와 `actions/setup-node` npm cache 설정을 기준으로 동작합니다.
-- 의존성 추가, 제거, 버전 변경 시 `package-lock.json`을 반드시 함께 갱신합니다.
-- `pnpm-lock.yaml`만 갱신한 변경은 CI 기준 lockfile 갱신으로 보지 않습니다.
+- CI는 `.github/workflows/ci.yml`의 `pnpm install --frozen-lockfile`과 `actions/setup-node` pnpm cache 설정을 기준으로 동작합니다.
+- 의존성 추가, 제거, 버전 변경 시 `pnpm-lock.yaml`을 반드시 함께 갱신합니다.
+- `package-lock.json`만 갱신한 변경은 CI 기준 lockfile 갱신으로 보지 않습니다.
 - 문서 변경만으로 lockfile을 수정하지 않습니다.
 
 ## E2E Workflow
@@ -113,7 +115,7 @@ E2E는 테스트 DB 상태에 민감하므로 기본 CI와 분리해서 봅니�
 명령:
 
 ```bash
-npm run test:e2e
+pnpm run test:e2e
 ```
 
 실패 시 확인할 것:
