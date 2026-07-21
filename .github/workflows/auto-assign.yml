@@ -1,8 +1,8 @@
-name: Auto Assign
+name: Auto Assign And Review
 
 on:
   pull_request:
-    types: [opened, reopened, ready_for_review]
+    types: [opened, reopened, synchronize, ready_for_review]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
@@ -39,4 +39,29 @@ jobs:
               })
             } catch (error) {
               core.warning(`Failed to add assignee: ${error.message}`)
+            }
+
+      - name: Request reviewers
+        uses: actions/github-script@v9
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const author = context.payload.pull_request.user.login
+            const pullNumber = context.payload.pull_request.number
+            const reviewers = ['hdg0116', 'hidoKim'].filter((reviewer) => reviewer !== author)
+
+            if (reviewers.length === 0) {
+              core.info('No reviewers to request.')
+              return
+            }
+
+            try {
+              await github.rest.pulls.requestReviewers({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: pullNumber,
+                reviewers,
+              })
+            } catch (error) {
+              core.warning(`Failed to request reviewers: ${error.message}`)
             }
