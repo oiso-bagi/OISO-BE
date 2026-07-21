@@ -8,6 +8,9 @@
   "scripts": {
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "prisma:generate": "prisma generate --generator client",
+    "prisma:migrate:status": "prisma migrate status",
+    "prisma:validate": "prisma validate",
     "start": "nest start",
     "start:dev": "PRISMA_CLIENT_ENGINE_TYPE=binary nest start --watch",
     "start:debug": "nest start --debug --watch",
@@ -71,5 +74,11 @@
     ],
     "coverageDirectory": "../coverage",
     "testEnvironment": "node"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/engines",
+      "prisma"
+    ]
   }
 }

@@ -1,0 +1,65 @@
+version: 1
+labels:
+  - label: 'FIX'
+    title: '(?i)^\[?fix\]?([(:\s]|$)'
+  - label: 'FIX'
+    branch: '(?i)^fix/'
+
+  - label: 'FEAT'
+    title: '(?i)^\[?feat\]?([(:\s]|$)'
+  - label: 'FEAT'
+    branch: '(?i)^feat/'
+
+  - label: 'DOCS'
+    title: '(?i)^\[?docs?\]?([(:\s]|$)'
+  - label: 'DOCS'
+    branch: '(?i)^docs?/'
+
+  - label: 'CHORE'
+    title: '(?i)^\[?chore\]?([(:\s]|$)'
+  - label: 'CHORE'
+    branch: '(?i)^chore/'
+
+  - label: 'REFACTOR'
+    title: '(?i)^\[?refactor\]?([(:\s]|$)'
+  - label: 'REFACTOR'
+    branch: '(?i)^refactor/'
+
+  - label: 'REMOVE'
+    title: '(?i)^\[?remove\]?([(:\s]|$)'
+  - label: 'REMOVE'
+    branch: '(?i)^remove/'
+
+  - label: 'NAME'
+    title: '(?i)^\[?name\]?([(:\s]|$)'
+  - label: 'NAME'
+    branch: '(?i)^name/'
+
+  - label: 'FILE'
+    title: '(?i)^\[?file\]?([(:\s]|$)'
+  - label: 'FILE'
+    branch: '(?i)^file/'
+
+  - label: 'COMMENT'
+    title: '(?i)^\[?comment\]?([(:\s]|$)'
+  - label: 'COMMENT'
+    branch: '(?i)^comment/'
+
+  - label: 'TEST'
+    title: '(?i)^\[?test\]?([(:\s]|$)'
+  - label: 'TEST'
+    branch: '(?i)^test/'
+
+  - label: 'STYLE'
+    title: '(?i)^\[?(style|format|prettier)\]?([(:\s]|$)'
+  - label: 'STYLE'
+    branch: '(?i)^(style|format|prettier)/'
+
+  - label: 'wontfix'
+    title: '(?i)(\bwontfix\b|won''t fix|작업하지 않음)'
+
+  - label: '도연'
+    authors: ['hidoKim']
+
+  - label: '다경'
+    authors: ['hdg0116']
