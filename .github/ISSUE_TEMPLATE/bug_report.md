@@ -42,6 +42,8 @@ assignees: ''
 
 ## Test Checklist
 
+> Select exactly one applicable option in this group.
+
 - [ ] 재현 테스트가 필요합니다.
 - [ ] 회귀 테스트가 필요합니다.
 - [ ] 테스트 변경이 필요 없는 작업입니다.

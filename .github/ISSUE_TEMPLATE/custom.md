@@ -41,6 +41,8 @@ assignees: ''
 
 ## DB Migration
 
+> Select exactly one applicable option in this group.
+
 - [ ] Prisma migration이 필요합니다.
 - [ ] migration이 필요 없는 작업입니다.
 

@@ -14,6 +14,7 @@ Trigger:
 
 - `pull_request`
 - `push` to `main`
+- `push` to `develop`
 - 필요 시 `workflow_dispatch`
 
 Runtime:

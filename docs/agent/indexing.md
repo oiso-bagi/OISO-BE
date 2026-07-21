@@ -81,7 +81,7 @@ UI에서 직접 호출할 필요가 있는 skill은 같은 디렉터리 아래 `
 
 ```bash
 rg --files -g "AGENTS.md" -g "AGENTS.override.md"
-rg -n "이전 프로젝트명|이전 이슈 키|다른 제품군 전용 경로" AGENTS.md docs workflows .github
+rg -n "OISO-BE|OISO|recommended-routes|OISO-[0-9]+|/recommended-routes|src/route|prisma/schema.prisma" AGENTS.md docs workflows .github
 git diff --check
 ```
 
@@ -93,6 +93,7 @@ npm run test
 npm run test:e2e
 npm run lint
 npx prisma validate
+npx prisma migrate status
 ```
 
 Codex 인식 문제가 있으면 Codex 세션을 재시작합니다. Codex는 새 세션을 시작할 때 instruction chain을 다시 구성합니다.
