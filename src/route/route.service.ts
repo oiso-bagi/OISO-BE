@@ -1,0 +1,37 @@
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { RouteRepository } from './route.repository';
+import { RecommendedRouteDetailResponseDto } from './dto/recommended-route-detail-response.dto';
+
+@Injectable()
+export class RouteService {
+  constructor(private readonly routeRepository: RouteRepository) {}
+
+  async getRecommendedRouteDetail(
+    id: string,
+  ): Promise<RecommendedRouteDetailResponseDto> {
+    const normalizedId = this.validateRouteId(id);
+
+    const routeRawData =
+      await this.routeRepository.findDetailWithStopsAndPlace(normalizedId);
+
+    if (!routeRawData) {
+      throw new NotFoundException(
+        `추천 루트 ID [${normalizedId}]를 시스템에서 찾을 수 없습니다.`,
+      );
+    }
+
+    return RecommendedRouteDetailResponseDto.from(routeRawData);
+  }
+
+  private validateRouteId(id: string): string {
+    if (typeof id !== 'string' || id.trim().length === 0) {
+      throw new BadRequestException('추천 루트 ID는 비어 있을 수 없습니다.');
+    }
+
+    return id.trim();
+  }
+}

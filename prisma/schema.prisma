@@ -2,6 +2,7 @@
 
 generator client {
   provider = "prisma-client-js"
+  engineType = "binary"
 }
 
 generator erd {
@@ -12,6 +13,7 @@ generator erd {
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 /// 시스템 내 사용자 권한을 정의하는 열거형입니다.
@@ -117,6 +119,10 @@ model Place {
   isActive        Boolean       @default(true)       /// 장소 운영 및 데이터 노출 활성화 여부
   createdAt       DateTime      @default(now())      /// 데이터 등록 일시
   updatedAt       DateTime      @updatedAt           /// 데이터 수정 일시
+  openTime       String?                             /// 오픈시간
+  closeTime      String?                             /// 마감시간
+  breakTime      String?                             /// 브레이크 타임
+  closedDays     String?                             /// 휴무일
 
   routeStops      RouteStop[]
 

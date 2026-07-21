@@ -115,7 +115,7 @@ npx prisma migrate deploy
 npx prisma studio
 ```
 
-브라우저가 열리며 http://localhost:51212에서 생성된 테이블과 데이터를 시각적으로 확인할 수 있습니다.
+브라우저가 열리며 http://localhost:5555에서 생성된 테이블과 데이터를 시각적으로 확인할 수 있습니다.
 
 #### 🛑 주의 및 그라운드 룰 (Ground Rules)
 
