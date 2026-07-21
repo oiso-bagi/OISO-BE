@@ -24,7 +24,8 @@ Runtime:
 
 Secret:
 
-- `DATABASE_URL` 등 DB 접속 정보는 GitHub Actions secret으로 주입합니다.
+- `DATABASE_URL`은 GitHub Actions secret으로 주입합니다.
+- CI에는 운영 DB가 아니라 테스트 또는 CI 전용 DB URL을 사용합니다.
 - secret, token, raw `.env` 값은 CI log에 출력하지 않습니다.
 
 ## Pipeline
