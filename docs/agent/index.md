@@ -42,6 +42,11 @@ workflows/
   ci.md
   pr-checklist.md
   pull-request-writing.md
+.agents/
+  skills/
+    backend-api-workflow/
+    backend-architecture-review/
+    backend-quality-verification/
 src/
   prisma/
   route/
@@ -52,7 +57,11 @@ prisma/
 package.json
 ```
 
-`.agents/` 디렉터리는 현재 비어 있습니다. repo-local skill이 실제로 필요해질 때만 `.agents/skills/*/SKILL.md` 구조를 추가합니다.
+`.agents/skills/`에는 현재 OISO-BE 백엔드 작업에 필요한 최소 repo-local skill만 둡니다.
+
+- `backend-api-workflow`: NestJS API endpoint 구현/수정 흐름
+- `backend-architecture-review`: controller/service/repository/DTO/Prisma 책임 경계 점검
+- `backend-quality-verification`: 변경 범위별 build/test/e2e/lint/Prisma 검증 선택
 
 ## Maintenance Rule
 

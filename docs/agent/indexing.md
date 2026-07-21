@@ -41,13 +41,19 @@ Repo-scoped Codex skill은 필요해질 때만 `.agents/skills` 아래에 둡니
 ```text
 .agents/
   skills/
-    <workflow-name>/
+    backend-api-workflow/
       SKILL.md
-      agents/
-        openai.yaml
+    backend-architecture-review/
+      SKILL.md
+    backend-quality-verification/
+      SKILL.md
 ```
 
-현재 `.agents/`는 비어 있으므로 문서에서 존재하지 않는 skill을 전제로 하지 않습니다.
+현재 `.agents/skills/`에는 OISO-BE 백엔드 작업에 필요한 최소 skill만 둡니다.
+
+- `backend-api-workflow`: API endpoint 구현/수정
+- `backend-architecture-review`: NestJS 계층/도메인 경계 점검
+- `backend-quality-verification`: 변경 범위별 검증 명령 선택과 결과 보고
 
 각 skill은 `SKILL.md` frontmatter에 `name`과 `description`을 가져야 합니다. Codex는 처음에는 skill의 이름, 설명, 경로만 컨텍스트에 넣고, 실제로 skill을 선택할 때 전체 `SKILL.md`를 읽습니다.
 
