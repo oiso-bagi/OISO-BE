@@ -29,7 +29,6 @@ assignees: ''
 ## DB Migration
 
 > Select exactly one applicable option in this group.
-
 > Prisma schema 또는 migration 변경 여부를 적어주세요.
 
 - [ ] Prisma migration이 필요합니다.

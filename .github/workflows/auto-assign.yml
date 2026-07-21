@@ -21,7 +21,7 @@ jobs:
           script: |
             const author = context.payload.pull_request.user.login
             const pullNumber = context.payload.pull_request.number
-            const isExpectedPermissionError = (error) => error.status === 403
+            const isExpectedAssignmentError = (error) => [403, 404].includes(error.status)
 
             try {
               await github.rest.issues.checkUserCanBeAssigned({
@@ -37,8 +37,8 @@ jobs:
                 assignees: [author],
               })
             } catch (error) {
-              if (isExpectedPermissionError(error)) {
-                core.warning(`Could not add assignee due to permissions: ${error.message}`)
+              if (isExpectedAssignmentError(error)) {
+                core.warning(`Could not add assignee due to permissions or missing user: ${error.message}`)
                 return
               }
 

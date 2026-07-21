@@ -40,7 +40,7 @@ jobs:
       - name: Validate Prisma schema
         run: npx prisma validate
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/oiso_ci' }}
 
       - name: Build
         run: npm run build

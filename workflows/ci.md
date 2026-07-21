@@ -33,7 +33,7 @@ Secret:
 
 기본 CI는 NestJS build, lint, unit test, Prisma schema validation을 중심으로 구성합니다. DB 상태가 필요한 e2e는 기본 CI에서 제외하고, 필요할 때 테스트 DB 준비 후 별도로 실행합니다.
 
-| Job | Responsibility |
+| Stage | Responsibility |
 | --- | --- |
 | `Install` | 의존성 설치와 cache 복구 |
 | `Prisma validate` | `prisma/schema.prisma` 문법과 generator 설정 확인 |
@@ -92,12 +92,12 @@ npm run test:cov
 
 ## Package Manager
 
-현재 저장소에는 `package-lock.json`과 `pnpm-lock.yaml`이 함께 있습니다.
+현재 저장소에는 `package-lock.json`과 `pnpm-lock.yaml`이 함께 있지만, CI의 기준 package manager는 npm입니다.
 
-- 의존성 추가, 삭제, lockfile 갱신 전 기준 package manager를 확인합니다.
+- CI는 `.github/workflows/ci.yml`의 `npm ci`와 `actions/setup-node` npm cache 설정을 기준으로 동작합니다.
+- 의존성 추가, 제거, 버전 변경 시 `package-lock.json`을 반드시 함께 갱신합니다.
+- `pnpm-lock.yaml`만 갱신한 변경은 CI 기준 lockfile 갱신으로 보지 않습니다.
 - 문서 변경만으로 lockfile을 수정하지 않습니다.
-- CI를 추가할 때는 선택한 package manager와 lockfile을 PR 본문에 명시합니다.
-- `npm ci`를 쓰려면 `package-lock.json`을 기준으로 삼고, `pnpm install --frozen-lockfile`을 쓰려면 `pnpm-lock.yaml`을 기준으로 삼습니다.
 
 ## E2E Workflow
 
