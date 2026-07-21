@@ -1,0 +1,28 @@
+name: Gemini PR Reviewer
+
+# PR이 새로 열리거나, 기존 PR에 새로운 커밋이 푸시(synchronize)될 때 자동으로 작동합니다.
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+# PR에 코멘트를 달기 위해 GitHub에 쓰기(write) 권한을 요청합니다.
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run Gemini AI Review
+        # 마켓플레이스에 등록된 대표적인 오픈소스 Gemini 리뷰어를 불러옵니다.
+        uses: m7thon/gemini-pr-reviewer@v1
+        env:
+          # GITHUB_TOKEN은 따로 만들 필요 없이 GitHub이 자동으로 꽂아주는 자체 암호입니다.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Actions Secret에 등록하신 그 API 키를 여기서 꺼내 씁니다.
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: 'gemini-1.5-flash'
