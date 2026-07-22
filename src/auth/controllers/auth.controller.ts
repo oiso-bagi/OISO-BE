@@ -15,6 +15,7 @@ import {
   OAUTH_STATE_COOKIE,
   REFRESH_TOKEN_COOKIE,
 } from '../auth.constants';
+import { AuthSessionResponseDto } from '../dto/auth-session-response.dto';
 import { AuthTokenResponseDto } from '../dto/auth-token-response.dto';
 import { CurrentUserResponseDto } from '../dto/current-user-response.dto';
 import { AuthService } from '../services/auth.service';
@@ -97,6 +98,16 @@ export class AuthController {
     );
 
     return AuthTokenResponseDto.from(accessToken);
+  }
+
+  @Get('auth/session')
+  async getSession(@Req() request: Request): Promise<AuthSessionResponseDto> {
+    const cookies = this.parseCookies(request);
+    const authenticated = await this.authService.hasAuthenticatedSession(
+      cookies[REFRESH_TOKEN_COOKIE],
+    );
+
+    return AuthSessionResponseDto.from(authenticated);
   }
 
   @Post('auth/logout')
@@ -203,10 +214,14 @@ export class AuthController {
   }
 
   private getSuccessRedirectUrl(): string {
-    return (
+    const successUrl =
       process.env.FRONTEND_AUTH_SUCCESS_REDIRECT ??
-      'http://localhost:5173/auth/kakao/success'
-    );
+      'http://localhost:5173/auth/kakao/success';
+    const url = new URL(successUrl);
+
+    url.searchParams.set('login', 'success');
+
+    return url.toString();
   }
 
   private getFailureRedirectUrl(reason?: string): string {

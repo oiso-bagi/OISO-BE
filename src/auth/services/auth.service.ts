@@ -66,6 +66,27 @@ export class AuthService {
     return this.authTokenService.issueAccessToken(user.id, user.provider);
   }
 
+  async hasAuthenticatedSession(
+    refreshToken: string | undefined,
+  ): Promise<boolean> {
+    if (!refreshToken) {
+      return false;
+    }
+
+    try {
+      const payload = this.authTokenService.verifyRefreshToken(refreshToken);
+      const user = await this.authRepository.findUserById(payload.sub);
+
+      return user !== null;
+    } catch (error) {
+      if (error instanceof UnauthorizedException) {
+        return false;
+      }
+
+      throw error;
+    }
+  }
+
   private issueTokens(user: User): AuthTokens {
     return {
       refreshToken: this.authTokenService.issueRefreshToken(

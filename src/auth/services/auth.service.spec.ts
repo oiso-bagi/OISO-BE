@@ -126,4 +126,31 @@ describe('AuthService', () => {
       UnauthorizedException,
     );
   });
+
+  it('returns true when a refresh token belongs to an existing user', async () => {
+    mockAuthTokenService.verifyRefreshToken.mockReturnValue({ sub: 'user-id' });
+    mockAuthRepository.findUserById.mockResolvedValue({
+      id: 'user-id',
+    });
+
+    await expect(
+      service.hasAuthenticatedSession('refresh-token'),
+    ).resolves.toBe(true);
+  });
+
+  it('returns false when session refresh token is missing', async () => {
+    await expect(service.hasAuthenticatedSession(undefined)).resolves.toBe(
+      false,
+    );
+  });
+
+  it('returns false when session refresh token is invalid', async () => {
+    mockAuthTokenService.verifyRefreshToken.mockImplementation(() => {
+      throw new UnauthorizedException();
+    });
+
+    await expect(
+      service.hasAuthenticatedSession('invalid-refresh-token'),
+    ).resolves.toBe(false);
+  });
 });
