@@ -1,6 +1,7 @@
 /// <reference types="jest" />
 
 import { UnauthorizedException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { AuthRepository } from '../repositories/auth.repository';
 import { AuthService } from './auth.service';
 import { AuthTokenService } from './auth-token.service';
@@ -86,6 +87,45 @@ describe('AuthService', () => {
     );
   });
 
+  it('reloads and updates an existing Kakao user after a create race', async () => {
+    const createdByConcurrentCallback = {
+      id: 'user-id',
+      email: 'user@example.com',
+      nickname: 'user',
+      provider: 'kakao',
+    };
+    mockAuthRepository.findUserByProvider
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ id: 'user-id' });
+    mockAuthRepository.findUserByNickname.mockResolvedValue(null);
+    mockAuthRepository.createKakaoUser.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+        code: 'P2002',
+        clientVersion: '5.22.0',
+      }),
+    );
+    mockAuthRepository.updateKakaoUser.mockResolvedValue(
+      createdByConcurrentCallback,
+    );
+
+    await expect(
+      service.loginWithKakao({
+        providerId: '123',
+        email: 'user@example.com',
+        nickname: 'user',
+      }),
+    ).resolves.toEqual({
+      user: createdByConcurrentCallback,
+      tokens: {
+        refreshToken: 'refresh-token',
+      },
+    });
+    expect(mockAuthRepository.updateKakaoUser).toHaveBeenCalledWith(
+      'user-id',
+      expect.objectContaining({ providerId: '123' }),
+    );
+  });
+
   it('returns the current user from an access token', async () => {
     const user = {
       id: 'user-id',
@@ -101,6 +141,15 @@ describe('AuthService', () => {
 
   it('rejects requests without an access token', async () => {
     await expect(service.getCurrentUser(undefined)).rejects.toThrow(
+      UnauthorizedException,
+    );
+  });
+
+  it('rejects current user requests when token user does not exist', async () => {
+    mockAuthTokenService.verifyAccessToken.mockReturnValue({ sub: 'user-id' });
+    mockAuthRepository.findUserById.mockResolvedValue(null);
+
+    await expect(service.getCurrentUser('access-token')).rejects.toThrow(
       UnauthorizedException,
     );
   });
@@ -123,6 +172,15 @@ describe('AuthService', () => {
 
   it('rejects refresh requests without a refresh token', async () => {
     await expect(service.refreshAccessToken(undefined)).rejects.toThrow(
+      UnauthorizedException,
+    );
+  });
+
+  it('rejects refresh requests when token user does not exist', async () => {
+    mockAuthTokenService.verifyRefreshToken.mockReturnValue({ sub: 'user-id' });
+    mockAuthRepository.findUserById.mockResolvedValue(null);
+
+    await expect(service.refreshAccessToken('refresh-token')).rejects.toThrow(
       UnauthorizedException,
     );
   });

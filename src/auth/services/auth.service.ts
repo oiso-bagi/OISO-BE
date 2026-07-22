@@ -1,5 +1,5 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { User } from '@prisma/client';
+import { Prisma, User } from '@prisma/client';
 import { AuthRepository } from '../repositories/auth.repository';
 import { AuthTokenService } from './auth-token.service';
 import { KakaoUserProfile } from '../types/kakao-auth.types';
@@ -25,10 +25,7 @@ export class AuthService {
     );
     const user = existingUser
       ? await this.authRepository.updateKakaoUser(existingUser.id, profile)
-      : await this.authRepository.createKakaoUser(
-          profile,
-          await this.createAvailableNickname(profile),
-        );
+      : await this.createKakaoUserHandlingRace(profile);
 
     return {
       user,
@@ -96,6 +93,32 @@ export class AuthService {
     };
   }
 
+  private async createKakaoUserHandlingRace(
+    profile: KakaoUserProfile,
+  ): Promise<User> {
+    try {
+      return await this.authRepository.createKakaoUser(
+        profile,
+        await this.createAvailableNickname(profile),
+      );
+    } catch (error) {
+      if (!this.isUniqueConstraintError(error)) {
+        throw error;
+      }
+
+      const existingUser = await this.authRepository.findUserByProvider(
+        'kakao',
+        profile.providerId,
+      );
+
+      if (!existingUser) {
+        throw error;
+      }
+
+      return this.authRepository.updateKakaoUser(existingUser.id, profile);
+    }
+  }
+
   private async createAvailableNickname(
     profile: KakaoUserProfile,
   ): Promise<string> {
@@ -107,5 +130,12 @@ export class AuthService {
     }
 
     return `${baseNickname}_${profile.providerId}`;
+  }
+
+  private isUniqueConstraintError(error: unknown): boolean {
+    return (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === 'P2002'
+    );
   }
 }

@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  GatewayTimeoutException,
   Injectable,
   InternalServerErrorException,
 } from '@nestjs/common';
@@ -58,13 +59,16 @@ export class KakaoAuthService {
       params.set('client_secret', clientSecret);
     }
 
-    const response = await fetch('https://kauth.kakao.com/oauth/token', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8',
+    const response = await this.fetchKakao(
+      'https://kauth.kakao.com/oauth/token',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8',
+        },
+        body: params,
       },
-      body: params,
-    });
+    );
 
     if (!response.ok) {
       throw new BadRequestException(
@@ -76,12 +80,15 @@ export class KakaoAuthService {
   }
 
   private async requestUser(accessToken: string): Promise<KakaoUserResponse> {
-    const response = await fetch('https://kapi.kakao.com/v2/user/me', {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
+    const response = await this.fetchKakao(
+      'https://kapi.kakao.com/v2/user/me',
+      {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
       },
-    });
+    );
 
     if (!response.ok) {
       throw new BadRequestException('Failed to fetch Kakao user profile.');
@@ -98,5 +105,35 @@ export class KakaoAuthService {
     }
 
     return value;
+  }
+
+  private async fetchKakao(url: string, init: RequestInit): Promise<Response> {
+    try {
+      return await fetch(url, {
+        ...init,
+        signal: AbortSignal.timeout(this.getRequestTimeoutMs()),
+      });
+    } catch (error) {
+      if (this.isTimeoutError(error)) {
+        throw new GatewayTimeoutException('Kakao API request timed out.');
+      }
+
+      throw error;
+    }
+  }
+
+  private getRequestTimeoutMs(): number {
+    const configuredTimeout = Number(process.env.KAKAO_REQUEST_TIMEOUT_MS);
+
+    return Number.isFinite(configuredTimeout) && configuredTimeout > 0
+      ? configuredTimeout
+      : 5000;
+  }
+
+  private isTimeoutError(error: unknown): boolean {
+    return (
+      error instanceof Error &&
+      (error.name === 'TimeoutError' || error.name === 'AbortError')
+    );
   }
 }

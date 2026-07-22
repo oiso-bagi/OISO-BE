@@ -3,44 +3,54 @@ import {
   InternalServerErrorException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { createHmac, timingSafeEqual } from 'node:crypto';
+import { JwtService } from '@nestjs/jwt';
 
 export interface TokenPayload {
   sub: string;
   provider: string;
   type: 'access' | 'refresh';
-  iat: number;
-  exp: number;
+  iat?: number;
+  exp?: number;
 }
 
 @Injectable()
 export class AuthTokenService {
+  constructor(private readonly jwtService: JwtService) {}
+
   issueAccessToken(userId: string, provider: string): string {
-    return this.sign(
+    return this.jwtService.sign(
       {
         sub: userId,
         provider,
         type: 'access',
       },
-      this.getRequiredEnv('JWT_ACCESS_SECRET'),
-      this.getDurationSeconds(process.env.JWT_ACCESS_EXPIRES_IN ?? '15m'),
+      {
+        secret: this.getRequiredEnv('JWT_ACCESS_SECRET'),
+        expiresIn: this.getDurationSeconds(
+          process.env.JWT_ACCESS_EXPIRES_IN ?? '15m',
+        ),
+      },
     );
   }
 
   issueRefreshToken(userId: string, provider: string): string {
-    return this.sign(
+    return this.jwtService.sign(
       {
         sub: userId,
         provider,
         type: 'refresh',
       },
-      this.getRequiredEnv('JWT_REFRESH_SECRET'),
-      this.getDurationSeconds(process.env.JWT_REFRESH_EXPIRES_IN ?? '14d'),
+      {
+        secret: this.getRequiredEnv('JWT_REFRESH_SECRET'),
+        expiresIn: this.getDurationSeconds(
+          process.env.JWT_REFRESH_EXPIRES_IN ?? '14d',
+        ),
+      },
     );
   }
 
   verifyAccessToken(token: string): TokenPayload {
-    const payload = this.verify(
+    const payload = this.verifyToken(
       token,
       this.getRequiredEnv('JWT_ACCESS_SECRET'),
     );
@@ -53,7 +63,7 @@ export class AuthTokenService {
   }
 
   verifyRefreshToken(token: string): TokenPayload {
-    const payload = this.verify(
+    const payload = this.verifyToken(
       token,
       this.getRequiredEnv('JWT_REFRESH_SECRET'),
     );
@@ -65,65 +75,26 @@ export class AuthTokenService {
     return payload;
   }
 
-  private sign(
-    payload: Omit<TokenPayload, 'iat' | 'exp'>,
-    secret: string,
-    expiresInSeconds: number,
-  ): string {
-    const now = Math.floor(Date.now() / 1000);
-    const fullPayload: TokenPayload = {
-      ...payload,
-      iat: now,
-      exp: now + expiresInSeconds,
-    };
-    const header = this.base64UrlEncode({ alg: 'HS256', typ: 'JWT' });
-    const body = this.base64UrlEncode(fullPayload);
-    const signature = this.createSignature(`${header}.${body}`, secret);
+  private verifyToken(token: string, secret: string): TokenPayload {
+    try {
+      return this.jwtService.verify<TokenPayload>(token, { secret });
+    } catch (error) {
+      if (this.isTokenExpiredError(error)) {
+        throw new UnauthorizedException('Expired token.');
+      }
 
-    return `${header}.${body}.${signature}`;
-  }
-
-  private verify(token: string, secret: string): TokenPayload {
-    const parts = token.split('.');
-
-    if (parts.length !== 3) {
       throw new UnauthorizedException('Invalid token.');
     }
+  }
 
-    const [header, body, signature] = parts;
-    const expectedSignature = this.createSignature(`${header}.${body}`, secret);
+  private getRequiredEnv(name: string): string {
+    const value = process.env[name];
 
-    if (!this.isEqual(signature, expectedSignature)) {
-      throw new UnauthorizedException('Invalid token.');
+    if (!value) {
+      throw new InternalServerErrorException(`${name} is not configured.`);
     }
 
-    const payload = JSON.parse(
-      Buffer.from(body, 'base64url').toString('utf8'),
-    ) as TokenPayload;
-
-    if (payload.exp <= Math.floor(Date.now() / 1000)) {
-      throw new UnauthorizedException('Expired token.');
-    }
-
-    return payload;
-  }
-
-  private createSignature(value: string, secret: string): string {
-    return createHmac('sha256', secret).update(value).digest('base64url');
-  }
-
-  private base64UrlEncode(value: unknown): string {
-    return Buffer.from(JSON.stringify(value)).toString('base64url');
-  }
-
-  private isEqual(left: string, right: string): boolean {
-    const leftBuffer = Buffer.from(left);
-    const rightBuffer = Buffer.from(right);
-
-    return (
-      leftBuffer.length === rightBuffer.length &&
-      timingSafeEqual(leftBuffer, rightBuffer)
-    );
+    return value;
   }
 
   private getDurationSeconds(value: string): number {
@@ -145,13 +116,7 @@ export class AuthTokenService {
     return amount * multipliers[unit];
   }
 
-  private getRequiredEnv(name: string): string {
-    const value = process.env[name];
-
-    if (!value) {
-      throw new InternalServerErrorException(`${name} is not configured.`);
-    }
-
-    return value;
+  private isTokenExpiredError(error: unknown): boolean {
+    return error instanceof Error && error.name === 'TokenExpiredError';
   }
 }
