@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   UnauthorizedException,
@@ -78,7 +79,7 @@ export class AuthService {
       const payload = this.authTokenService.verifyRefreshToken(refreshToken);
       const user = await this.authRepository.findUserById(payload.sub);
 
-      return user !== null;
+      return user !== null && user !== undefined;
     } catch (error) {
       if (error instanceof UnauthorizedException) {
         return false;
@@ -136,6 +137,10 @@ export class AuthService {
 
   private getNicknameCandidates(profile: KakaoUserProfile): string[] {
     const baseNickname = profile.nickname.trim();
+
+    if (!baseNickname) {
+      throw new BadRequestException('Kakao nickname is required.');
+    }
 
     return [
       baseNickname,

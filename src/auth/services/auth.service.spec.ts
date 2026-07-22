@@ -1,6 +1,10 @@
 /// <reference types="jest" />
 
-import { ConflictException, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { AuthRepository } from '../repositories/auth.repository';
 import { AuthService } from './auth.service';
@@ -206,6 +210,18 @@ describe('AuthService', () => {
     ).rejects.toThrow(ConflictException);
   });
 
+  it('rejects Kakao login when nickname is blank', async () => {
+    mockAuthRepository.findUserByProvider.mockResolvedValue(null);
+
+    await expect(
+      service.loginWithKakao({
+        providerId: '123',
+        email: 'user@example.com',
+        nickname: '   ',
+      }),
+    ).rejects.toThrow(BadRequestException);
+  });
+
   it('returns the current user from an access token', async () => {
     const user = {
       id: 'user-id',
@@ -280,6 +296,15 @@ describe('AuthService', () => {
     await expect(service.hasAuthenticatedSession(undefined)).resolves.toBe(
       false,
     );
+  });
+
+  it('returns false when a refresh token user does not exist', async () => {
+    mockAuthTokenService.verifyRefreshToken.mockReturnValue({ sub: 'user-id' });
+    mockAuthRepository.findUserById.mockResolvedValue(undefined);
+
+    await expect(
+      service.hasAuthenticatedSession('refresh-token'),
+    ).resolves.toBe(false);
   });
 
   it('returns false when session refresh token is invalid', async () => {
