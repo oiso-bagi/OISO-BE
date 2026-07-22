@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
-interface TokenPayload {
+export interface TokenPayload {
   sub: string;
   provider: string;
   type: 'access' | 'refresh';
@@ -52,6 +52,19 @@ export class AuthTokenService {
     return payload;
   }
 
+  verifyRefreshToken(token: string): TokenPayload {
+    const payload = this.verify(
+      token,
+      this.getRequiredEnv('JWT_REFRESH_SECRET'),
+    );
+
+    if (payload.type !== 'refresh') {
+      throw new UnauthorizedException('Invalid refresh token.');
+    }
+
+    return payload;
+  }
+
   private sign(
     payload: Omit<TokenPayload, 'iat' | 'exp'>,
     secret: string,
@@ -74,14 +87,14 @@ export class AuthTokenService {
     const parts = token.split('.');
 
     if (parts.length !== 3) {
-      throw new UnauthorizedException('Invalid access token.');
+      throw new UnauthorizedException('Invalid token.');
     }
 
     const [header, body, signature] = parts;
     const expectedSignature = this.createSignature(`${header}.${body}`, secret);
 
     if (!this.isEqual(signature, expectedSignature)) {
-      throw new UnauthorizedException('Invalid access token.');
+      throw new UnauthorizedException('Invalid token.');
     }
 
     const payload = JSON.parse(
@@ -89,7 +102,7 @@ export class AuthTokenService {
     ) as TokenPayload;
 
     if (payload.exp <= Math.floor(Date.now() / 1000)) {
-      throw new UnauthorizedException('Expired access token.');
+      throw new UnauthorizedException('Expired token.');
     }
 
     return payload;

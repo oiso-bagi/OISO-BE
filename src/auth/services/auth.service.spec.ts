@@ -17,6 +17,7 @@ describe('AuthService', () => {
     issueAccessToken: jest.fn(),
     issueRefreshToken: jest.fn(),
     verifyAccessToken: jest.fn(),
+    verifyRefreshToken: jest.fn(),
   };
   let service: AuthService;
 
@@ -50,7 +51,6 @@ describe('AuthService', () => {
     ).resolves.toEqual({
       user,
       tokens: {
-        accessToken: 'access-token',
         refreshToken: 'refresh-token',
       },
     });
@@ -101,6 +101,28 @@ describe('AuthService', () => {
 
   it('rejects requests without an access token', async () => {
     await expect(service.getCurrentUser(undefined)).rejects.toThrow(
+      UnauthorizedException,
+    );
+  });
+
+  it('refreshes access tokens from a refresh token', async () => {
+    const user = {
+      id: 'user-id',
+      email: 'user@example.com',
+      nickname: 'user',
+      provider: 'kakao',
+    };
+    mockAuthTokenService.verifyRefreshToken.mockReturnValue({ sub: 'user-id' });
+    mockAuthRepository.findUserById.mockResolvedValue(user);
+    mockAuthTokenService.issueAccessToken.mockReturnValue('new-access-token');
+
+    await expect(service.refreshAccessToken('refresh-token')).resolves.toBe(
+      'new-access-token',
+    );
+  });
+
+  it('rejects refresh requests without a refresh token', async () => {
+    await expect(service.refreshAccessToken(undefined)).rejects.toThrow(
       UnauthorizedException,
     );
   });

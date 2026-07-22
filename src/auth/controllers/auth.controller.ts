@@ -2,6 +2,8 @@ import {
   BadRequestException,
   Controller,
   Get,
+  HttpCode,
+  Post,
   Query,
   Req,
   Res,
@@ -13,6 +15,7 @@ import {
   OAUTH_STATE_COOKIE,
   REFRESH_TOKEN_COOKIE,
 } from '../auth.constants';
+import { AuthTokenResponseDto } from '../dto/auth-token-response.dto';
 import { CurrentUserResponseDto } from '../dto/current-user-response.dto';
 import { AuthService } from '../services/auth.service';
 import { KakaoAuthService } from '../services/kakao-auth.service';
@@ -59,12 +62,15 @@ export class AuthController {
       const kakaoProfile = await this.kakaoAuthService.getUserProfile(code);
       const { tokens } = await this.authService.loginWithKakao(kakaoProfile);
 
-      this.setAuthCookies(response, tokens.accessToken, tokens.refreshToken);
+      this.setRefreshTokenCookie(response, tokens.refreshToken);
+      response.clearCookie(ACCESS_TOKEN_COOKIE, this.getBaseCookieOptions());
       response.clearCookie(OAUTH_STATE_COOKIE, this.getBaseCookieOptions());
       response.redirect(this.getSuccessRedirectUrl());
-    } catch {
+    } catch (error) {
       response.clearCookie(OAUTH_STATE_COOKIE, this.getBaseCookieOptions());
-      response.redirect(this.getFailureRedirectUrl());
+      response.redirect(
+        this.getFailureRedirectUrl(this.getFailureReason(error)),
+      );
     }
   }
 
@@ -74,23 +80,37 @@ export class AuthController {
   ): Promise<CurrentUserResponseDto> {
     const cookies = this.parseCookies(request);
     const user = await this.authService.getCurrentUser(
-      cookies[ACCESS_TOKEN_COOKIE],
+      this.getBearerToken(request) ?? cookies[ACCESS_TOKEN_COOKIE],
     );
 
     return CurrentUserResponseDto.from(user);
   }
 
-  private setAuthCookies(
+  @Post('auth/refresh')
+  @HttpCode(200)
+  async refreshAccessToken(
+    @Req() request: Request,
+  ): Promise<AuthTokenResponseDto> {
+    const cookies = this.parseCookies(request);
+    const accessToken = await this.authService.refreshAccessToken(
+      cookies[REFRESH_TOKEN_COOKIE],
+    );
+
+    return AuthTokenResponseDto.from(accessToken);
+  }
+
+  @Post('auth/logout')
+  @HttpCode(204)
+  logout(@Res() response: Response): void {
+    response.clearCookie(ACCESS_TOKEN_COOKIE, this.getBaseCookieOptions());
+    response.clearCookie(REFRESH_TOKEN_COOKIE, this.getBaseCookieOptions());
+    response.send();
+  }
+
+  private setRefreshTokenCookie(
     response: Response,
-    accessToken: string,
     refreshToken: string,
   ): void {
-    response.cookie(ACCESS_TOKEN_COOKIE, accessToken, {
-      ...this.getBaseCookieOptions(),
-      maxAge: this.getDurationMilliseconds(
-        process.env.JWT_ACCESS_EXPIRES_IN ?? '15m',
-      ),
-    });
     response.cookie(REFRESH_TOKEN_COOKIE, refreshToken, {
       ...this.getBaseCookieOptions(),
       maxAge: this.getDurationMilliseconds(
@@ -116,6 +136,16 @@ export class AuthController {
       leftBuffer.length === rightBuffer.length &&
       timingSafeEqual(leftBuffer, rightBuffer)
     );
+  }
+
+  private getBearerToken(request: Request): string | undefined {
+    const authorization = request.headers.authorization;
+
+    if (!authorization?.startsWith('Bearer ')) {
+      return undefined;
+    }
+
+    return authorization.slice('Bearer '.length).trim();
   }
 
   private parseCookies(request: Request): Record<string, string> {
@@ -179,10 +209,61 @@ export class AuthController {
     );
   }
 
-  private getFailureRedirectUrl(): string {
-    return (
+  private getFailureRedirectUrl(reason?: string): string {
+    const fallbackUrl =
       process.env.FRONTEND_AUTH_FAILURE_REDIRECT ??
-      'http://localhost:5173/login?error=kakao_auth_failed'
-    );
+      'http://localhost:5173/login?error=kakao_auth_failed';
+
+    if (!reason) {
+      return fallbackUrl;
+    }
+
+    const url = new URL(fallbackUrl);
+
+    url.searchParams.set('reason', reason);
+
+    return url.toString();
+  }
+
+  private getFailureReason(error: unknown): string {
+    if (error instanceof BadRequestException) {
+      const response = error.getResponse();
+      const message =
+        typeof response === 'object' &&
+        response !== null &&
+        'message' in response
+          ? String(response.message)
+          : error.message;
+
+      if (message.includes('canceled')) {
+        return 'kakao_canceled';
+      }
+
+      if (message.includes('authorization code')) {
+        return 'missing_code';
+      }
+
+      if (message.includes('OAuth state')) {
+        return 'invalid_state';
+      }
+
+      if (message.includes('exchange Kakao')) {
+        return 'token_exchange_failed';
+      }
+
+      if (message.includes('fetch Kakao')) {
+        return 'profile_fetch_failed';
+      }
+
+      if (message.includes('email')) {
+        return 'email_required';
+      }
+
+      if (message.includes('nickname')) {
+        return 'nickname_required';
+      }
+    }
+
+    return 'server_error';
   }
 }

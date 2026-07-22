@@ -46,6 +46,26 @@ describe('AuthTokenService', () => {
     );
   });
 
+  it('issues and verifies refresh tokens', () => {
+    const token = service.issueRefreshToken('user-id', 'kakao');
+
+    expect(service.verifyRefreshToken(token)).toEqual(
+      expect.objectContaining({
+        sub: 'user-id',
+        provider: 'kakao',
+        type: 'refresh',
+      }),
+    );
+  });
+
+  it('rejects access tokens when verifying a refresh token', () => {
+    const token = service.issueAccessToken('user-id', 'kakao');
+
+    expect(() => service.verifyRefreshToken(token)).toThrow(
+      UnauthorizedException,
+    );
+  });
+
   it('requires access token secret config', () => {
     delete process.env.JWT_ACCESS_SECRET;
 

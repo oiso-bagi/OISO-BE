@@ -1,10 +1,10 @@
 import { User } from '@prisma/client';
 
 export class CurrentUserResponseDto {
-  id: string;
-  email: string;
-  nickname: string;
-  provider: string;
+  id!: string;
+  email!: string;
+  nickname!: string;
+  provider!: string;
 
   static from(user: User): CurrentUserResponseDto {
     return {

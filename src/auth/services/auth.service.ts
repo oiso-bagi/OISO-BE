@@ -5,7 +5,6 @@ import { AuthTokenService } from './auth-token.service';
 import { KakaoUserProfile } from '../types/kakao-auth.types';
 
 export interface AuthTokens {
-  accessToken: string;
   refreshToken: string;
 }
 
@@ -52,12 +51,23 @@ export class AuthService {
     return user;
   }
 
+  async refreshAccessToken(refreshToken: string | undefined): Promise<string> {
+    if (!refreshToken) {
+      throw new UnauthorizedException('Refresh token is required.');
+    }
+
+    const payload = this.authTokenService.verifyRefreshToken(refreshToken);
+    const user = await this.authRepository.findUserById(payload.sub);
+
+    if (!user) {
+      throw new UnauthorizedException('Authenticated user was not found.');
+    }
+
+    return this.authTokenService.issueAccessToken(user.id, user.provider);
+  }
+
   private issueTokens(user: User): AuthTokens {
     return {
-      accessToken: this.authTokenService.issueAccessToken(
-        user.id,
-        user.provider,
-      ),
       refreshToken: this.authTokenService.issueRefreshToken(
         user.id,
         user.provider,

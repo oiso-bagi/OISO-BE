@@ -16,6 +16,7 @@ export class KakaoAuthService {
       client_id: this.getRequiredEnv('KAKAO_REST_API_KEY'),
       redirect_uri: this.getRequiredEnv('KAKAO_REDIRECT_URI'),
       response_type: 'code',
+      scope: process.env.KAKAO_AUTH_SCOPES ?? 'account_email,profile_nickname',
       state,
     });
 
