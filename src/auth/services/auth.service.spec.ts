@@ -1,3 +1,5 @@
+/// <reference types="jest" />
+
 import { UnauthorizedException } from '@nestjs/common';
 import { AuthRepository } from '../repositories/auth.repository';
 import { AuthService } from './auth.service';
