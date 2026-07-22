@@ -44,7 +44,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Install Puppeteer Browsers
-        run: npx puppeteer browsers install chrome-headless-shell
+        run: pnpm dlx puppeteer browsers install chrome-headless-shell
 
       - name: Validate Prisma schema
         run: pnpm run prisma:validate
