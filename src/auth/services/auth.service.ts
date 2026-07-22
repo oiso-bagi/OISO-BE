@@ -24,6 +24,8 @@ export class AuthService {
     user: User;
     tokens: AuthTokens;
   }> {
+    this.getNormalizedNickname(profile.nickname);
+
     const existingUser = await this.authRepository.findUserByProvider(
       'kakao',
       profile.providerId,
@@ -136,11 +138,7 @@ export class AuthService {
   }
 
   private getNicknameCandidates(profile: KakaoUserProfile): string[] {
-    const baseNickname = profile.nickname.trim();
-
-    if (!baseNickname) {
-      throw new BadRequestException('Kakao nickname is required.');
-    }
+    const baseNickname = this.getNormalizedNickname(profile.nickname);
 
     return [
       baseNickname,
@@ -149,6 +147,16 @@ export class AuthService {
       `${baseNickname}_${profile.providerId}_2`,
       `${baseNickname}_${profile.providerId}_3`,
     ];
+  }
+
+  private getNormalizedNickname(nickname: string): string {
+    const baseNickname = nickname.trim();
+
+    if (!baseNickname) {
+      throw new BadRequestException('Kakao nickname is required.');
+    }
+
+    return baseNickname;
   }
 
   private isUniqueConstraintError(error: unknown): boolean {

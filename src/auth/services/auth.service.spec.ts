@@ -222,6 +222,22 @@ describe('AuthService', () => {
     ).rejects.toThrow(BadRequestException);
   });
 
+  it('rejects existing Kakao relogin when nickname is blank', async () => {
+    mockAuthRepository.findUserByProvider.mockResolvedValue({
+      id: 'user-id',
+      provider: 'kakao',
+    });
+
+    await expect(
+      service.loginWithKakao({
+        providerId: '123',
+        email: 'user@example.com',
+        nickname: '   ',
+      }),
+    ).rejects.toThrow(BadRequestException);
+    expect(mockAuthRepository.findUserByProvider).not.toHaveBeenCalled();
+  });
+
   it('returns the current user from an access token', async () => {
     const user = {
       id: 'user-id',
