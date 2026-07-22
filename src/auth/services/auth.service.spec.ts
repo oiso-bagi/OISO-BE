@@ -126,6 +126,44 @@ describe('AuthService', () => {
     );
   });
 
+  it('retries user creation with provider suffix when nickname collides', async () => {
+    const user = {
+      id: 'user-id',
+      email: 'user@example.com',
+      nickname: 'user_123',
+      provider: 'kakao',
+    };
+    mockAuthRepository.findUserByProvider
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null);
+    mockAuthRepository.findUserByNickname.mockResolvedValue(null);
+    mockAuthRepository.createKakaoUser
+      .mockRejectedValueOnce(
+        new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+          code: 'P2002',
+          clientVersion: '5.22.0',
+        }),
+      )
+      .mockResolvedValueOnce(user);
+
+    await expect(
+      service.loginWithKakao({
+        providerId: '123',
+        email: 'user@example.com',
+        nickname: 'user',
+      }),
+    ).resolves.toEqual({
+      user,
+      tokens: {
+        refreshToken: 'refresh-token',
+      },
+    });
+    expect(mockAuthRepository.createKakaoUser).toHaveBeenLastCalledWith(
+      expect.objectContaining({ providerId: '123' }),
+      'user_123',
+    );
+  });
+
   it('returns the current user from an access token', async () => {
     const user = {
       id: 'user-id',

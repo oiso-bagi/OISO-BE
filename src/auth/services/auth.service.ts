@@ -112,7 +112,7 @@ export class AuthService {
       );
 
       if (!existingUser) {
-        throw error;
+        return this.retryCreateKakaoUserWithProviderSuffix(profile);
       }
 
       return this.authRepository.updateKakaoUser(existingUser.id, profile);
@@ -130,6 +130,15 @@ export class AuthService {
     }
 
     return `${baseNickname}_${profile.providerId}`;
+  }
+
+  private retryCreateKakaoUserWithProviderSuffix(
+    profile: KakaoUserProfile,
+  ): Promise<User> {
+    return this.authRepository.createKakaoUser(
+      profile,
+      `${profile.nickname.trim()}_${profile.providerId}`,
+    );
   }
 
   private isUniqueConstraintError(error: unknown): boolean {

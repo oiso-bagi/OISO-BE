@@ -46,9 +46,9 @@ export class AuthController {
 
   @Get('auth/kakao/callback')
   async handleKakaoCallback(
-    @Query('code') code: string | undefined,
-    @Query('state') state: string | undefined,
-    @Query('error') error: string | undefined,
+    @Query('code') code: unknown,
+    @Query('state') state: unknown,
+    @Query('error') error: unknown,
     @Req() request: Request,
     @Res() response: Response,
   ): Promise<void> {
@@ -57,18 +57,24 @@ export class AuthController {
         throw new BadRequestException('Kakao login was canceled.');
       }
 
-      if (!code || code.trim().length === 0) {
-        throw new BadRequestException('Kakao authorization code is required.');
-      }
+      const validatedCode = this.getRequiredQueryString(
+        code,
+        'Kakao authorization code is required.',
+      );
+      const validatedState = this.getRequiredQueryString(
+        state,
+        'Kakao OAuth state is required.',
+      );
 
       const cookies = this.authCookieService.parseCookies(request);
 
       this.authCookieService.validateOAuthState(
-        state,
+        validatedState,
         cookies[OAUTH_STATE_COOKIE],
       );
 
-      const kakaoProfile = await this.kakaoAuthService.getUserProfile(code);
+      const kakaoProfile =
+        await this.kakaoAuthService.getUserProfile(validatedCode);
       const { tokens } = await this.authService.loginWithKakao(kakaoProfile);
 
       this.setRefreshTokenCookie(response, tokens.refreshToken);
@@ -155,5 +161,13 @@ export class AuthController {
         process.env.JWT_REFRESH_EXPIRES_IN ?? '14d',
       ),
     });
+  }
+
+  private getRequiredQueryString(value: unknown, message: string): string {
+    if (typeof value !== 'string' || value.trim().length === 0) {
+      throw new BadRequestException(message);
+    }
+
+    return value.trim();
   }
 }
