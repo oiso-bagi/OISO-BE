@@ -1,4 +1,8 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { Prisma, User } from '@prisma/client';
 import { AuthRepository } from '../repositories/auth.repository';
 import { AuthTokenService } from './auth-token.service';
@@ -96,49 +100,50 @@ export class AuthService {
   private async createKakaoUserHandlingRace(
     profile: KakaoUserProfile,
   ): Promise<User> {
-    try {
-      return await this.authRepository.createKakaoUser(
-        profile,
-        await this.createAvailableNickname(profile),
-      );
-    } catch (error) {
-      if (!this.isUniqueConstraintError(error)) {
-        throw error;
-      }
-
-      const existingUser = await this.authRepository.findUserByProvider(
-        'kakao',
-        profile.providerId,
-      );
-
-      if (!existingUser) {
-        return this.retryCreateKakaoUserWithProviderSuffix(profile);
-      }
-
-      return this.authRepository.updateKakaoUser(existingUser.id, profile);
-    }
+    return this.createKakaoUserWithAvailableNickname(profile);
   }
 
-  private async createAvailableNickname(
-    profile: KakaoUserProfile,
-  ): Promise<string> {
-    const baseNickname = profile.nickname.trim();
-    const existing = await this.authRepository.findUserByNickname(baseNickname);
-
-    if (!existing) {
-      return baseNickname;
-    }
-
-    return `${baseNickname}_${profile.providerId}`;
-  }
-
-  private retryCreateKakaoUserWithProviderSuffix(
+  private async createKakaoUserWithAvailableNickname(
     profile: KakaoUserProfile,
   ): Promise<User> {
-    return this.authRepository.createKakaoUser(
-      profile,
-      `${profile.nickname.trim()}_${profile.providerId}`,
-    );
+    for (const nickname of this.getNicknameCandidates(profile)) {
+      const existing = await this.authRepository.findUserByNickname(nickname);
+
+      if (existing) {
+        continue;
+      }
+
+      try {
+        return await this.authRepository.createKakaoUser(profile, nickname);
+      } catch (error) {
+        if (!this.isUniqueConstraintError(error)) {
+          throw error;
+        }
+
+        const existingUser = await this.authRepository.findUserByProvider(
+          'kakao',
+          profile.providerId,
+        );
+
+        if (existingUser) {
+          return this.authRepository.updateKakaoUser(existingUser.id, profile);
+        }
+      }
+    }
+
+    throw new ConflictException('Available Kakao nickname was not found.');
+  }
+
+  private getNicknameCandidates(profile: KakaoUserProfile): string[] {
+    const baseNickname = profile.nickname.trim();
+
+    return [
+      baseNickname,
+      `${baseNickname}_${profile.providerId}`,
+      `${baseNickname}_${profile.providerId}_1`,
+      `${baseNickname}_${profile.providerId}_2`,
+      `${baseNickname}_${profile.providerId}_3`,
+    ];
   }
 
   private isUniqueConstraintError(error: unknown): boolean {

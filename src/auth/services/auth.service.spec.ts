@@ -1,6 +1,6 @@
 /// <reference types="jest" />
 
-import { UnauthorizedException } from '@nestjs/common';
+import { ConflictException, UnauthorizedException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { AuthRepository } from '../repositories/auth.repository';
 import { AuthService } from './auth.service';
@@ -126,17 +126,17 @@ describe('AuthService', () => {
     );
   });
 
-  it('retries user creation with provider suffix when nickname collides', async () => {
+  it('creates a Kakao user with provider suffix when base nickname creation collides', async () => {
     const user = {
       id: 'user-id',
       email: 'user@example.com',
       nickname: 'user_123',
       provider: 'kakao',
     };
-    mockAuthRepository.findUserByProvider
+    mockAuthRepository.findUserByProvider.mockResolvedValue(null);
+    mockAuthRepository.findUserByNickname
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce(null);
-    mockAuthRepository.findUserByNickname.mockResolvedValue(null);
     mockAuthRepository.createKakaoUser
       .mockRejectedValueOnce(
         new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
@@ -158,10 +158,52 @@ describe('AuthService', () => {
         refreshToken: 'refresh-token',
       },
     });
-    expect(mockAuthRepository.createKakaoUser).toHaveBeenLastCalledWith(
-      expect.objectContaining({ providerId: '123' }),
-      'user_123',
-    );
+  });
+
+  it('tries the next candidate when provider suffix nickname also collides', async () => {
+    const user = {
+      id: 'user-id',
+      email: 'user@example.com',
+      nickname: 'user_123_1',
+      provider: 'kakao',
+    };
+    mockAuthRepository.findUserByProvider.mockResolvedValue(null);
+    mockAuthRepository.findUserByNickname
+      .mockResolvedValueOnce({ id: 'existing-user-id' })
+      .mockResolvedValueOnce({
+        id: 'existing-suffix-user-id',
+        nickname: 'user_123',
+      })
+      .mockResolvedValueOnce(null);
+    mockAuthRepository.createKakaoUser.mockResolvedValue(user);
+
+    await expect(
+      service.loginWithKakao({
+        providerId: '123',
+        email: 'user@example.com',
+        nickname: 'user',
+      }),
+    ).resolves.toEqual({
+      user,
+      tokens: {
+        refreshToken: 'refresh-token',
+      },
+    });
+  });
+
+  it('throws a clear error when no nickname candidate succeeds', async () => {
+    mockAuthRepository.findUserByProvider.mockResolvedValue(null);
+    mockAuthRepository.findUserByNickname.mockResolvedValue({
+      id: 'existing-user-id',
+    });
+
+    await expect(
+      service.loginWithKakao({
+        providerId: '123',
+        email: 'user@example.com',
+        nickname: 'user',
+      }),
+    ).rejects.toThrow(ConflictException);
   });
 
   it('returns the current user from an access token', async () => {
