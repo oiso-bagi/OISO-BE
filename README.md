@@ -88,8 +88,10 @@ With Mau, you can deploy your application in just a few clicks, allowing you to 
 #### 1. 패키지 설치
 
 ```bash
-npm install
+pnpm install
 ```
+
+(💡 참고: pnpm install 완료 시 설정해 둔 스크립트에 의해 prisma generate가 자동 실행됩니다.)
 
 #### 2. 환경 변수 세팅
 
@@ -106,13 +108,13 @@ docker compose up -d
 #### 4. Prisma DB 스키마 마이그레이션 (테이블 생성)
 
 ```Bash
-npx prisma migrate deploy
+pnpm prisma migrate deploy
 ```
 
 #### 5. Prisma Studio (GUI 관리자 화면) 실행
 
 ```Bash
-npx prisma studio
+pnpm prisma studio
 ```
 
 브라우저가 열리며 http://localhost:5555에서 생성된 테이블과 데이터를 시각적으로 확인할 수 있습니다.
