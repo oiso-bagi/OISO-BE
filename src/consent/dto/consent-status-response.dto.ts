@@ -26,8 +26,8 @@ export class ConsentStatusResponseDto {
       revokedAt: consent.revokedAt,
     }));
 
-    const hasCompletedRequiredConsents = REQUIRED_CONSENT_TYPES.every((type) =>
-      items.some((item) => item.type === type && item.isAgreed),
+    const hasCompletedRequiredConsents = REQUIRED_CONSENT_TYPES.every(
+      (type) => getLatestConsentByType(items, type)?.isAgreed === true,
     );
 
     return {
@@ -35,4 +35,20 @@ export class ConsentStatusResponseDto {
       consents: items,
     };
   }
+}
+
+/// 특정 약관 유형에 대해 가장 최근에 생성된(=최신 버전) 동의 이력을 반환합니다.
+/// (agreedAt은 최초 upsert 시점에 고정되므로 버전 최신성을 나타내는 기준으로 사용합니다.)
+function getLatestConsentByType(
+  items: ConsentItemResponse[],
+  type: ConsentType,
+): ConsentItemResponse | undefined {
+  return items
+    .filter((item) => item.type === type)
+    .reduce<ConsentItemResponse | undefined>((latest, item) => {
+      if (!latest || item.agreedAt.getTime() > latest.agreedAt.getTime()) {
+        return item;
+      }
+      return latest;
+    }, undefined);
 }

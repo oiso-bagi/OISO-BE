@@ -125,6 +125,48 @@ describe('ConsentService', () => {
     expect(mockConsentRepository.upsertMany).not.toHaveBeenCalled();
   });
 
+  it('returns hasCompletedRequiredConsents false when the only agreed record for a required type is an outdated version', async () => {
+    mockConsentRepository.findAllByUserId.mockResolvedValue([
+      {
+        ...baseConsentRow('TERMS', 'REQUIRED', true),
+        version: 'v1.0.0',
+        agreedAt: new Date('2026-01-01T00:00:00.000Z'),
+      },
+      {
+        ...baseConsentRow('TERMS', 'REQUIRED', false),
+        version: 'v2.0.0',
+        agreedAt: new Date('2026-07-01T00:00:00.000Z'),
+      },
+      baseConsentRow('PRIVACY', 'REQUIRED', true),
+      baseConsentRow('AGE', 'REQUIRED', true),
+    ]);
+
+    await expect(service.getConsentStatus('user-id')).resolves.toEqual(
+      expect.objectContaining({ hasCompletedRequiredConsents: false }),
+    );
+  });
+
+  it('returns hasCompletedRequiredConsents true when the latest version of each required type is agreed, even if an older version was not', async () => {
+    mockConsentRepository.findAllByUserId.mockResolvedValue([
+      {
+        ...baseConsentRow('TERMS', 'REQUIRED', false),
+        version: 'v1.0.0',
+        agreedAt: new Date('2026-01-01T00:00:00.000Z'),
+      },
+      {
+        ...baseConsentRow('TERMS', 'REQUIRED', true),
+        version: 'v2.0.0',
+        agreedAt: new Date('2026-07-01T00:00:00.000Z'),
+      },
+      baseConsentRow('PRIVACY', 'REQUIRED', true),
+      baseConsentRow('AGE', 'REQUIRED', true),
+    ]);
+
+    await expect(service.getConsentStatus('user-id')).resolves.toEqual(
+      expect.objectContaining({ hasCompletedRequiredConsents: true }),
+    );
+  });
+
   it('rejects submission when a consent flag is not a boolean', async () => {
     await expect(
       service.submitConsents('user-id', {
