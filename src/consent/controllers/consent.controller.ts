@@ -1,45 +1,34 @@
-import { Body, Controller, Get, HttpCode, Post, Req } from '@nestjs/common';
-import type { Request } from 'express';
-import { User } from '@prisma/client';
-import { ACCESS_TOKEN_COOKIE } from '@/auth/auth.constants';
-import { AuthCookieService } from '@/auth/services/auth-cookie.service';
-import { AuthService } from '@/auth/services/auth.service';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
+import type { User } from '@prisma/client';
+import { CurrentUser } from '@/common/decorators/current-user.decorator';
+import { AuthGuard } from '@/common/guards/auth.guard';
 import { ConsentService } from '@/consent/services/consent.service';
 import { ConsentStatusResponseDto } from '@/consent/dto/consent-status-response.dto';
 import { SubmitConsentRequestDto } from '@/consent/dto/submit-consent-request.dto';
 
 @Controller('api/v1/consents')
+@UseGuards(AuthGuard)
 export class ConsentController {
-  constructor(
-    private readonly consentService: ConsentService,
-    private readonly authService: AuthService,
-    private readonly authCookieService: AuthCookieService,
-  ) {}
+  constructor(private readonly consentService: ConsentService) {}
 
   @Get()
-  async getStatus(@Req() request: Request): Promise<ConsentStatusResponseDto> {
-    const user = await this.getAuthenticatedUser(request);
-
+  getStatus(@CurrentUser() user: User): Promise<ConsentStatusResponseDto> {
     return this.consentService.getConsentStatus(user.id);
   }
 
   @Post()
   @HttpCode(200)
-  async submit(
-    @Req() request: Request,
+  submit(
+    @CurrentUser() user: User,
     @Body() body: SubmitConsentRequestDto,
   ): Promise<ConsentStatusResponseDto> {
-    const user = await this.getAuthenticatedUser(request);
-
     return this.consentService.submitConsents(user.id, body);
-  }
-
-  private async getAuthenticatedUser(request: Request): Promise<User> {
-    const cookies = this.authCookieService.parseCookies(request);
-
-    return this.authService.getCurrentUser(
-      this.authCookieService.getBearerToken(request) ??
-        cookies[ACCESS_TOKEN_COOKIE],
-    );
   }
 }

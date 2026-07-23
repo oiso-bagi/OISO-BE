@@ -8,9 +8,11 @@ import {
   Query,
   Req,
   Res,
+  UseGuards,
 } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
 import type { Request, Response } from 'express';
+import type { User } from '@prisma/client';
 import {
   ACCESS_TOKEN_COOKIE,
   OAUTH_STATE_COOKIE,
@@ -22,6 +24,8 @@ import { CurrentUserResponseDto } from '@/auth/dto/current-user-response.dto';
 import { AuthCookieService } from '@/auth/services/auth-cookie.service';
 import { AuthService } from '@/auth/services/auth.service';
 import { KakaoAuthService } from '@/auth/services/kakao-auth.service';
+import { CurrentUser } from '@/common/decorators/current-user.decorator';
+import { AuthGuard } from '@/common/guards/auth.guard';
 
 @Controller('api/v1')
 export class AuthController {
@@ -102,15 +106,8 @@ export class AuthController {
   }
 
   @Get('me')
-  async getCurrentUser(
-    @Req() request: Request,
-  ): Promise<CurrentUserResponseDto> {
-    const cookies = this.authCookieService.parseCookies(request);
-    const user = await this.authService.getCurrentUser(
-      this.authCookieService.getBearerToken(request) ??
-        cookies[ACCESS_TOKEN_COOKIE],
-    );
-
+  @UseGuards(AuthGuard)
+  getCurrentUser(@CurrentUser() user: User): CurrentUserResponseDto {
     return CurrentUserResponseDto.from(user);
   }
 
