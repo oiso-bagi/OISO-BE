@@ -10,4 +10,7 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   await app.listen(process.env.PORT ?? 3000);
 }
-bootstrap();
+bootstrap().catch((err) => {
+  console.error('NestJS 서버 실행 중 에러', err);
+  process.exit(1);
+});

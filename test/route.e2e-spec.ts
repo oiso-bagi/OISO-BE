@@ -7,6 +7,7 @@ import { RouteService } from '../src/route/route.service';
 describe('RouteController (e2e)', () => {
   let app: INestApplication;
   const routeService = {
+    getRecommendedRouteList: jest.fn(),
     getRecommendedRouteDetail: jest.fn(),
   };
 
@@ -21,11 +22,14 @@ describe('RouteController (e2e)', () => {
   });
 
   beforeEach(() => {
+    routeService.getRecommendedRouteList.mockReset();
     routeService.getRecommendedRouteDetail.mockReset();
   });
 
   afterAll(async () => {
-    await app.close();
+    if (app) {
+      await app.close();
+    }
   });
 
   it('returns 400 for an empty route id', async () => {
@@ -35,6 +39,35 @@ describe('RouteController (e2e)', () => {
     expect(routeService.getRecommendedRouteDetail).not.toHaveBeenCalled();
   });
 
+  it('returns 200 for route list', async () => {
+    const payload = [
+      {
+        id: 'route-1',
+        name: '부산 힐링 루트',
+        stopCount: 2,
+        totalDistanceMeters: 3200,
+        totalDistanceKm: 3.2,
+        transitTypes: ['BUS', 'WALKING'],
+        totalCost: 13000,
+        totalTimeMinutes: 80,
+        congestionLevel: 'MEDIUM',
+        estimatedSavingsWon: 1000,
+        score: 4.7,
+        isRecommended: true,
+        stopLocations: [],
+      },
+    ];
+
+    routeService.getRecommendedRouteList.mockResolvedValue(payload);
+
+    await request(app.getHttpServer())
+      .get('/recommended-routes')
+      .expect(200)
+      .expect(payload);
+
+    expect(routeService.getRecommendedRouteList).toHaveBeenCalledTimes(1);
+  });
+
   it('returns 200 for a valid route id', async () => {
     const payload = {
       routeId: 'route-1',
@@ -42,9 +75,11 @@ describe('RouteController (e2e)', () => {
       stopCount: 1,
       totalDistanceKm: 3.2,
       transportType: 'BUS',
+      congestionLevel: 'MEDIUM',
       savedCost: 1000,
       recommendScore: 4.7,
       isRecommended: true,
+      isSaved: false,
       totalCost: 1000,
       totalTimeMinutes: 30,
       totalTimeDisplay: '30m',
