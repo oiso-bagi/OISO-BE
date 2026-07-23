@@ -1,10 +1,16 @@
 import { BadRequestException, Controller, Get, Param } from '@nestjs/common';
 import { RouteService } from './route.service';
 import { RecommendedRouteDetailResponseDto } from './dto/recommended-route-detail-response.dto';
+import { RecommendedRouteListResponseDto } from './dto/recommended-route-list-response.dto';
 
 @Controller('recommended-routes')
 export class RouteController {
   constructor(private readonly routeService: RouteService) {}
+
+  @Get()
+  async getList(): Promise<RecommendedRouteListResponseDto[]> {
+    return this.routeService.getRecommendedRouteList();
+  }
 
   @Get(':id')
   async getDetail(

@@ -5,10 +5,19 @@ import {
 } from '@nestjs/common';
 import { RouteRepository } from './route.repository';
 import { RecommendedRouteDetailResponseDto } from './dto/recommended-route-detail-response.dto';
+import { RecommendedRouteListResponseDto } from './dto/recommended-route-list-response.dto';
 
 @Injectable()
 export class RouteService {
   constructor(private readonly routeRepository: RouteRepository) {}
+
+  async getRecommendedRouteList(): Promise<RecommendedRouteListResponseDto[]> {
+    const routeRawDataList = await this.routeRepository.findListWithStops();
+
+    return routeRawDataList.map((routeRawData) =>
+      RecommendedRouteListResponseDto.from(routeRawData),
+    );
+  }
 
   async getRecommendedRouteDetail(
     id: string,

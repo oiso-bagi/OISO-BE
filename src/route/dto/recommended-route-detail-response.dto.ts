@@ -1,6 +1,12 @@
-import { Route, RouteStop, Place, TransitType } from '@prisma/client';
+import {
+  Route,
+  RouteStop,
+  Place,
+  TransitType,
+  CongestionLevel,
+} from '@prisma/client';
 
-type RouteStopWithPlace = Partial<RouteStop> & {
+export type RouteStopWithPlace = Partial<RouteStop> & {
   orderIndex?: number | null;
   transitType?: TransitType | null;
   travelMinutesFromPrev?: number | null;
@@ -9,17 +15,18 @@ type RouteStopWithPlace = Partial<RouteStop> & {
   estimatedPriceWon?: number | null;
   place: Partial<Place> | null;
 };
-type RouteWithStops = Partial<Route> & {
+export type RouteWithStops = Partial<Route> & {
   id?: string;
   name?: string;
   totalDistanceMeters?: number | null;
   estimatedSavingsWon?: number | null;
   score?: Route['score'];
   routeType?: Route['routeType'];
+  congestionLevel?: CongestionLevel | null;
   stops?: RouteStopWithPlace[];
 };
 
-type RouteMetrics = {
+export type RouteMetrics = {
   transportType: string;
   totalCost: number;
   totalTimeMinutes: number;
@@ -34,7 +41,7 @@ type RouteMetrics = {
   };
 };
 
-function buildRouteMetrics(stops: RouteStopWithPlace[]): RouteMetrics {
+export function buildRouteMetrics(stops: RouteStopWithPlace[]): RouteMetrics {
   const transportType = stops.some((stop) => stop.transitType)
     ? Array.from(
         new Set(stops.map((stop) => stop.transitType).filter(Boolean)),
@@ -78,6 +85,8 @@ export class RouteStopResponseDto {
   category: string;
   openTime: string | null;
   closeTime: string | null;
+  latitude: number | null;
+  longitude: number | null;
   nextTransportType: TransitType | null;
   nextTravelTimeMinutes: number | null;
 
@@ -90,6 +99,10 @@ export class RouteStopResponseDto {
 
     dto.openTime = stop.place?.openTime ?? null;
     dto.closeTime = stop.place?.closeTime ?? null;
+    dto.latitude =
+      stop.place?.latitude != null ? Number(stop.place.latitude) : null;
+    dto.longitude =
+      stop.place?.longitude != null ? Number(stop.place.longitude) : null;
     dto.nextTransportType = stop.transitType ?? null;
     dto.nextTravelTimeMinutes = stop.travelMinutesFromPrev ?? null;
 
@@ -103,9 +116,11 @@ export class RecommendedRouteDetailResponseDto {
   stopCount: number;
   totalDistanceKm: number;
   transportType: string;
+  congestionLevel: CongestionLevel;
   savedCost: number;
   recommendScore: number;
   isRecommended: boolean;
+  isSaved: boolean;
 
   totalCost: number;
   totalTimeMinutes: number;
@@ -136,10 +151,12 @@ export class RecommendedRouteDetailResponseDto {
         : 0;
     dto.totalDistanceKm = Number((totalDistanceMeters / 1000).toFixed(1));
 
+    dto.congestionLevel = route.congestionLevel ?? CongestionLevel.MEDIUM;
     dto.savedCost = route.estimatedSavingsWon ?? 0;
     const recommendScore = route.score != null ? Number(route.score) : 0;
     dto.recommendScore = Number.isFinite(recommendScore) ? recommendScore : 0;
     dto.isRecommended = route.routeType === 'RECOMMENDED';
+    dto.isSaved = false;
 
     const metrics = buildRouteMetrics(safeStops);
     dto.transportType = metrics.transportType;
