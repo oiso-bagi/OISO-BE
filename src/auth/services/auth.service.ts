@@ -5,9 +5,9 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { Prisma, User } from '@prisma/client';
-import { AuthRepository } from '../repositories/auth.repository';
-import { AuthTokenService } from './auth-token.service';
-import { KakaoUserProfile } from '../types/kakao-auth.types';
+import { AuthRepository } from '@/auth/repositories/auth.repository';
+import { AuthTokenService } from '@/auth/services/auth-token.service';
+import { KakaoUserProfile } from '@/auth/types/kakao-auth.types';
 
 export interface AuthTokens {
   refreshToken: string;

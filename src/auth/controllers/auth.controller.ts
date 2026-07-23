@@ -15,13 +15,13 @@ import {
   ACCESS_TOKEN_COOKIE,
   OAUTH_STATE_COOKIE,
   REFRESH_TOKEN_COOKIE,
-} from '../auth.constants';
-import { AuthSessionResponseDto } from '../dto/auth-session-response.dto';
-import { AuthTokenResponseDto } from '../dto/auth-token-response.dto';
-import { CurrentUserResponseDto } from '../dto/current-user-response.dto';
-import { AuthCookieService } from '../services/auth-cookie.service';
-import { AuthService } from '../services/auth.service';
-import { KakaoAuthService } from '../services/kakao-auth.service';
+} from '@/auth/auth.constants';
+import { AuthSessionResponseDto } from '@/auth/dto/auth-session-response.dto';
+import { AuthTokenResponseDto } from '@/auth/dto/auth-token-response.dto';
+import { CurrentUserResponseDto } from '@/auth/dto/current-user-response.dto';
+import { AuthCookieService } from '@/auth/services/auth-cookie.service';
+import { AuthService } from '@/auth/services/auth.service';
+import { KakaoAuthService } from '@/auth/services/kakao-auth.service';
 
 @Controller('api/v1')
 export class AuthController {
