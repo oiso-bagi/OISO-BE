@@ -98,6 +98,8 @@ model User {
   notificationSetting NotificationSetting?
   consents            UserConsent[]
   tripLogs            RouteTrip[]            
+
+  @@unique([provider, providerId])
 }
 
 /// 장소 도메인: 부산 지역의 주요 관광지, 맛집, 카페 등의 공공데이터 및 메타데이터를 저장합니다.

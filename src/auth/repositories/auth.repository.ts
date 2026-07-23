@@ -19,10 +19,12 @@ export class AuthRepository {
     provider: string,
     providerId: string,
   ): Promise<UserIdOnly | null> {
-    return this.prisma.user.findFirst({
+    return this.prisma.user.findUnique({
       where: {
-        provider,
-        providerId,
+        provider_providerId: {
+          provider,
+          providerId,
+        },
       },
       select: {
         id: true,
