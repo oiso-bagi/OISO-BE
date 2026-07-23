@@ -1,16 +1,25 @@
 import { Injectable } from '@nestjs/common';
 import { UserConsent } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { ConsentItemResponse } from '../dto/consent-status-response.dto';
 import { ConsentRecordInput } from '../types/consent-record.type';
 
 @Injectable()
 export class ConsentRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  findAllByUserId(userId: string): Promise<UserConsent[]> {
+  findAllByUserId(userId: string): Promise<ConsentItemResponse[]> {
     return this.prisma.userConsent.findMany({
       where: { userId },
       orderBy: { type: 'asc' },
+      select: {
+        type: true,
+        scope: true,
+        isAgreed: true,
+        version: true,
+        agreedAt: true,
+        revokedAt: true,
+      },
     });
   }
 
@@ -18,7 +27,7 @@ export class ConsentRepository {
    * 유저의 약관 동의 항목들을 (userId, type, version) 단위로 upsert합니다.
    * 이미 같은 버전에 동의 이력이 있으면 동의 여부만 갱신하고, 철회 시 revokedAt을 기록합니다.
    */
-  async upsertMany(
+  upsertMany(
     userId: string,
     records: ConsentRecordInput[],
   ): Promise<UserConsent[]> {

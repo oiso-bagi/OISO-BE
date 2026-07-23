@@ -16,7 +16,7 @@ export class ConsentStatusResponseDto {
   hasCompletedRequiredConsents!: boolean; /// 필수 약관(이용약관/개인정보/만 14세) 동의 완료 여부
   consents!: ConsentItemResponse[]; /// 유저의 약관별 동의 이력 목록
 
-  static from(consents: UserConsent[]): ConsentStatusResponseDto {
+  static from(consents: ConsentItemResponse[]): ConsentStatusResponseDto {
     const items: ConsentItemResponse[] = consents.map((consent) => ({
       type: consent.type,
       scope: consent.scope,
