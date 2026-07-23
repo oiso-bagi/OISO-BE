@@ -32,7 +32,7 @@ describe('RouteService', () => {
         totalDistanceMeters: 3200,
         estimatedSavingsWon: 1000,
         score: 4.7,
-        routeType: 'SAVED',
+        routeType: 'RECOMMENDED',
         stops: [
           {
             orderIndex: 0,

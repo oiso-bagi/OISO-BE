@@ -5,8 +5,6 @@ import {
   RouteWithStops,
 } from './recommended-route-detail-response.dto';
 
-const RECOMMENDED_SCORE_THRESHOLD = 4.5;
-
 export class RouteStopLocationDto {
   sequence: number;
   placeName: string;
@@ -67,9 +65,7 @@ export class RecommendedRouteListResponseDto {
     dto.estimatedSavingsWon = route.estimatedSavingsWon ?? 0;
     const score = route.score != null ? Number(route.score) : 0;
     dto.score = Number.isFinite(score) ? score : 0;
-    dto.isRecommended =
-      route.routeType === 'RECOMMENDED' ||
-      dto.score >= RECOMMENDED_SCORE_THRESHOLD;
+    dto.isRecommended = route.routeType === 'RECOMMENDED';
 
     dto.stopLocations = safeStops.map((stop) =>
       RouteStopLocationDto.from(stop),

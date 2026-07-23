@@ -53,6 +53,9 @@ export class RouteRepository {
 
   async findListWithStops() {
     return this.prisma.route.findMany({
+      where: {
+        routeType: 'RECOMMENDED',
+      },
       select: routeWithStopsAndPlaceSelect,
     });
   }
