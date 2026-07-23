@@ -65,12 +65,28 @@ describe('RouteService', () => {
         name: '부산 힐링 루트',
         stopCount: 2,
         totalDistanceMeters: 3200,
+        totalDistanceKm: 3.2,
         transitTypes: ['BUS'],
         totalCost: 12500,
         totalTimeMinutes: 80,
+        congestionLevel: 'MEDIUM',
         estimatedSavingsWon: 1000,
         score: 4.7,
         isRecommended: true,
+        stopLocations: [
+          {
+            sequence: 0,
+            placeName: '',
+            latitude: null,
+            longitude: null,
+          },
+          {
+            sequence: 1,
+            placeName: '',
+            latitude: null,
+            longitude: null,
+          },
+        ],
       },
     ]);
     expect(result[0]).not.toHaveProperty('stops');
