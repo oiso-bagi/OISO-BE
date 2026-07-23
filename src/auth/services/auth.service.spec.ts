@@ -6,9 +6,9 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { AuthRepository } from '../repositories/auth.repository';
-import { AuthService } from './auth.service';
-import { AuthTokenService } from './auth-token.service';
+import { AuthRepository } from '@/auth/repositories/auth.repository';
+import { AuthService } from '@/auth/services/auth.service';
+import { AuthTokenService } from '@/auth/services/auth-token.service';
 
 describe('AuthService', () => {
   const mockAuthRepository = {

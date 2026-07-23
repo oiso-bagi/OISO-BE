@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { UserConsent } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
-import { ConsentItemResponse } from '../dto/consent-status-response.dto';
-import { ConsentRecordInput } from '../types/consent-record.type';
+import { PrismaService } from '@/prisma/prisma.service';
+import { ConsentItemResponse } from '@/consent/dto/consent-status-response.dto';
+import { ConsentRecordInput } from '@/consent/types/consent-record.type';
 
 @Injectable()
 export class ConsentRepository {

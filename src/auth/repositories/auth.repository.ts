@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { User } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
-import { KakaoUserProfile } from '../types/kakao-auth.types';
+import { PrismaService } from '@/prisma/prisma.service';
+import { KakaoUserProfile } from '@/auth/types/kakao-auth.types';
 
 export type UserIdOnly = Pick<User, 'id'>;
 

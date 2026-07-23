@@ -1,12 +1,12 @@
 import { Body, Controller, Get, HttpCode, Post, Req } from '@nestjs/common';
 import type { Request } from 'express';
 import { User } from '@prisma/client';
-import { ACCESS_TOKEN_COOKIE } from '../../auth/auth.constants';
-import { AuthCookieService } from '../../auth/services/auth-cookie.service';
-import { AuthService } from '../../auth/services/auth.service';
-import { ConsentService } from '../services/consent.service';
-import { ConsentStatusResponseDto } from '../dto/consent-status-response.dto';
-import { SubmitConsentRequestDto } from '../dto/submit-consent-request.dto';
+import { ACCESS_TOKEN_COOKIE } from '@/auth/auth.constants';
+import { AuthCookieService } from '@/auth/services/auth-cookie.service';
+import { AuthService } from '@/auth/services/auth.service';
+import { ConsentService } from '@/consent/services/consent.service';
+import { ConsentStatusResponseDto } from '@/consent/dto/consent-status-response.dto';
+import { SubmitConsentRequestDto } from '@/consent/dto/submit-consent-request.dto';
 
 @Controller('api/v1/consents')
 export class ConsentController {

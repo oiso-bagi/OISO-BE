@@ -1,11 +1,11 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
-import { AuthController } from './controllers/auth.controller';
-import { AuthRepository } from './repositories/auth.repository';
-import { AuthCookieService } from './services/auth-cookie.service';
-import { AuthService } from './services/auth.service';
-import { AuthTokenService } from './services/auth-token.service';
-import { KakaoAuthService } from './services/kakao-auth.service';
+import { AuthController } from '@/auth/controllers/auth.controller';
+import { AuthRepository } from '@/auth/repositories/auth.repository';
+import { AuthCookieService } from '@/auth/services/auth-cookie.service';
+import { AuthService } from '@/auth/services/auth.service';
+import { AuthTokenService } from '@/auth/services/auth-token.service';
+import { KakaoAuthService } from '@/auth/services/kakao-auth.service';
 
 @Module({
   imports: [JwtModule.register({})],

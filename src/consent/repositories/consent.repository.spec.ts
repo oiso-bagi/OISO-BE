@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { PrismaService } from '../../prisma/prisma.service';
-import { ConsentRepository } from './consent.repository';
+import { PrismaService } from '@/prisma/prisma.service';
+import { ConsentRepository } from '@/consent/repositories/consent.repository';
 
 describe('ConsentRepository', () => {
   let repository: ConsentRepository;

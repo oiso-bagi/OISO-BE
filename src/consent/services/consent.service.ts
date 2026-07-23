@@ -1,9 +1,9 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { ConsentScope, ConsentType } from '@prisma/client';
-import { ConsentRepository } from '../repositories/consent.repository';
-import { ConsentStatusResponseDto } from '../dto/consent-status-response.dto';
-import { SubmitConsentRequestDto } from '../dto/submit-consent-request.dto';
-import { ConsentRecordInput } from '../types/consent-record.type';
+import { ConsentRepository } from '@/consent/repositories/consent.repository';
+import { ConsentStatusResponseDto } from '@/consent/dto/consent-status-response.dto';
+import { SubmitConsentRequestDto } from '@/consent/dto/submit-consent-request.dto';
+import { ConsentRecordInput } from '@/consent/types/consent-record.type';
 
 const CONSENT_SCOPE_BY_TYPE: Record<ConsentType, ConsentScope> = {
   TERMS: 'REQUIRED',

@@ -8,7 +8,7 @@ import {
   KakaoTokenResponse,
   KakaoUserProfile,
   KakaoUserResponse,
-} from '../types/kakao-auth.types';
+} from '@/auth/types/kakao-auth.types';
 
 @Injectable()
 export class KakaoAuthService {

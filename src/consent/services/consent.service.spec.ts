@@ -1,8 +1,8 @@
 /// <reference types="jest" />
 
 import { BadRequestException } from '@nestjs/common';
-import { ConsentRepository } from '../repositories/consent.repository';
-import { ConsentService } from './consent.service';
+import { ConsentRepository } from '@/consent/repositories/consent.repository';
+import { ConsentService } from '@/consent/services/consent.service';
 
 describe('ConsentService', () => {
   const mockConsentRepository = {

@@ -5,7 +5,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { AuthTokenService } from './auth-token.service';
+import { AuthTokenService } from '@/auth/services/auth-token.service';
 
 describe('AuthTokenService', () => {
   let service: AuthTokenService;

@@ -1,10 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import type { Request } from 'express';
-import { ACCESS_TOKEN_COOKIE } from '../../auth/auth.constants';
-import { AuthCookieService } from '../../auth/services/auth-cookie.service';
-import { AuthService } from '../../auth/services/auth.service';
-import { ConsentController } from './consent.controller';
-import { ConsentService } from '../services/consent.service';
+import { ACCESS_TOKEN_COOKIE } from '@/auth/auth.constants';
+import { AuthCookieService } from '@/auth/services/auth-cookie.service';
+import { AuthService } from '@/auth/services/auth.service';
+import { ConsentController } from '@/consent/controllers/consent.controller';
+import { ConsentService } from '@/consent/services/consent.service';
 
 describe('ConsentController', () => {
   let controller: ConsentController;
