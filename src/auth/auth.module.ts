@@ -17,5 +17,6 @@ import { KakaoAuthService } from './services/kakao-auth.service';
     AuthCookieService,
     KakaoAuthService,
   ],
+  exports: [AuthService, AuthCookieService],
 })
 export class AuthModule {}
