@@ -42,3 +42,7 @@ pids/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Antigravity
+.aiexclude
+.agrules
