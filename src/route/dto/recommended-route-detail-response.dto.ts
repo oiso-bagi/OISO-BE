@@ -1,6 +1,6 @@
 import { Route, RouteStop, Place, TransitType } from '@prisma/client';
 
-type RouteStopWithPlace = Partial<RouteStop> & {
+export type RouteStopWithPlace = Partial<RouteStop> & {
   orderIndex?: number | null;
   transitType?: TransitType | null;
   travelMinutesFromPrev?: number | null;
@@ -9,7 +9,7 @@ type RouteStopWithPlace = Partial<RouteStop> & {
   estimatedPriceWon?: number | null;
   place: Partial<Place> | null;
 };
-type RouteWithStops = Partial<Route> & {
+export type RouteWithStops = Partial<Route> & {
   id?: string;
   name?: string;
   totalDistanceMeters?: number | null;
@@ -19,7 +19,7 @@ type RouteWithStops = Partial<Route> & {
   stops?: RouteStopWithPlace[];
 };
 
-type RouteMetrics = {
+export type RouteMetrics = {
   transportType: string;
   totalCost: number;
   totalTimeMinutes: number;
@@ -34,7 +34,7 @@ type RouteMetrics = {
   };
 };
 
-function buildRouteMetrics(stops: RouteStopWithPlace[]): RouteMetrics {
+export function buildRouteMetrics(stops: RouteStopWithPlace[]): RouteMetrics {
   const transportType = stops.some((stop) => stop.transitType)
     ? Array.from(
         new Set(stops.map((stop) => stop.transitType).filter(Boolean)),

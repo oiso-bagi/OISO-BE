@@ -14,6 +14,7 @@ describe('RouteRepository', () => {
           useValue: {
             route: {
               findUnique: jest.fn(),
+              findMany: jest.fn(),
             },
           },
         },
