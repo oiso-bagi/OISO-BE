@@ -1,0 +1,102 @@
+import { Test, TestingModule } from '@nestjs/testing';
+import { SavedRouteService } from './saved-route.service';
+import { SavedRouteRepository } from './saved-route.repository';
+import { SavedRouteRawData } from './dto/saved-route-list-response.dto';
+
+describe('SavedRouteService', () => {
+  let service: SavedRouteService;
+  const mockSavedRouteRepository = {
+    findListByUserId: jest.fn(),
+  };
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        SavedRouteService,
+        { provide: SavedRouteRepository, useValue: mockSavedRouteRepository },
+      ],
+    }).compile();
+
+    service = module.get<SavedRouteService>(SavedRouteService);
+  });
+
+  beforeEach(() => {
+    mockSavedRouteRepository.findListByUserId.mockReset();
+  });
+
+  it('should be defined', () => {
+    expect(service).toBeDefined();
+  });
+
+  it('maps raw saved route items to SavedRouteListResponseDto', async () => {
+    const mockDate = new Date('2026-07-24T10:00:00.000Z');
+    const mockRawDataList: SavedRouteRawData[] = [
+      {
+        savedAt: mockDate,
+        route: {
+          id: 'route-1',
+          name: '부산 해운대 감성 힐링 코스',
+          totalDistanceMeters: 4200,
+          estimatedSavingsWon: 3500,
+          stops: [
+            {
+              orderIndex: 0,
+              transitType: 'BUS',
+              travelMinutesFromPrev: 20,
+              stayMinutes: 30,
+              fareWon: 1500,
+              estimatedPriceWon: 5000,
+              place: null,
+            },
+            {
+              orderIndex: 1,
+              transitType: 'WALKING',
+              travelMinutesFromPrev: 10,
+              stayMinutes: 20,
+              fareWon: 0,
+              estimatedPriceWon: 6000,
+              place: null,
+            },
+          ],
+          tripLogs: [{ isCompleted: true }],
+        },
+      },
+      {
+        savedAt: mockDate,
+        route: {
+          id: 'route-2',
+          name: '부산 감천문화마을 코스',
+          totalDistanceMeters: 5400,
+          estimatedSavingsWon: 5000,
+          stops: [],
+          tripLogs: [],
+        },
+      },
+    ];
+
+    mockSavedRouteRepository.findListByUserId.mockResolvedValue(
+      mockRawDataList,
+    );
+
+    const result = await service.getSavedRouteList('user-1');
+
+    expect(mockSavedRouteRepository.findListByUserId).toHaveBeenCalledWith(
+      'user-1',
+    );
+    expect(result.savedRouteCount).toBe(2);
+    expect(result.totalSavedSavingsWon).toBe(8500);
+    expect(result.savedRoutes[0]).toEqual({
+      routeId: 'route-1',
+      routeName: '부산 해운대 감성 힐링 코스',
+      savedAt: mockDate,
+      isCompleted: true,
+      stopCount: 2,
+      totalDistanceKm: 4.2,
+      transitTypes: ['BUS', 'WALKING'],
+      totalCost: 12500,
+      totalTimeMinutes: 80,
+      estimatedSavingsWon: 3500,
+    });
+    expect(result.savedRoutes[1].isCompleted).toBe(false);
+  });
+});
