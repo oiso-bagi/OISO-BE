@@ -4,6 +4,8 @@ import request from 'supertest';
 import { SavedRouteController } from '../src/route/saved-route.controller';
 import { SavedRouteService } from '../src/route/saved-route.service';
 
+type App = Parameters<typeof request>[0];
+
 describe('SavedRouteController (e2e)', () => {
   let app: INestApplication;
   const savedRouteService = {
@@ -33,7 +35,9 @@ describe('SavedRouteController (e2e)', () => {
   });
 
   it('returns 400 for empty routeId in GET /saved-routes/:routeId', async () => {
-    await request(app.getHttpServer()).get('/saved-routes/%20').expect(400);
+    await request(app.getHttpServer() as App)
+      .get('/saved-routes/%20?userId=user-1')
+      .expect(400);
     expect(savedRouteService.getSavedRouteDetail).not.toHaveBeenCalled();
   });
 
@@ -59,7 +63,7 @@ describe('SavedRouteController (e2e)', () => {
 
     savedRouteService.getSavedRouteList.mockResolvedValue(payload);
 
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as App)
       .get('/saved-routes?userId=user-1')
       .expect(200)
       .expect(payload);
@@ -104,7 +108,7 @@ describe('SavedRouteController (e2e)', () => {
 
     savedRouteService.getSavedRouteDetail.mockResolvedValue(payload);
 
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as App)
       .get('/saved-routes/route-1?userId=user-1')
       .expect(200)
       .expect(payload);

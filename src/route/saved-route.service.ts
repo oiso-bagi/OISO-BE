@@ -29,10 +29,11 @@ export class SavedRouteService {
     userId?: string,
   ): Promise<SavedRouteDetailResponseDto> {
     const normalizedRouteId = this.validateRouteId(routeId);
+    const normalizedUserId = this.validateUserId(userId);
 
     const rawData = await this.savedRouteRepository.findDetailByRouteId(
       normalizedRouteId,
-      userId,
+      normalizedUserId,
     );
 
     if (!rawData) {
@@ -42,5 +43,13 @@ export class SavedRouteService {
     }
 
     return SavedRouteDetailResponseDto.from(rawData);
+  }
+
+  private validateUserId(userId?: string): string {
+    if (typeof userId !== 'string' || userId.trim().length === 0) {
+      throw new BadRequestException('사용자 ID는 비어 있을 수 없습니다.');
+    }
+
+    return userId.trim();
   }
 }

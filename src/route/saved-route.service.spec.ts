@@ -104,7 +104,13 @@ describe('SavedRouteService', () => {
   });
 
   it('throws BadRequestException for invalid routeId', async () => {
-    await expect(service.getSavedRouteDetail('  ')).rejects.toThrow(
+    await expect(service.getSavedRouteDetail('  ', 'user-1')).rejects.toThrow(
+      BadRequestException,
+    );
+  });
+
+  it('throws BadRequestException for invalid userId', async () => {
+    await expect(service.getSavedRouteDetail('route-1', '  ')).rejects.toThrow(
       BadRequestException,
     );
   });
@@ -112,9 +118,9 @@ describe('SavedRouteService', () => {
   it('throws NotFoundException if saved route is not found', async () => {
     mockSavedRouteRepository.findDetailByRouteId.mockResolvedValue(null);
 
-    await expect(service.getSavedRouteDetail('route-999')).rejects.toThrow(
-      NotFoundException,
-    );
+    await expect(
+      service.getSavedRouteDetail('route-999', 'user-1'),
+    ).rejects.toThrow(NotFoundException);
   });
 
   it('returns SavedRouteDetailResponseDto for valid routeId', async () => {
@@ -146,6 +152,22 @@ describe('SavedRouteService', () => {
               longitude: 129.1604,
             },
           },
+          {
+            orderIndex: 1,
+            transitType: 'WALKING',
+            travelMinutesFromPrev: 10,
+            stayMinutes: 20,
+            fareWon: 0,
+            estimatedPriceWon: 6000,
+            place: {
+              name: '해리단길 카페거리',
+              category: 'CAFE',
+              openTime: '10:00',
+              closeTime: '22:00',
+              latitude: 35.1632,
+              longitude: 129.1589,
+            },
+          },
         ],
         tripLogs: [{ isCompleted: true }],
       },
@@ -162,5 +184,9 @@ describe('SavedRouteService', () => {
     expect(result.routeId).toBe('route-1');
     expect(result.isCompleted).toBe(true);
     expect(result.stops[0].latitude).toBe(35.1587);
+    expect(result.stops[0].nextTransportType).toBe('BUS');
+    expect(result.stops[0].nextTravelTimeMinutes).toBe(20);
+    expect(result.stops[1].nextTransportType).toBe('WALKING');
+    expect(result.stops[1].nextTravelTimeMinutes).toBe(10);
   });
 });

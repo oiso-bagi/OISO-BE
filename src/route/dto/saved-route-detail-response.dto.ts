@@ -1,4 +1,4 @@
-import { CongestionLevel, TransitType } from '@prisma/client';
+import { CongestionLevel, RouteType, TransitType } from '@prisma/client';
 import {
   buildRouteMetrics,
   RouteStopWithPlace,
@@ -96,7 +96,7 @@ export class SavedRouteDetailResponseDto {
     dto.estimatedSavingsWon = route.estimatedSavingsWon ?? 0;
     const recommendScore = route.score != null ? Number(route.score) : 0;
     dto.recommendScore = Number.isFinite(recommendScore) ? recommendScore : 0;
-    dto.isRecommended = route.routeType === 'RECOMMENDED';
+    dto.isRecommended = route.routeType === RouteType.RECOMMENDED;
     dto.isSaved = true;
 
     const metrics = buildRouteMetrics(safeStops);

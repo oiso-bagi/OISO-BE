@@ -33,49 +33,51 @@ const savedRouteListSelect = Prisma.validator<Prisma.SavedRouteSelect>()({
   },
 });
 
-const savedRouteDetailSelect = Prisma.validator<Prisma.SavedRouteSelect>()({
-  savedAt: true,
-  route: {
-    select: {
-      id: true,
-      name: true,
-      totalDistanceMeters: true,
-      estimatedSavingsWon: true,
-      score: true,
-      routeType: true,
-      congestionLevel: true,
-      stops: {
-        orderBy: {
-          orderIndex: 'asc',
-        },
-        select: {
-          orderIndex: true,
-          transitType: true,
-          travelMinutesFromPrev: true,
-          stayMinutes: true,
-          fareWon: true,
-          estimatedPriceWon: true,
-          place: {
-            select: {
-              name: true,
-              category: true,
-              openTime: true,
-              closeTime: true,
-              latitude: true,
-              longitude: true,
+const getSavedRouteDetailSelect = (userId: string) =>
+  Prisma.validator<Prisma.SavedRouteSelect>()({
+    savedAt: true,
+    route: {
+      select: {
+        id: true,
+        name: true,
+        totalDistanceMeters: true,
+        estimatedSavingsWon: true,
+        score: true,
+        routeType: true,
+        congestionLevel: true,
+        stops: {
+          orderBy: {
+            orderIndex: 'asc',
+          },
+          select: {
+            orderIndex: true,
+            transitType: true,
+            travelMinutesFromPrev: true,
+            stayMinutes: true,
+            fareWon: true,
+            estimatedPriceWon: true,
+            place: {
+              select: {
+                name: true,
+                category: true,
+                openTime: true,
+                closeTime: true,
+                latitude: true,
+                longitude: true,
+              },
             },
           },
         },
-      },
-      tripLogs: {
-        take: 1,
-        select: {
-          isCompleted: true,
+        tripLogs: {
+          where: { userId },
+          take: 1,
+          select: {
+            isCompleted: true,
+          },
         },
       },
     },
-  },
-});
+  });
 
 @Injectable()
 export class SavedRouteRepository {
@@ -93,15 +95,13 @@ export class SavedRouteRepository {
     });
   }
 
-  async findDetailByRouteId(routeId: string, userId?: string) {
-    const where: Prisma.SavedRouteWhereInput = {
-      routeId,
-      ...(userId ? { userId } : {}),
-    };
-
+  async findDetailByRouteId(routeId: string, userId: string) {
     return this.prisma.savedRoute.findFirst({
-      where,
-      select: savedRouteDetailSelect,
+      where: {
+        routeId,
+        userId,
+      },
+      select: getSavedRouteDetailSelect(userId),
     });
   }
 }
