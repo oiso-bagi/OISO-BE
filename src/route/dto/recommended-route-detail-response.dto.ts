@@ -13,7 +13,7 @@ export type RouteStopWithPlace = Partial<RouteStop> & {
   stayMinutes?: number | null;
   fareWon?: number | null;
   estimatedPriceWon?: number | null;
-  place: Partial<Place> | null;
+  place?: Partial<Place> | null;
 };
 export type RouteWithStops = Partial<Route> & {
   id?: string;
