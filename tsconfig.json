@@ -1,11 +1,9 @@
 {
   "compilerOptions": {
+    "tsBuildInfoFile": "./dist/tsconfig.tsbuildinfo",
     "module": "commonjs",
     "moduleResolution": "node",
-    "types": [
-      "node",
-      "jest"
-    ],
+    "baseUrl": "./",
     "esModuleInterop": true,
     "isolatedModules": true,
     "declaration": true,
@@ -30,8 +28,7 @@
     "noFallthroughCasesInSwitch": false
   },
   "include": [
-    "src/**/*",
-    "test/**/*"
+    "src/**/*"
   ],
   "exclude": [
     "node_modules",
