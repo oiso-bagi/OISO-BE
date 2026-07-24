@@ -9,7 +9,7 @@ import { SavedRouteDetailResponseDto } from './dto/saved-route-detail-response.d
 
 @Injectable()
 export class SavedRouteService {
-  constructor(private readonly savedRouteRepository: SavedRouteRepository) { }
+  constructor(private readonly savedRouteRepository: SavedRouteRepository) {}
 
   async getSavedRouteList(userId?: string): Promise<SavedRouteListResponseDto> {
     const rawList = await this.savedRouteRepository.findListByUserId(userId);
@@ -43,6 +43,4 @@ export class SavedRouteService {
 
     return SavedRouteDetailResponseDto.from(rawData);
   }
-
-
 }

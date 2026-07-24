@@ -79,7 +79,7 @@ const savedRouteDetailSelect = Prisma.validator<Prisma.SavedRouteSelect>()({
 
 @Injectable()
 export class SavedRouteRepository {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
   async findListByUserId(userId?: string) {
     const where: Prisma.SavedRouteWhereInput = userId ? { userId } : {};
