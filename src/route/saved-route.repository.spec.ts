@@ -7,6 +7,7 @@ describe('SavedRouteRepository', () => {
   let prismaService: {
     savedRoute: {
       findMany: jest.Mock;
+      findFirst: jest.Mock;
     };
   };
 
@@ -14,6 +15,7 @@ describe('SavedRouteRepository', () => {
     prismaService = {
       savedRoute: {
         findMany: jest.fn(),
+        findFirst: jest.fn(),
       },
     };
 
@@ -60,6 +62,23 @@ describe('SavedRouteRepository', () => {
       expect.objectContaining({
         where: {},
         orderBy: { savedAt: 'desc' },
+      }),
+    );
+  });
+
+  it('calls prisma.savedRoute.findFirst with routeId and userId', async () => {
+    const mockDetail = { savedAt: new Date() };
+    prismaService.savedRoute.findFirst.mockResolvedValue(mockDetail);
+
+    const result: unknown = await repository.findDetailByRouteId(
+      'route-1',
+      'user-1',
+    );
+
+    expect(result).toBe(mockDetail);
+    expect(prismaService.savedRoute.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { routeId: 'route-1', userId: 'user-1' },
       }),
     );
   });
