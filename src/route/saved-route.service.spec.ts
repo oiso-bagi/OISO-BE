@@ -1,3 +1,4 @@
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { SavedRouteService } from './saved-route.service';
 import { SavedRouteRepository } from './saved-route.repository';
@@ -7,6 +8,7 @@ describe('SavedRouteService', () => {
   let service: SavedRouteService;
   const mockSavedRouteRepository = {
     findListByUserId: jest.fn(),
+    findDetailByRouteId: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -22,6 +24,7 @@ describe('SavedRouteService', () => {
 
   beforeEach(() => {
     mockSavedRouteRepository.findListByUserId.mockReset();
+    mockSavedRouteRepository.findDetailByRouteId.mockReset();
   });
 
   it('should be defined', () => {
@@ -98,5 +101,66 @@ describe('SavedRouteService', () => {
       estimatedSavingsWon: 3500,
     });
     expect(result.savedRoutes[1].isCompleted).toBe(false);
+  });
+
+  it('throws BadRequestException for invalid routeId', async () => {
+    await expect(service.getSavedRouteDetail('  ')).rejects.toThrow(
+      BadRequestException,
+    );
+  });
+
+  it('throws NotFoundException if saved route is not found', async () => {
+    mockSavedRouteRepository.findDetailByRouteId.mockResolvedValue(null);
+
+    await expect(service.getSavedRouteDetail('route-999')).rejects.toThrow(
+      NotFoundException,
+    );
+  });
+
+  it('returns SavedRouteDetailResponseDto for valid routeId', async () => {
+    const mockDate = new Date('2026-07-24T10:00:00.000Z');
+    const mockRawData: any = {
+      savedAt: mockDate,
+      route: {
+        id: 'route-1',
+        name: '부산 해운대 감성 힐링 코스',
+        totalDistanceMeters: 4200,
+        estimatedSavingsWon: 3500,
+        score: 4.8,
+        routeType: 'RECOMMENDED',
+        congestionLevel: 'MEDIUM',
+        stops: [
+          {
+            orderIndex: 0,
+            transitType: 'BUS',
+            travelMinutesFromPrev: 20,
+            stayMinutes: 30,
+            fareWon: 1500,
+            estimatedPriceWon: 5000,
+            place: {
+              name: '해운대 해수욕장',
+              category: 'NATURE',
+              openTime: '00:00',
+              closeTime: '24:00',
+              latitude: 35.1587,
+              longitude: 129.1604,
+            },
+          },
+        ],
+        tripLogs: [{ isCompleted: true }],
+      },
+    };
+
+    mockSavedRouteRepository.findDetailByRouteId.mockResolvedValue(mockRawData);
+
+    const result = await service.getSavedRouteDetail('route-1', 'user-1');
+
+    expect(mockSavedRouteRepository.findDetailByRouteId).toHaveBeenCalledWith(
+      'route-1',
+      'user-1',
+    );
+    expect(result.routeId).toBe('route-1');
+    expect(result.isCompleted).toBe(true);
+    expect(result.stops[0].latitude).toBe(35.1587);
   });
 });
