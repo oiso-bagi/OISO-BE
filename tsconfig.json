@@ -1,9 +1,9 @@
 {
   "compilerOptions": {
-    "module": "nodenext",
-    "moduleResolution": "nodenext",
-    "types": ["node", "jest"],
-    "resolvePackageJsonExports": true,
+    "tsBuildInfoFile": "./dist/tsconfig.tsbuildinfo",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "baseUrl": "./",
     "esModuleInterop": true,
     "isolatedModules": true,
     "declaration": true,
@@ -15,7 +15,9 @@
     "sourceMap": true,
     "outDir": "./dist",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": [
+        "./src/*"
+      ]
     },
     "incremental": true,
     "skipLibCheck": true,
@@ -24,5 +26,14 @@
     "noImplicitAny": false,
     "strictBindCallApply": false,
     "noFallthroughCasesInSwitch": false
-  }
+  },
+  "include": [
+    "src/**/*",
+    "test/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "prisma"
+  ]
 }
