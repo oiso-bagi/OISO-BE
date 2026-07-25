@@ -54,7 +54,9 @@ describe('AuthGuard', () => {
 
   it('prefers a bearer token over the access token cookie', async () => {
     const request: Partial<Request> & { user?: unknown } = { headers: {} };
-    mockAuthCookieService.parseCookies.mockReturnValue({});
+    mockAuthCookieService.parseCookies.mockReturnValue({
+      [ACCESS_TOKEN_COOKIE]: 'cookie-access-token',
+    });
     mockAuthCookieService.getBearerToken.mockReturnValue('bearer-token');
     mockAuthService.getCurrentUser.mockResolvedValue({ id: 'user-id' });
 
