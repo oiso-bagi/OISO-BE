@@ -6,6 +6,7 @@ import { AuthCookieService } from '@/auth/services/auth-cookie.service';
 import { AuthService } from '@/auth/services/auth.service';
 import { AuthTokenService } from '@/auth/services/auth-token.service';
 import { KakaoAuthService } from '@/auth/services/kakao-auth.service';
+import { AuthGuard } from '@/common/guards/auth.guard';
 
 @Module({
   imports: [JwtModule.register({})],
@@ -16,7 +17,8 @@ import { KakaoAuthService } from '@/auth/services/kakao-auth.service';
     AuthTokenService,
     AuthCookieService,
     KakaoAuthService,
+    AuthGuard,
   ],
-  exports: [AuthService, AuthCookieService],
+  exports: [AuthService, AuthCookieService, AuthGuard],
 })
 export class AuthModule {}
