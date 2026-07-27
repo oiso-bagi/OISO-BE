@@ -13,7 +13,6 @@ import { OAuthFlowService } from '@/auth/services/oauth-flow.service';
 import type { SocialUserProfile } from '@/auth/types/social-auth.types';
 
 interface MockResponse {
-  response: Response;
   cookie: jest.Mock<Response, [string, string, object]>;
   clearCookie: jest.Mock<Response, [string, object?]>;
   redirect: jest.Mock<Response, [string]>;
@@ -30,11 +29,6 @@ describe('OAuthFlowService', () => {
     const redirect = jest.fn<Response, [string]>();
 
     return {
-      response: {
-        cookie,
-        clearCookie,
-        redirect,
-      } as unknown as Response,
       cookie,
       clearCookie,
       redirect,
@@ -78,7 +72,7 @@ describe('OAuthFlowService', () => {
       state: 'state',
       error: undefined,
       request: createRequest('/routes/1'),
-      response: mockResponse.response,
+      response: mockResponse as unknown as Response,
       providerName: 'Kakao',
       getProfile: jest.fn().mockResolvedValue({
         providerId: 'provider-id',
@@ -117,7 +111,7 @@ describe('OAuthFlowService', () => {
       state: 'state',
       error: undefined,
       request: createRequest('/routes/1?tab=map'),
-      response: mockResponse.response,
+      response: mockResponse as unknown as Response,
       providerName: 'Google',
       getProfile: jest.fn().mockResolvedValue({
         providerId: 'provider-id',
@@ -136,6 +130,33 @@ describe('OAuthFlowService', () => {
     );
   });
 
+  it('falls back to the success redirect when the returnUrl cookie is unsafe', async () => {
+    const mockResponse = createResponse();
+
+    await service.handleSocialCallback({
+      code: 'code',
+      state: 'state',
+      error: undefined,
+      request: createRequest('/\\attacker.example.com/phish'),
+      response: mockResponse as unknown as Response,
+      providerName: 'Google',
+      getProfile: jest.fn().mockResolvedValue({
+        providerId: 'provider-id',
+        email: 'user@example.com',
+        nickname: 'user',
+      }),
+      login: jest.fn().mockResolvedValue({
+        user: { id: 'user-id', provider: 'google' },
+        tokens: { refreshToken: 'refresh-token' },
+        isNewUser: false,
+      }),
+    });
+
+    expect(mockResponse.redirect).toHaveBeenCalledWith(
+      'http://localhost:5173/auth/success?login=success',
+    );
+  });
+
   it('clears auth cookies and redirects with an error reason when social login is canceled', async () => {
     const mockResponse = createResponse();
     const getProfile = jest.fn<Promise<SocialUserProfile>, [string]>();
@@ -146,7 +167,7 @@ describe('OAuthFlowService', () => {
       state: 'state',
       error: 'access_denied',
       request: createRequest('/routes/1'),
-      response: mockResponse.response,
+      response: mockResponse as unknown as Response,
       providerName: 'Kakao',
       getProfile,
       login,

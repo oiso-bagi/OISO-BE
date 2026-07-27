@@ -97,16 +97,17 @@ export class AuthCookieService {
       return undefined;
     }
 
-    if (returnUrl.startsWith('/') && !returnUrl.startsWith('//')) {
-      return returnUrl;
-    }
-
     try {
-      const url = new URL(returnUrl);
+      const frontendOrigin = this.getFrontendOrigin();
+      const url = new URL(returnUrl, frontendOrigin);
 
-      return url.origin === this.getFrontendOrigin()
-        ? url.toString()
-        : undefined;
+      if (url.origin !== frontendOrigin) {
+        return undefined;
+      }
+
+      return returnUrl.startsWith('/')
+        ? `${url.pathname}${url.search}${url.hash}`
+        : url.toString();
     } catch {
       return undefined;
     }

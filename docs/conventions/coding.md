@@ -18,6 +18,35 @@ import { PrismaService } from '@/prisma/prisma.service';
 
 ## OISO-BE Endpoint And Domain Addition
 
+- Canonical domain structure follows the current `src/auth/` module layout.
+- New domains use plural responsibility folders: `controllers/`, `services/`, `repositories/`, `dto/`, and `types/`.
+- Domain modules are registered from `src/app.module.ts`; each domain module wires controllers and providers like `src/auth/auth.module.ts`.
+- Existing auth example:
+
+```tsx
+src/
+  auth/
+    controllers/
+      auth.controller.ts
+    dto/
+      current-user-response.dto.ts
+    repositories/
+      auth.repository.ts
+    services/
+      auth.service.ts
+      social-auth.service.ts
+      auth-token.service.ts
+      auth-cookie.service.ts
+      oauth-flow.service.ts
+      kakao-auth.service.ts
+      google-auth.service.ts
+    types/
+      auth-result.types.ts
+      auth-user.types.ts
+      social-auth.types.ts
+    auth.module.ts
+```
+
 - 새 엔드포인트를 추가하기 전에 먼저 어느 도메인 책임인지 결정합니다.
 - 기존 도메인 기능이면 해당 도메인 폴더의 controller/service/repository/dto 패턴을 따릅니다.
 - 새 도메인이면 `src/<domain>/` 아래에 다음 구조를 기본으로 만듭니다.
@@ -25,11 +54,11 @@ import { PrismaService } from '@/prisma/prisma.service';
 ```tsx
 src/
   <domain>/
+    controllers/
+    services/
+    repositories/
     dto/
     types/
-    <domain>.controller.ts
-    <domain>.service.ts
-    <domain>.repository.ts
     <domain>.module.ts
 ```
 

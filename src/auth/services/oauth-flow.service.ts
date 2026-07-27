@@ -67,7 +67,9 @@ export class OAuthFlowService {
 
       const profile = await getProfile(validatedCode);
       const { tokens, isNewUser } = await login(profile);
-      const returnUrl = cookies[OAUTH_RETURN_URL_COOKIE];
+      const returnUrl = this.authCookieService.getSafeOAuthReturnUrl(
+        cookies[OAUTH_RETURN_URL_COOKIE],
+      );
 
       this.setRefreshTokenCookie(response, tokens.refreshToken);
       response.clearCookie(

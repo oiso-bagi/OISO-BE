@@ -38,6 +38,12 @@ describe('AuthCookieService', () => {
       ).toBeUndefined();
     });
 
+    it('rejects backslash returnUrl values parsed as external origins', () => {
+      expect(
+        service.getSafeOAuthReturnUrl('/\\attacker.example.com/phish'),
+      ).toBeUndefined();
+    });
+
     it('builds the consent redirect URL for new social users', () => {
       process.env.FRONTEND_AUTH_CONSENT_REDIRECT = '/terms';
 

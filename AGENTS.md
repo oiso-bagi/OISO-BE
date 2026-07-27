@@ -1,5 +1,22 @@
 # AGENTS.md
 
+## Canonical Domain Structure
+
+- New or expanded domains should follow the current `src/auth/` layout as the canonical NestJS pattern.
+- Put HTTP handlers in `controllers/`, business rules in `services/`, Prisma access in `repositories/`, API DTOs in `dto/`, and shared domain-only types in `types/`.
+- Register new domain modules in `src/app.module.ts`. Inside each domain module, wire controllers and providers like `src/auth/auth.module.ts`.
+
+```text
+src/
+  <domain>/
+    controllers/
+    services/
+    repositories/
+    dto/
+    types/
+    <domain>.module.ts
+```
+
 ## 추가 코드 작성 규칙
 
 - 새로 추가하거나 수정하는 `src/**` 내부 import는 `@/` 절대 alias를 사용합니다.
