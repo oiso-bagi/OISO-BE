@@ -1,9 +1,27 @@
 import { Injectable } from '@nestjs/common';
-import { User } from '@prisma/client';
+import { Prisma, User } from '@prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
-import { SocialUserProfile } from '@/auth/types/social-auth.types';
+import {
+  SocialProvider,
+  SocialUserProfile,
+} from '@/auth/types/social-auth.types';
 
 export type UserIdOnly = Pick<User, 'id'>;
+
+const socialUserSelect = {
+  id: true,
+  email: true,
+  passwordHash: true,
+  provider: true,
+  providerId: true,
+  nickname: true,
+  phone: true,
+  role: true,
+  birthDate: true,
+  isActive: true,
+  createdAt: true,
+  updatedAt: true,
+} satisfies Prisma.UserSelect;
 
 @Injectable()
 export class AuthRepository {
@@ -16,7 +34,7 @@ export class AuthRepository {
   }
 
   findUserByProvider(
-    provider: string,
+    provider: SocialProvider,
     providerId: string,
   ): Promise<UserIdOnly | null> {
     return this.prisma.user.findUnique({
@@ -42,7 +60,7 @@ export class AuthRepository {
   }
 
   async createSocialUser(
-    provider: string,
+    provider: SocialProvider,
     profile: SocialUserProfile,
     nickname: string,
   ): Promise<User> {
@@ -53,6 +71,7 @@ export class AuthRepository {
         provider,
         providerId: profile.providerId,
       },
+      select: socialUserSelect,
     });
 
     return user;
@@ -67,6 +86,7 @@ export class AuthRepository {
       data: {
         email: profile.email,
       },
+      select: socialUserSelect,
     });
 
     return user;

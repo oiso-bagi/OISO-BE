@@ -115,13 +115,7 @@ export class AuthCookieService {
 
   getFailureReason(error: unknown): string {
     if (error instanceof BadRequestException) {
-      const response = error.getResponse();
-      const message =
-        typeof response === 'object' &&
-        response !== null &&
-        'message' in response
-          ? String(response.message)
-          : error.message;
+      const message = this.getExceptionMessage(error);
 
       if (message.includes('canceled')) {
         if (message.includes('Kakao')) {
@@ -135,20 +129,20 @@ export class AuthCookieService {
         return 'oauth_canceled';
       }
 
-      if (message.includes('authorization code')) {
-        return 'missing_code';
-      }
-
-      if (message.includes('OAuth state')) {
-        return 'invalid_state';
-      }
-
       if (message.includes('Failed to exchange')) {
         return 'token_exchange_failed';
       }
 
       if (message.includes('Failed to fetch')) {
         return 'profile_fetch_failed';
+      }
+
+      if (message.includes('authorization code')) {
+        return 'missing_code';
+      }
+
+      if (message.includes('OAuth state')) {
+        return 'invalid_state';
       }
 
       if (message.includes('email')) {
@@ -161,13 +155,7 @@ export class AuthCookieService {
     }
 
     if (error instanceof ConflictException) {
-      const response = error.getResponse();
-      const message =
-        typeof response === 'object' &&
-        response !== null &&
-        'message' in response
-          ? String(response.message)
-          : error.message;
+      const message = this.getExceptionMessage(error);
 
       if (message.includes('Email')) {
         return 'email_conflict';
@@ -183,6 +171,18 @@ export class AuthCookieService {
     } catch {
       return value;
     }
+  }
+
+  private getExceptionMessage(
+    error: BadRequestException | ConflictException,
+  ): string {
+    const response = error.getResponse();
+
+    return typeof response === 'object' &&
+      response !== null &&
+      'message' in response
+      ? String(response.message)
+      : error.message;
   }
 
   private isEqual(left: string, right: string): boolean {

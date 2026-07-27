@@ -4,3 +4,5 @@ export interface SocialUserProfile {
   email: string;
   nickname: string;
 }
+
+export type SocialProvider = 'kakao' | 'google';

@@ -9,7 +9,10 @@ import { AuthRepository } from '@/auth/repositories/auth.repository';
 import { AuthTokenService } from '@/auth/services/auth-token.service';
 import { GoogleUserProfile } from '@/auth/types/google-auth.types';
 import { KakaoUserProfile } from '@/auth/types/kakao-auth.types';
-import { SocialUserProfile } from '@/auth/types/social-auth.types';
+import {
+  SocialProvider,
+  SocialUserProfile,
+} from '@/auth/types/social-auth.types';
 
 export interface AuthTokens {
   refreshToken: string;
@@ -88,7 +91,7 @@ export class AuthService {
   }
 
   private async loginWithSocialProvider(
-    provider: string,
+    provider: SocialProvider,
     profile: SocialUserProfile,
   ): Promise<{
     user: User;
@@ -120,14 +123,14 @@ export class AuthService {
   }
 
   private async createSocialUserHandlingRace(
-    provider: string,
+    provider: SocialProvider,
     profile: SocialUserProfile,
   ): Promise<User> {
     return this.createSocialUserWithAvailableNickname(provider, profile);
   }
 
   private async createSocialUserWithAvailableNickname(
-    provider: string,
+    provider: SocialProvider,
     profile: SocialUserProfile,
   ): Promise<User> {
     for (const nickname of this.getNicknameCandidates(profile)) {

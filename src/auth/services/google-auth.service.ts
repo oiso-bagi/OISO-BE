@@ -30,6 +30,11 @@ export class GoogleAuthService {
     const token = await this.requestToken(code);
     const googleUser = await this.requestUser(token.access_token);
     const providerId = googleUser.sub;
+
+    if (googleUser.email_verified === false) {
+      throw new BadRequestException('Google account email is not verified.');
+    }
+
     const email = googleUser.email?.trim();
     const nickname = googleUser.name?.trim();
 
@@ -66,6 +71,7 @@ export class GoogleAuthService {
         },
         body: params,
       },
+      'Failed to exchange Google authorization code.',
     );
 
     if (!response.ok) {
@@ -74,7 +80,15 @@ export class GoogleAuthService {
       );
     }
 
-    return (await response.json()) as GoogleTokenResponse;
+    const tokenResponse: unknown = await response.json();
+
+    if (!this.isGoogleTokenResponse(tokenResponse)) {
+      throw new BadRequestException(
+        'Failed to exchange Google authorization code.',
+      );
+    }
+
+    return tokenResponse;
   }
 
   private async requestUser(accessToken: string): Promise<GoogleUserResponse> {
@@ -86,13 +100,20 @@ export class GoogleAuthService {
           Authorization: `Bearer ${accessToken}`,
         },
       },
+      'Failed to fetch Google user profile.',
     );
 
     if (!response.ok) {
       throw new BadRequestException('Failed to fetch Google user profile.');
     }
 
-    return (await response.json()) as GoogleUserResponse;
+    const googleUser: unknown = await response.json();
+
+    if (!this.isGoogleUserResponse(googleUser)) {
+      throw new BadRequestException('Failed to fetch Google user profile.');
+    }
+
+    return googleUser;
   }
 
   private getRequiredEnv(name: string): string {
@@ -105,7 +126,11 @@ export class GoogleAuthService {
     return value;
   }
 
-  private async fetchGoogle(url: string, init: RequestInit): Promise<Response> {
+  private async fetchGoogle(
+    url: string,
+    init: RequestInit,
+    failureMessage: string,
+  ): Promise<Response> {
     try {
       return await fetch(url, {
         ...init,
@@ -116,8 +141,28 @@ export class GoogleAuthService {
         throw new GatewayTimeoutException('Google API request timed out.');
       }
 
-      throw error;
+      throw new BadRequestException(failureMessage);
     }
+  }
+
+  private isGoogleTokenResponse(value: unknown): value is GoogleTokenResponse {
+    return (
+      typeof value === 'object' &&
+      value !== null &&
+      'access_token' in value &&
+      typeof value.access_token === 'string' &&
+      value.access_token.trim().length > 0
+    );
+  }
+
+  private isGoogleUserResponse(value: unknown): value is GoogleUserResponse {
+    return (
+      typeof value === 'object' &&
+      value !== null &&
+      'sub' in value &&
+      typeof value.sub === 'string' &&
+      value.sub.trim().length > 0
+    );
   }
 
   private getRequestTimeoutMs(): number {
