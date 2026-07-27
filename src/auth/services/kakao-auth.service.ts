@@ -4,7 +4,7 @@ import {
   Injectable,
   InternalServerErrorException,
 } from '@nestjs/common';
-import {
+import type {
   KakaoTokenResponse,
   KakaoUserProfile,
   KakaoUserResponse,

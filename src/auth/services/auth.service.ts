@@ -4,7 +4,8 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
-import { Prisma, User } from '@prisma/client';
+import { Prisma } from '@prisma/client';
+import type { User } from '@prisma/client';
 import { AuthRepository } from '@/auth/repositories/auth.repository';
 import type {
   SocialAuthUser,
@@ -92,12 +93,18 @@ export class AuthService {
       const user = await this.authRepository.findUserById(payload.sub);
 
       return user !== null && user !== undefined;
-    } catch (error) {
+    } catch (error: unknown) {
       if (error instanceof UnauthorizedException) {
         return false;
       }
 
-      throw error;
+      if (error instanceof Error) {
+        throw error;
+      }
+
+      throw new Error(
+        'Unexpected error occurred while verifying the refresh token.',
+      );
     }
   }
 
@@ -113,8 +120,14 @@ export class AuthService {
         profile.providerId,
       );
     const resolvedUser = existingUser
-      ? await this.updateExistingSocialUser(existingUser.id, profile)
-      : await this.createSocialUserHandlingRace(provider, profile);
+      ? {
+          user: await this.updateSocialUserHandlingEmailConflict(
+            existingUser.id,
+            profile,
+          ),
+          isNewUser: false,
+        }
+      : await this.createSocialUserWithAvailableNickname(provider, profile);
 
     return {
       user: resolvedUser.user,
@@ -123,36 +136,12 @@ export class AuthService {
     };
   }
 
-  private async findSocialUserByProvider(
-    provider: SocialProvider,
-    providerId: string,
-  ): Promise<UserIdOnly | null> {
-    return this.authRepository.findUserByProvider(provider, providerId);
-  }
-
   private issueTokens(user: Pick<User, 'id' | 'provider'>): AuthTokens {
     return {
       refreshToken: this.authTokenService.issueRefreshToken(
         user.id,
         user.provider,
       ),
-    };
-  }
-
-  private async createSocialUserHandlingRace(
-    provider: SocialProvider,
-    profile: SocialUserProfile,
-  ): Promise<SocialUserResolution> {
-    return this.createSocialUserWithAvailableNickname(provider, profile);
-  }
-
-  private async updateExistingSocialUser(
-    userId: string,
-    profile: SocialUserProfile,
-  ): Promise<SocialUserResolution> {
-    return {
-      user: await this.updateSocialUserHandlingEmailConflict(userId, profile),
-      isNewUser: false,
     };
   }
 
@@ -175,7 +164,7 @@ export class AuthService {
         );
 
         return { user, isNewUser: true };
-      } catch (error) {
+      } catch (error: unknown) {
         if (this.isUniqueConstraintError(error, 'email')) {
           throw new ConflictException(
             'Email is already linked to another account.',
@@ -183,16 +172,29 @@ export class AuthService {
         }
 
         if (!this.isUniqueConstraintError(error)) {
-          throw error;
+          if (error instanceof Error) {
+            throw error;
+          }
+
+          throw new Error(
+            'Unexpected error occurred while creating social user.',
+          );
         }
 
-        const existingUser = await this.findSocialUserByProvider(
-          provider,
-          profile.providerId,
-        );
+        const existingUser: UserIdOnly | null =
+          await this.authRepository.findUserByProvider(
+            provider,
+            profile.providerId,
+          );
 
         if (existingUser) {
-          return this.updateExistingSocialUser(existingUser.id, profile);
+          return {
+            user: await this.updateSocialUserHandlingEmailConflict(
+              existingUser.id,
+              profile,
+            ),
+            isNewUser: false,
+          };
         }
       }
     }
@@ -206,9 +208,15 @@ export class AuthService {
   ): Promise<SocialAuthUser> {
     try {
       return await this.authRepository.updateSocialUser(userId, profile);
-    } catch (error) {
+    } catch (error: unknown) {
       if (this.isUniqueConstraintError(error, 'email')) {
         throw new ConflictException('email_conflict');
+      }
+
+      if (!(error instanceof Error)) {
+        throw new Error(
+          'Unexpected error occurred while updating social user.',
+        );
       }
 
       throw error;
@@ -237,7 +245,10 @@ export class AuthService {
     return baseNickname;
   }
 
-  private isUniqueConstraintError(error: unknown, field?: string): boolean {
+  private isUniqueConstraintError(
+    error: unknown,
+    field?: string,
+  ): error is Prisma.PrismaClientKnownRequestError {
     if (
       !(error instanceof Prisma.PrismaClientKnownRequestError) ||
       error.code !== 'P2002'
