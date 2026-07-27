@@ -9,6 +9,7 @@ import { Prisma } from '@prisma/client';
 import { AuthRepository } from '@/auth/repositories/auth.repository';
 import { AuthService } from '@/auth/services/auth.service';
 import { AuthTokenService } from '@/auth/services/auth-token.service';
+import { SocialAuthService } from '@/auth/services/social-auth.service';
 
 describe('AuthService', () => {
   const mockAuthRepository = {
@@ -25,12 +26,17 @@ describe('AuthService', () => {
     verifyRefreshToken: jest.fn(),
   };
   let service: AuthService;
+  let socialAuthService: SocialAuthService;
 
   beforeEach(() => {
     jest.clearAllMocks();
+    socialAuthService = new SocialAuthService(
+      mockAuthRepository as unknown as AuthRepository,
+    );
     service = new AuthService(
       mockAuthRepository as unknown as AuthRepository,
       mockAuthTokenService as unknown as AuthTokenService,
+      socialAuthService,
     );
     mockAuthTokenService.issueAccessToken.mockReturnValue('access-token');
     mockAuthTokenService.issueRefreshToken.mockReturnValue('refresh-token');

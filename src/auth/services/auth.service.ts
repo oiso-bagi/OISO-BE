@@ -1,16 +1,8 @@
-import {
-  BadRequestException,
-  ConflictException,
-  Injectable,
-  UnauthorizedException,
-} from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import type { User } from '@prisma/client';
 import { AuthRepository } from '@/auth/repositories/auth.repository';
-import type {
-  SocialAuthUser,
-  UserIdOnly,
-} from '@/auth/repositories/auth.repository';
+import type { SocialAuthUser } from '@/auth/repositories/auth.repository';
+import { SocialAuthService } from '@/auth/services/social-auth.service';
 import { AuthTokenService } from '@/auth/services/auth-token.service';
 import type { GoogleUserProfile } from '@/auth/types/google-auth.types';
 import type { KakaoUserProfile } from '@/auth/types/kakao-auth.types';
@@ -29,16 +21,12 @@ export interface SocialLoginResult {
   isNewUser: boolean;
 }
 
-interface SocialUserResolution {
-  user: SocialAuthUser;
-  isNewUser: boolean;
-}
-
 @Injectable()
 export class AuthService {
   constructor(
     private readonly authRepository: AuthRepository,
     private readonly authTokenService: AuthTokenService,
+    private readonly socialAuthService: SocialAuthService,
   ) {}
 
   async loginWithKakao(profile: KakaoUserProfile): Promise<SocialLoginResult> {
@@ -112,22 +100,10 @@ export class AuthService {
     provider: SocialProvider,
     profile: SocialUserProfile,
   ): Promise<SocialLoginResult> {
-    this.getNormalizedNickname(profile.nickname);
-
-    const existingUser: UserIdOnly | null =
-      await this.authRepository.findUserByProvider(
-        provider,
-        profile.providerId,
-      );
-    const resolvedUser = existingUser
-      ? {
-          user: await this.updateSocialUserHandlingEmailConflict(
-            existingUser.id,
-            profile,
-          ),
-          isNewUser: false,
-        }
-      : await this.createSocialUserWithAvailableNickname(provider, profile);
+    const resolvedUser = await this.socialAuthService.resolveSocialUser(
+      provider,
+      profile,
+    );
 
     return {
       user: resolvedUser.user,
@@ -143,125 +119,5 @@ export class AuthService {
         user.provider,
       ),
     };
-  }
-
-  private async createSocialUserWithAvailableNickname(
-    provider: SocialProvider,
-    profile: SocialUserProfile,
-  ): Promise<SocialUserResolution> {
-    for (const nickname of this.getNicknameCandidates(profile)) {
-      const existing = await this.authRepository.findUserByNickname(nickname);
-
-      if (existing) {
-        continue;
-      }
-
-      try {
-        const user = await this.authRepository.createSocialUser(
-          provider,
-          profile,
-          nickname,
-        );
-
-        return { user, isNewUser: true };
-      } catch (error: unknown) {
-        if (this.isUniqueConstraintError(error, 'email')) {
-          throw new ConflictException(
-            'Email is already linked to another account.',
-          );
-        }
-
-        if (!this.isUniqueConstraintError(error)) {
-          if (error instanceof Error) {
-            throw error;
-          }
-
-          throw new Error(
-            'Unexpected error occurred while creating social user.',
-          );
-        }
-
-        const existingUser: UserIdOnly | null =
-          await this.authRepository.findUserByProvider(
-            provider,
-            profile.providerId,
-          );
-
-        if (existingUser) {
-          return {
-            user: await this.updateSocialUserHandlingEmailConflict(
-              existingUser.id,
-              profile,
-            ),
-            isNewUser: false,
-          };
-        }
-      }
-    }
-
-    throw new ConflictException('Available nickname was not found.');
-  }
-
-  private async updateSocialUserHandlingEmailConflict(
-    userId: string,
-    profile: SocialUserProfile,
-  ): Promise<SocialAuthUser> {
-    try {
-      return await this.authRepository.updateSocialUser(userId, profile);
-    } catch (error: unknown) {
-      if (this.isUniqueConstraintError(error, 'email')) {
-        throw new ConflictException('email_conflict');
-      }
-
-      if (!(error instanceof Error)) {
-        throw new Error(
-          'Unexpected error occurred while updating social user.',
-        );
-      }
-
-      throw error;
-    }
-  }
-
-  private getNicknameCandidates(profile: SocialUserProfile): string[] {
-    const baseNickname = this.getNormalizedNickname(profile.nickname);
-
-    return [
-      baseNickname,
-      `${baseNickname}_${profile.providerId}`,
-      `${baseNickname}_${profile.providerId}_1`,
-      `${baseNickname}_${profile.providerId}_2`,
-      `${baseNickname}_${profile.providerId}_3`,
-    ];
-  }
-
-  private getNormalizedNickname(nickname: string): string {
-    const baseNickname = nickname.trim();
-
-    if (!baseNickname) {
-      throw new BadRequestException('Nickname is required.');
-    }
-
-    return baseNickname;
-  }
-
-  private isUniqueConstraintError(
-    error: unknown,
-    field?: string,
-  ): error is Prisma.PrismaClientKnownRequestError {
-    if (
-      !(error instanceof Prisma.PrismaClientKnownRequestError) ||
-      error.code !== 'P2002'
-    ) {
-      return false;
-    }
-
-    if (!field) {
-      return true;
-    }
-
-    const target = error.meta?.target;
-
-    return Array.isArray(target) && target.includes(field);
   }
 }
