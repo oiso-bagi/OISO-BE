@@ -7,11 +7,11 @@ import {
 } from '@/auth/types/social-auth.types';
 
 export type UserIdOnly = Pick<User, 'id'>;
+export type SocialAuthUser = Omit<User, 'passwordHash'>;
 
 const socialUserSelect = {
   id: true,
   email: true,
-  passwordHash: true,
   provider: true,
   providerId: true,
   nickname: true,
@@ -63,7 +63,7 @@ export class AuthRepository {
     provider: SocialProvider,
     profile: SocialUserProfile,
     nickname: string,
-  ): Promise<User> {
+  ): Promise<SocialAuthUser> {
     const user = await this.prisma.user.create({
       data: {
         email: profile.email,
@@ -80,7 +80,7 @@ export class AuthRepository {
   async updateSocialUser(
     userId: string,
     profile: SocialUserProfile,
-  ): Promise<User> {
+  ): Promise<SocialAuthUser> {
     const user = await this.prisma.user.update({
       where: { id: userId },
       data: {

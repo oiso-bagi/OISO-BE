@@ -157,7 +157,7 @@ export class AuthCookieService {
     if (error instanceof ConflictException) {
       const message = this.getExceptionMessage(error);
 
-      if (message.includes('Email')) {
+      if (message.includes('Email') || message === 'email_conflict') {
         return 'email_conflict';
       }
     }

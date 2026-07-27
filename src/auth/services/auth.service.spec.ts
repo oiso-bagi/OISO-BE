@@ -302,6 +302,29 @@ describe('AuthService', () => {
       );
     });
 
+    it('rejects existing Google login when updated email belongs to another account', async () => {
+      mockAuthRepository.findUserByProvider.mockResolvedValue({
+        id: 'user-id',
+      });
+      mockAuthRepository.updateSocialUser.mockRejectedValue(
+        new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+          code: 'P2002',
+          clientVersion: '5.22.0',
+          meta: {
+            target: ['email'],
+          },
+        }),
+      );
+
+      await expect(
+        service.loginWithGoogle({
+          providerId: 'google-123',
+          email: 'user@example.com',
+          nickname: 'user',
+        }),
+      ).rejects.toThrow(new ConflictException('email_conflict'));
+    });
+
     it('creates a Google user with provider suffix when base nickname creation collides', async () => {
       const user = {
         id: 'user-id',

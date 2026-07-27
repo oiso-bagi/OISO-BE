@@ -5,7 +5,10 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { Prisma, User } from '@prisma/client';
-import { AuthRepository } from '@/auth/repositories/auth.repository';
+import {
+  AuthRepository,
+  SocialAuthUser,
+} from '@/auth/repositories/auth.repository';
 import { AuthTokenService } from '@/auth/services/auth-token.service';
 import { GoogleUserProfile } from '@/auth/types/google-auth.types';
 import { KakaoUserProfile } from '@/auth/types/kakao-auth.types';
@@ -26,14 +29,14 @@ export class AuthService {
   ) {}
 
   async loginWithKakao(profile: KakaoUserProfile): Promise<{
-    user: User;
+    user: SocialAuthUser;
     tokens: AuthTokens;
   }> {
     return this.loginWithSocialProvider('kakao', profile);
   }
 
   async loginWithGoogle(profile: GoogleUserProfile): Promise<{
-    user: User;
+    user: SocialAuthUser;
     tokens: AuthTokens;
   }> {
     return this.loginWithSocialProvider('google', profile);
@@ -94,7 +97,7 @@ export class AuthService {
     provider: SocialProvider,
     profile: SocialUserProfile,
   ): Promise<{
-    user: User;
+    user: SocialAuthUser;
     tokens: AuthTokens;
   }> {
     this.getNormalizedNickname(profile.nickname);
@@ -104,7 +107,10 @@ export class AuthService {
       profile.providerId,
     );
     const user = existingUser
-      ? await this.authRepository.updateSocialUser(existingUser.id, profile)
+      ? await this.updateSocialUserHandlingEmailConflict(
+          existingUser.id,
+          profile,
+        )
       : await this.createSocialUserHandlingRace(provider, profile);
 
     return {
@@ -113,7 +119,7 @@ export class AuthService {
     };
   }
 
-  private issueTokens(user: User): AuthTokens {
+  private issueTokens(user: Pick<User, 'id' | 'provider'>): AuthTokens {
     return {
       refreshToken: this.authTokenService.issueRefreshToken(
         user.id,
@@ -125,14 +131,14 @@ export class AuthService {
   private async createSocialUserHandlingRace(
     provider: SocialProvider,
     profile: SocialUserProfile,
-  ): Promise<User> {
+  ): Promise<SocialAuthUser> {
     return this.createSocialUserWithAvailableNickname(provider, profile);
   }
 
   private async createSocialUserWithAvailableNickname(
     provider: SocialProvider,
     profile: SocialUserProfile,
-  ): Promise<User> {
+  ): Promise<SocialAuthUser> {
     for (const nickname of this.getNicknameCandidates(profile)) {
       const existing = await this.authRepository.findUserByNickname(nickname);
 
@@ -163,12 +169,30 @@ export class AuthService {
         );
 
         if (existingUser) {
-          return this.authRepository.updateSocialUser(existingUser.id, profile);
+          return this.updateSocialUserHandlingEmailConflict(
+            existingUser.id,
+            profile,
+          );
         }
       }
     }
 
     throw new ConflictException('Available nickname was not found.');
+  }
+
+  private async updateSocialUserHandlingEmailConflict(
+    userId: string,
+    profile: SocialUserProfile,
+  ): Promise<SocialAuthUser> {
+    try {
+      return await this.authRepository.updateSocialUser(userId, profile);
+    } catch (error) {
+      if (this.isUniqueConstraintError(error, 'email')) {
+        throw new ConflictException('email_conflict');
+      }
+
+      throw error;
+    }
   }
 
   private getNicknameCandidates(profile: SocialUserProfile): string[] {

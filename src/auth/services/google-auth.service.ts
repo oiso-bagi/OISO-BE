@@ -43,7 +43,7 @@ export class GoogleAuthService {
     }
 
     if (!nickname) {
-      throw new BadRequestException('Google profile name is required.');
+      throw new BadRequestException('Google account nickname is required.');
     }
 
     return {

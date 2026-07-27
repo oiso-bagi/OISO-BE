@@ -34,6 +34,16 @@ describe('AuthCookieService', () => {
         new BadRequestException('Failed to fetch Google user profile.'),
         'profile_fetch_failed',
       ],
+      [
+        'email_required',
+        new BadRequestException('Google account email is required.'),
+        'email_required',
+      ],
+      [
+        'nickname_required',
+        new BadRequestException('Google account nickname is required.'),
+        'nickname_required',
+      ],
     ])(
       'returns %s for matching BadRequestException messages',
       (_, error, reason) => {
@@ -46,6 +56,12 @@ describe('AuthCookieService', () => {
         service.getFailureReason(
           new ConflictException('Email is already linked to another account.'),
         ),
+      ).toBe('email_conflict');
+    });
+
+    it('returns email_conflict for normalized conflict exceptions', () => {
+      expect(
+        service.getFailureReason(new ConflictException('email_conflict')),
       ).toBe('email_conflict');
     });
 

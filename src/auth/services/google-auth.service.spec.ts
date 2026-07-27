@@ -84,6 +84,21 @@ describe('GoogleAuthService', () => {
     );
   });
 
+  it('rejects Google profiles without a nickname', async () => {
+    mockFetchJson({
+      access_token: 'access-token',
+    });
+    mockFetchJson({
+      sub: 'google-user-id',
+      email: 'user@example.com',
+      email_verified: true,
+    });
+
+    await expect(service.getUserProfile('code')).rejects.toThrow(
+      new BadRequestException('Google account nickname is required.'),
+    );
+  });
+
   it('classifies token fetch failures as token exchange failures', async () => {
     (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('network'));
 
