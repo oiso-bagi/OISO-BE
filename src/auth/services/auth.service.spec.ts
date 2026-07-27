@@ -59,6 +59,7 @@ describe('AuthService', () => {
         tokens: {
           refreshToken: 'refresh-token',
         },
+        isNewUser: true,
       });
       expect(mockAuthRepository.createSocialUser).toHaveBeenCalledWith(
         'kakao',
@@ -81,10 +82,18 @@ describe('AuthService', () => {
       mockAuthRepository.findUserByProvider.mockResolvedValue(user);
       mockAuthRepository.updateSocialUser.mockResolvedValue(updatedUser);
 
-      await service.loginWithKakao({
-        providerId: '123',
-        email: 'new@example.com',
-        nickname: 'user',
+      await expect(
+        service.loginWithKakao({
+          providerId: '123',
+          email: 'new@example.com',
+          nickname: 'user',
+        }),
+      ).resolves.toEqual({
+        user: updatedUser,
+        tokens: {
+          refreshToken: 'refresh-token',
+        },
+        isNewUser: false,
       });
 
       expect(mockAuthRepository.updateSocialUser).toHaveBeenCalledWith(
@@ -125,6 +134,7 @@ describe('AuthService', () => {
         tokens: {
           refreshToken: 'refresh-token',
         },
+        isNewUser: true,
       });
       expect(mockAuthRepository.updateSocialUser).toHaveBeenCalledWith(
         'user-id',
@@ -163,6 +173,7 @@ describe('AuthService', () => {
         tokens: {
           refreshToken: 'refresh-token',
         },
+        isNewUser: true,
       });
     });
 
@@ -194,6 +205,7 @@ describe('AuthService', () => {
         tokens: {
           refreshToken: 'refresh-token',
         },
+        isNewUser: true,
       });
     });
 
@@ -264,6 +276,7 @@ describe('AuthService', () => {
         tokens: {
           refreshToken: 'refresh-token',
         },
+        isNewUser: true,
       });
       expect(mockAuthRepository.createSocialUser).toHaveBeenCalledWith(
         'google',
@@ -286,10 +299,18 @@ describe('AuthService', () => {
       mockAuthRepository.findUserByProvider.mockResolvedValue(user);
       mockAuthRepository.updateSocialUser.mockResolvedValue(updatedUser);
 
-      await service.loginWithGoogle({
-        providerId: 'google-123',
-        email: 'new@example.com',
-        nickname: 'user',
+      await expect(
+        service.loginWithGoogle({
+          providerId: 'google-123',
+          email: 'new@example.com',
+          nickname: 'user',
+        }),
+      ).resolves.toEqual({
+        user: updatedUser,
+        tokens: {
+          refreshToken: 'refresh-token',
+        },
+        isNewUser: false,
       });
 
       expect(mockAuthRepository.findUserByProvider).toHaveBeenCalledWith(
@@ -356,6 +377,7 @@ describe('AuthService', () => {
         tokens: {
           refreshToken: 'refresh-token',
         },
+        isNewUser: true,
       });
     });
 

@@ -21,6 +21,12 @@ export interface AuthTokens {
   refreshToken: string;
 }
 
+export interface SocialLoginResult {
+  user: SocialAuthUser;
+  tokens: AuthTokens;
+  isNewUser: boolean;
+}
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -28,17 +34,13 @@ export class AuthService {
     private readonly authTokenService: AuthTokenService,
   ) {}
 
-  async loginWithKakao(profile: KakaoUserProfile): Promise<{
-    user: SocialAuthUser;
-    tokens: AuthTokens;
-  }> {
+  async loginWithKakao(profile: KakaoUserProfile): Promise<SocialLoginResult> {
     return this.loginWithSocialProvider('kakao', profile);
   }
 
-  async loginWithGoogle(profile: GoogleUserProfile): Promise<{
-    user: SocialAuthUser;
-    tokens: AuthTokens;
-  }> {
+  async loginWithGoogle(
+    profile: GoogleUserProfile,
+  ): Promise<SocialLoginResult> {
     return this.loginWithSocialProvider('google', profile);
   }
 
@@ -96,16 +98,14 @@ export class AuthService {
   private async loginWithSocialProvider(
     provider: SocialProvider,
     profile: SocialUserProfile,
-  ): Promise<{
-    user: SocialAuthUser;
-    tokens: AuthTokens;
-  }> {
+  ): Promise<SocialLoginResult> {
     this.getNormalizedNickname(profile.nickname);
 
     const existingUser = await this.authRepository.findUserByProvider(
       provider,
       profile.providerId,
     );
+    const isNewUser = !existingUser;
     const user = existingUser
       ? await this.updateSocialUserHandlingEmailConflict(
           existingUser.id,
@@ -116,6 +116,7 @@ export class AuthService {
     return {
       user,
       tokens: this.issueTokens(user),
+      isNewUser,
     };
   }
 

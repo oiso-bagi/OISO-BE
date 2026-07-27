@@ -86,11 +86,48 @@ export class AuthCookieService {
     return authorization.slice('Bearer '.length).trim();
   }
 
-  getSuccessRedirectUrl(): string {
+  getSafeOAuthReturnUrl(value: unknown): string | undefined {
+    if (typeof value !== 'string') {
+      return undefined;
+    }
+
+    const returnUrl = value.trim();
+
+    if (!returnUrl) {
+      return undefined;
+    }
+
+    if (returnUrl.startsWith('/') && !returnUrl.startsWith('//')) {
+      return returnUrl;
+    }
+
+    try {
+      const url = new URL(returnUrl);
+
+      return url.origin === this.getFrontendOrigin()
+        ? url.toString()
+        : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  getSuccessRedirectUrl(returnUrl?: string): string {
     const successUrl =
       process.env.FRONTEND_AUTH_SUCCESS_REDIRECT ??
       'http://localhost:5173/auth/kakao/success';
-    const url = new URL(successUrl);
+    const url = this.getFrontendRedirectUrl(returnUrl || successUrl);
+
+    url.searchParams.set('login', 'success');
+
+    return url.toString();
+  }
+
+  getConsentRedirectUrl(): string {
+    const consentUrl =
+      process.env.FRONTEND_AUTH_CONSENT_REDIRECT ??
+      'http://localhost:5173/consents';
+    const url = this.getFrontendRedirectUrl(consentUrl);
 
     url.searchParams.set('login', 'success');
 
@@ -193,5 +230,27 @@ export class AuthCookieService {
       leftBuffer.length === rightBuffer.length &&
       timingSafeEqual(leftBuffer, rightBuffer)
     );
+  }
+
+  private getFrontendOrigin(): string {
+    const configuredOrigin = process.env.FRONTEND_ORIGIN;
+
+    if (configuredOrigin) {
+      return new URL(configuredOrigin).origin;
+    }
+
+    const successUrl =
+      process.env.FRONTEND_AUTH_SUCCESS_REDIRECT ??
+      'http://localhost:5173/auth/kakao/success';
+
+    return new URL(successUrl).origin;
+  }
+
+  private getFrontendRedirectUrl(value: string): URL {
+    if (value.startsWith('/') && !value.startsWith('//')) {
+      return new URL(value, this.getFrontendOrigin());
+    }
+
+    return new URL(value);
   }
 }
