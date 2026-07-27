@@ -5,28 +5,28 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { AuthRepository } from '@/auth/repositories/auth.repository';
+import { AuthTokenService } from '@/auth/services/auth-token.service';
 import type {
-  SocialAuthUser,
-  UserIdOnly,
-} from '@/auth/repositories/auth.repository';
+  AuthTokens,
+  SocialLoginResult,
+} from '@/auth/types/auth-result.types';
+import type { SocialAuthUser, UserIdOnly } from '@/auth/types/auth-user.types';
 import type {
   SocialProvider,
   SocialUserProfile,
 } from '@/auth/types/social-auth.types';
 
-export interface SocialUserResolution {
-  user: SocialAuthUser;
-  isNewUser: boolean;
-}
-
 @Injectable()
 export class SocialAuthService {
-  constructor(private readonly authRepository: AuthRepository) {}
+  constructor(
+    private readonly authRepository: AuthRepository,
+    private readonly authTokenService: AuthTokenService,
+  ) {}
 
-  async resolveSocialUser(
+  async loginWithSocialProvider(
     provider: SocialProvider,
     profile: SocialUserProfile,
-  ): Promise<SocialUserResolution> {
+  ): Promise<SocialLoginResult> {
     this.getNormalizedNickname(profile.nickname);
 
     const existingUser = await this.authRepository.findUserByProvider(
@@ -35,13 +35,12 @@ export class SocialAuthService {
     );
 
     if (existingUser) {
-      return {
-        user: await this.updateSocialUserHandlingEmailConflict(
-          existingUser.id,
-          profile,
-        ),
-        isNewUser: false,
-      };
+      const user = await this.updateSocialUserHandlingEmailConflict(
+        existingUser.id,
+        profile,
+      );
+
+      return this.toSocialLoginResult(user, false);
     }
 
     return this.createSocialUserWithAvailableNickname(provider, profile);
@@ -50,7 +49,7 @@ export class SocialAuthService {
   private async createSocialUserWithAvailableNickname(
     provider: SocialProvider,
     profile: SocialUserProfile,
-  ): Promise<SocialUserResolution> {
+  ): Promise<SocialLoginResult> {
     for (const nickname of this.getNicknameCandidates(profile)) {
       const existing = await this.authRepository.findUserByNickname(nickname);
 
@@ -65,7 +64,7 @@ export class SocialAuthService {
           nickname,
         );
 
-        return { user, isNewUser: true };
+        return this.toSocialLoginResult(user, true);
       } catch (error: unknown) {
         if (this.isUniqueConstraintError(error, 'email')) {
           throw new ConflictException(
@@ -84,13 +83,12 @@ export class SocialAuthService {
           );
 
         if (existingUser) {
-          return {
-            user: await this.updateSocialUserHandlingEmailConflict(
-              existingUser.id,
-              profile,
-            ),
-            isNewUser: false,
-          };
+          const user = await this.updateSocialUserHandlingEmailConflict(
+            existingUser.id,
+            profile,
+          );
+
+          return this.toSocialLoginResult(user, false);
         }
       }
     }
@@ -161,5 +159,27 @@ export class SocialAuthService {
     }
 
     return new Error(`Unexpected error occurred while ${action}.`);
+  }
+
+  private issueTokens(
+    user: Pick<SocialAuthUser, 'id' | 'provider'>,
+  ): AuthTokens {
+    return {
+      refreshToken: this.authTokenService.issueRefreshToken(
+        user.id,
+        user.provider,
+      ),
+    };
+  }
+
+  private toSocialLoginResult(
+    user: SocialAuthUser,
+    isNewUser: boolean,
+  ): SocialLoginResult {
+    return {
+      user,
+      tokens: this.issueTokens(user),
+      isNewUser,
+    };
   }
 }

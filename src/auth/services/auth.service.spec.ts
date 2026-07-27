@@ -32,6 +32,7 @@ describe('AuthService', () => {
     jest.clearAllMocks();
     socialAuthService = new SocialAuthService(
       mockAuthRepository as unknown as AuthRepository,
+      mockAuthTokenService as unknown as AuthTokenService,
     );
     service = new AuthService(
       mockAuthRepository as unknown as AuthRepository,

@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { User } from '@prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
+import type { SocialAuthUser, UserIdOnly } from '@/auth/types/auth-user.types';
 import type {
   SocialProvider,
   SocialUserProfile,
@@ -20,11 +21,6 @@ const socialUserSelect = {
   createdAt: true,
   updatedAt: true,
 } satisfies Prisma.UserSelect;
-
-export type UserIdOnly = Pick<User, 'id'>;
-export type SocialAuthUser = Prisma.UserGetPayload<{
-  select: typeof socialUserSelect;
-}>;
 
 @Injectable()
 export class AuthRepository {

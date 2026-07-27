@@ -7,7 +7,7 @@ import {
   REFRESH_TOKEN_COOKIE,
 } from '@/auth/auth.constants';
 import { AuthCookieService } from '@/auth/services/auth-cookie.service';
-import type { SocialLoginResult } from '@/auth/services/auth.service';
+import type { SocialLoginResult } from '@/auth/types/auth-result.types';
 import type { SocialUserProfile } from '@/auth/types/social-auth.types';
 
 interface SocialCallbackParams {

@@ -1,25 +1,15 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import type { User } from '@prisma/client';
 import { AuthRepository } from '@/auth/repositories/auth.repository';
-import type { SocialAuthUser } from '@/auth/repositories/auth.repository';
 import { SocialAuthService } from '@/auth/services/social-auth.service';
 import { AuthTokenService } from '@/auth/services/auth-token.service';
+import type { SocialLoginResult } from '@/auth/types/auth-result.types';
 import type { GoogleUserProfile } from '@/auth/types/google-auth.types';
 import type { KakaoUserProfile } from '@/auth/types/kakao-auth.types';
 import type {
   SocialProvider,
   SocialUserProfile,
 } from '@/auth/types/social-auth.types';
-
-export interface AuthTokens {
-  refreshToken: string;
-}
-
-export interface SocialLoginResult {
-  user: SocialAuthUser;
-  tokens: AuthTokens;
-  isNewUser: boolean;
-}
 
 @Injectable()
 export class AuthService {
@@ -100,24 +90,6 @@ export class AuthService {
     provider: SocialProvider,
     profile: SocialUserProfile,
   ): Promise<SocialLoginResult> {
-    const resolvedUser = await this.socialAuthService.resolveSocialUser(
-      provider,
-      profile,
-    );
-
-    return {
-      user: resolvedUser.user,
-      tokens: this.issueTokens(resolvedUser.user),
-      isNewUser: resolvedUser.isNewUser,
-    };
-  }
-
-  private issueTokens(user: Pick<User, 'id' | 'provider'>): AuthTokens {
-    return {
-      refreshToken: this.authTokenService.issueRefreshToken(
-        user.id,
-        user.provider,
-      ),
-    };
+    return this.socialAuthService.loginWithSocialProvider(provider, profile);
   }
 }
