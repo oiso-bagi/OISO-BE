@@ -161,7 +161,11 @@ export class GoogleAuthService {
       value !== null &&
       'sub' in value &&
       typeof value.sub === 'string' &&
-      value.sub.trim().length > 0
+      value.sub.trim().length > 0 &&
+      (!('email' in value) || typeof value.email === 'string') &&
+      (!('name' in value) || typeof value.name === 'string') &&
+      (!('email_verified' in value) ||
+        typeof value.email_verified === 'boolean')
     );
   }
 

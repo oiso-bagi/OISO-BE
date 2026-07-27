@@ -68,6 +68,27 @@ describe('GoogleAuthService', () => {
     );
   });
 
+  it.each([
+    ['email', { email: 123 }],
+    ['name', { name: 123 }],
+    ['email_verified', { email_verified: 'true' }],
+  ])('rejects profile responses with malformed %s', async (_, overrides) => {
+    mockFetchJson({
+      access_token: 'access-token',
+    });
+    mockFetchJson({
+      sub: 'google-user-id',
+      email: 'user@example.com',
+      email_verified: true,
+      name: 'User',
+      ...overrides,
+    });
+
+    await expect(service.getUserProfile('code')).rejects.toThrow(
+      new BadRequestException('Failed to fetch Google user profile.'),
+    );
+  });
+
   it('rejects unverified Google emails before returning a profile', async () => {
     mockFetchJson({
       access_token: 'access-token',
