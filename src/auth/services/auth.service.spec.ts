@@ -9,6 +9,7 @@ import { Prisma } from '@prisma/client';
 import { AuthRepository } from '@/auth/repositories/auth.repository';
 import { AuthService } from '@/auth/services/auth.service';
 import { AuthTokenService } from '@/auth/services/auth-token.service';
+import { SocialAuthService } from '@/auth/services/social-auth.service';
 
 describe('AuthService', () => {
   const mockAuthRepository = {
@@ -25,12 +26,18 @@ describe('AuthService', () => {
     verifyRefreshToken: jest.fn(),
   };
   let service: AuthService;
+  let socialAuthService: SocialAuthService;
 
   beforeEach(() => {
     jest.clearAllMocks();
+    socialAuthService = new SocialAuthService(
+      mockAuthRepository as unknown as AuthRepository,
+      mockAuthTokenService as unknown as AuthTokenService,
+    );
     service = new AuthService(
       mockAuthRepository as unknown as AuthRepository,
       mockAuthTokenService as unknown as AuthTokenService,
+      socialAuthService,
     );
     mockAuthTokenService.issueAccessToken.mockReturnValue('access-token');
     mockAuthTokenService.issueRefreshToken.mockReturnValue('refresh-token');
@@ -59,6 +66,7 @@ describe('AuthService', () => {
         tokens: {
           refreshToken: 'refresh-token',
         },
+        isNewUser: true,
       });
       expect(mockAuthRepository.createSocialUser).toHaveBeenCalledWith(
         'kakao',
@@ -81,10 +89,18 @@ describe('AuthService', () => {
       mockAuthRepository.findUserByProvider.mockResolvedValue(user);
       mockAuthRepository.updateSocialUser.mockResolvedValue(updatedUser);
 
-      await service.loginWithKakao({
-        providerId: '123',
-        email: 'new@example.com',
-        nickname: 'user',
+      await expect(
+        service.loginWithKakao({
+          providerId: '123',
+          email: 'new@example.com',
+          nickname: 'user',
+        }),
+      ).resolves.toEqual({
+        user: updatedUser,
+        tokens: {
+          refreshToken: 'refresh-token',
+        },
+        isNewUser: false,
       });
 
       expect(mockAuthRepository.updateSocialUser).toHaveBeenCalledWith(
@@ -125,6 +141,7 @@ describe('AuthService', () => {
         tokens: {
           refreshToken: 'refresh-token',
         },
+        isNewUser: false,
       });
       expect(mockAuthRepository.updateSocialUser).toHaveBeenCalledWith(
         'user-id',
@@ -163,6 +180,7 @@ describe('AuthService', () => {
         tokens: {
           refreshToken: 'refresh-token',
         },
+        isNewUser: true,
       });
     });
 
@@ -194,6 +212,7 @@ describe('AuthService', () => {
         tokens: {
           refreshToken: 'refresh-token',
         },
+        isNewUser: true,
       });
     });
 
@@ -264,6 +283,7 @@ describe('AuthService', () => {
         tokens: {
           refreshToken: 'refresh-token',
         },
+        isNewUser: true,
       });
       expect(mockAuthRepository.createSocialUser).toHaveBeenCalledWith(
         'google',
@@ -286,10 +306,18 @@ describe('AuthService', () => {
       mockAuthRepository.findUserByProvider.mockResolvedValue(user);
       mockAuthRepository.updateSocialUser.mockResolvedValue(updatedUser);
 
-      await service.loginWithGoogle({
-        providerId: 'google-123',
-        email: 'new@example.com',
-        nickname: 'user',
+      await expect(
+        service.loginWithGoogle({
+          providerId: 'google-123',
+          email: 'new@example.com',
+          nickname: 'user',
+        }),
+      ).resolves.toEqual({
+        user: updatedUser,
+        tokens: {
+          refreshToken: 'refresh-token',
+        },
+        isNewUser: false,
       });
 
       expect(mockAuthRepository.findUserByProvider).toHaveBeenCalledWith(
@@ -356,6 +384,7 @@ describe('AuthService', () => {
         tokens: {
           refreshToken: 'refresh-token',
         },
+        isNewUser: true,
       });
     });
 

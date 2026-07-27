@@ -8,6 +8,7 @@ import { AuthTokenService } from '@/auth/services/auth-token.service';
 import { GoogleAuthService } from '@/auth/services/google-auth.service';
 import { KakaoAuthService } from '@/auth/services/kakao-auth.service';
 import { OAuthFlowService } from '@/auth/services/oauth-flow.service';
+import { SocialAuthService } from '@/auth/services/social-auth.service';
 import { AuthGuard } from '@/common/guards/auth.guard';
 
 @Module({
@@ -19,6 +20,7 @@ import { AuthGuard } from '@/common/guards/auth.guard';
     AuthTokenService,
     AuthCookieService,
     OAuthFlowService,
+    SocialAuthService,
     KakaoAuthService,
     GoogleAuthService,
     AuthGuard,

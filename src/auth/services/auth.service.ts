@@ -1,44 +1,31 @@
-import {
-  BadRequestException,
-  ConflictException,
-  Injectable,
-  UnauthorizedException,
-} from '@nestjs/common';
-import { Prisma, User } from '@prisma/client';
-import {
-  AuthRepository,
-  SocialAuthUser,
-} from '@/auth/repositories/auth.repository';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
+import type { User } from '@prisma/client';
+import { AuthRepository } from '@/auth/repositories/auth.repository';
+import { SocialAuthService } from '@/auth/services/social-auth.service';
 import { AuthTokenService } from '@/auth/services/auth-token.service';
-import { GoogleUserProfile } from '@/auth/types/google-auth.types';
-import { KakaoUserProfile } from '@/auth/types/kakao-auth.types';
-import {
+import type { SocialLoginResult } from '@/auth/types/auth-result.types';
+import type { GoogleUserProfile } from '@/auth/types/google-auth.types';
+import type { KakaoUserProfile } from '@/auth/types/kakao-auth.types';
+import type {
   SocialProvider,
   SocialUserProfile,
 } from '@/auth/types/social-auth.types';
-
-export interface AuthTokens {
-  refreshToken: string;
-}
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly authRepository: AuthRepository,
     private readonly authTokenService: AuthTokenService,
+    private readonly socialAuthService: SocialAuthService,
   ) {}
 
-  async loginWithKakao(profile: KakaoUserProfile): Promise<{
-    user: SocialAuthUser;
-    tokens: AuthTokens;
-  }> {
+  async loginWithKakao(profile: KakaoUserProfile): Promise<SocialLoginResult> {
     return this.loginWithSocialProvider('kakao', profile);
   }
 
-  async loginWithGoogle(profile: GoogleUserProfile): Promise<{
-    user: SocialAuthUser;
-    tokens: AuthTokens;
-  }> {
+  async loginWithGoogle(
+    profile: GoogleUserProfile,
+  ): Promise<SocialLoginResult> {
     return this.loginWithSocialProvider('google', profile);
   }
 
@@ -84,153 +71,25 @@ export class AuthService {
       const user = await this.authRepository.findUserById(payload.sub);
 
       return user !== null && user !== undefined;
-    } catch (error) {
+    } catch (error: unknown) {
       if (error instanceof UnauthorizedException) {
         return false;
       }
 
-      throw error;
+      if (error instanceof Error) {
+        throw error;
+      }
+
+      throw new Error(
+        'Unexpected error occurred while verifying the refresh token.',
+      );
     }
   }
 
   private async loginWithSocialProvider(
     provider: SocialProvider,
     profile: SocialUserProfile,
-  ): Promise<{
-    user: SocialAuthUser;
-    tokens: AuthTokens;
-  }> {
-    this.getNormalizedNickname(profile.nickname);
-
-    const existingUser = await this.authRepository.findUserByProvider(
-      provider,
-      profile.providerId,
-    );
-    const user = existingUser
-      ? await this.updateSocialUserHandlingEmailConflict(
-          existingUser.id,
-          profile,
-        )
-      : await this.createSocialUserHandlingRace(provider, profile);
-
-    return {
-      user,
-      tokens: this.issueTokens(user),
-    };
-  }
-
-  private issueTokens(user: Pick<User, 'id' | 'provider'>): AuthTokens {
-    return {
-      refreshToken: this.authTokenService.issueRefreshToken(
-        user.id,
-        user.provider,
-      ),
-    };
-  }
-
-  private async createSocialUserHandlingRace(
-    provider: SocialProvider,
-    profile: SocialUserProfile,
-  ): Promise<SocialAuthUser> {
-    return this.createSocialUserWithAvailableNickname(provider, profile);
-  }
-
-  private async createSocialUserWithAvailableNickname(
-    provider: SocialProvider,
-    profile: SocialUserProfile,
-  ): Promise<SocialAuthUser> {
-    for (const nickname of this.getNicknameCandidates(profile)) {
-      const existing = await this.authRepository.findUserByNickname(nickname);
-
-      if (existing) {
-        continue;
-      }
-
-      try {
-        return await this.authRepository.createSocialUser(
-          provider,
-          profile,
-          nickname,
-        );
-      } catch (error) {
-        if (this.isUniqueConstraintError(error, 'email')) {
-          throw new ConflictException(
-            'Email is already linked to another account.',
-          );
-        }
-
-        if (!this.isUniqueConstraintError(error)) {
-          throw error;
-        }
-
-        const existingUser = await this.authRepository.findUserByProvider(
-          provider,
-          profile.providerId,
-        );
-
-        if (existingUser) {
-          return this.updateSocialUserHandlingEmailConflict(
-            existingUser.id,
-            profile,
-          );
-        }
-      }
-    }
-
-    throw new ConflictException('Available nickname was not found.');
-  }
-
-  private async updateSocialUserHandlingEmailConflict(
-    userId: string,
-    profile: SocialUserProfile,
-  ): Promise<SocialAuthUser> {
-    try {
-      return await this.authRepository.updateSocialUser(userId, profile);
-    } catch (error) {
-      if (this.isUniqueConstraintError(error, 'email')) {
-        throw new ConflictException('email_conflict');
-      }
-
-      throw error;
-    }
-  }
-
-  private getNicknameCandidates(profile: SocialUserProfile): string[] {
-    const baseNickname = this.getNormalizedNickname(profile.nickname);
-
-    return [
-      baseNickname,
-      `${baseNickname}_${profile.providerId}`,
-      `${baseNickname}_${profile.providerId}_1`,
-      `${baseNickname}_${profile.providerId}_2`,
-      `${baseNickname}_${profile.providerId}_3`,
-    ];
-  }
-
-  private getNormalizedNickname(nickname: string): string {
-    const baseNickname = nickname.trim();
-
-    if (!baseNickname) {
-      throw new BadRequestException('Nickname is required.');
-    }
-
-    return baseNickname;
-  }
-
-  private isUniqueConstraintError(error: unknown, field?: string): boolean {
-    if (
-      !(error instanceof Prisma.PrismaClientKnownRequestError) ||
-      error.code !== 'P2002'
-    ) {
-      return false;
-    }
-
-    if (!field) {
-      return true;
-    }
-
-    const target = error.meta?.target;
-
-    return Array.isArray(target) && target.includes(field);
+  ): Promise<SocialLoginResult> {
+    return this.socialAuthService.loginWithSocialProvider(provider, profile);
   }
 }

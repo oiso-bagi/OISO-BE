@@ -5,6 +5,17 @@ description: OISO-BE NestJS 백엔드의 controller, service, repository, DTO, m
 
 # Backend Architecture Review
 
+## OISO-BE 도메인/Import 판단 규칙
+
+- `src/**` 내부 프로젝트 import는 `@/` 절대 alias를 기준으로 판단합니다. 새 코드나 수정 코드에서 상대 import(`./`, `../`)가 생기면 구조상 필요한 예외인지 먼저 의심합니다.
+- 새 기능이 기존 도메인의 행위인지, 새 도메인인지 먼저 결정합니다.
+  - 기존 도메인의 하위 행위: 기존 module에 controller/service/repository/DTO를 추가하거나 기존 파일에 좁게 확장합니다.
+  - 독립 도메인: `src/<domain>/` 폴더와 module을 만들고 `AppModule`에 import합니다.
+  - 여러 도메인을 조합하는 workflow: HTTP endpoint는 사용자 행위의 주 도메인 controller에 두고, cross-domain 조합은 service에서 명시적으로 orchestration합니다.
+- Controller route prefix가 도메인 경계를 흐리게 만들면 route 이름보다 module 위치를 우선 검토합니다.
+- 새 endpoint 리뷰 시 HTTP path/method, controller 위치, service 책임, repository 조회 범위, DTO 응답 계약을 한 세트로 확인합니다.
+- 리뷰 완료 전 신규/수정 내부 import가 `@/` 절대 alias를 사용하는지 확인합니다.
+
 ## 목적
 
 NestJS 계층 책임과 도메인 경계를 기준으로 변경 위치와 구조가 적절한지 판단합니다.

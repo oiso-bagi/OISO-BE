@@ -5,9 +5,52 @@ import { AuthCookieService } from '@/auth/services/auth-cookie.service';
 
 describe('AuthCookieService', () => {
   let service: AuthCookieService;
+  const originalEnv = process.env;
 
   beforeEach(() => {
+    process.env = { ...originalEnv };
     service = new AuthCookieService();
+  });
+
+  afterAll(() => {
+    process.env = originalEnv;
+  });
+
+  describe('OAuth redirect URLs', () => {
+    it('accepts a relative returnUrl and appends the login success marker', () => {
+      expect(service.getSafeOAuthReturnUrl('/routes/route-id?tab=map')).toBe(
+        '/routes/route-id?tab=map',
+      );
+      expect(service.getSuccessRedirectUrl('/routes/route-id?tab=map')).toBe(
+        'http://localhost:5173/routes/route-id?tab=map&login=success',
+      );
+    });
+
+    it('accepts same-origin absolute returnUrl and rejects external origins', () => {
+      process.env.FRONTEND_AUTH_SUCCESS_REDIRECT =
+        'https://oiso.example.com/auth/success';
+
+      expect(
+        service.getSafeOAuthReturnUrl('https://oiso.example.com/routes/1'),
+      ).toBe('https://oiso.example.com/routes/1');
+      expect(
+        service.getSafeOAuthReturnUrl('https://attacker.example.com/routes/1'),
+      ).toBeUndefined();
+    });
+
+    it('rejects backslash returnUrl values parsed as external origins', () => {
+      expect(
+        service.getSafeOAuthReturnUrl('/\\attacker.example.com/phish'),
+      ).toBeUndefined();
+    });
+
+    it('builds the consent redirect URL for new social users', () => {
+      process.env.FRONTEND_AUTH_CONSENT_REDIRECT = '/terms';
+
+      expect(service.getConsentRedirectUrl()).toBe(
+        'http://localhost:5173/terms?login=success',
+      );
+    });
   });
 
   describe('getFailureReason', () => {

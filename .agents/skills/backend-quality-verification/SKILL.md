@@ -5,6 +5,19 @@ description: OISO-BE 백엔드 변경 후 변경 범위에 맞춰 build, test, e
 
 # Backend Quality Verification
 
+## OISO-BE 추가 검증
+
+- 새로 추가/수정한 `src/**` 내부 import가 `@/` 절대 alias를 쓰는지 확인합니다.
+- 새 endpoint/domain 변경이면 controller, service, repository, DTO, module wiring이 OISO-BE 경계 규칙을 따르는지 확인합니다.
+- 상대 import 점검 명령:
+
+```bash
+rg -n "from ['\"]\\.\\.?/" src
+```
+
+- 위 명령은 기존 상대 import도 찾을 수 있으므로, 변경한 파일에서 새 상대 import가 생기지 않았는지 중심으로 판단합니다.
+- 새 endpoint가 있으면 `AppModule` 또는 해당 domain module wiring, controller prefix, DTO 응답 계약을 함께 확인합니다.
+
 ## 목적
 
 변경 범위에 맞는 최소 검증을 선택하고, 실행한 검증과 남은 위험을 분리해 보고합니다.

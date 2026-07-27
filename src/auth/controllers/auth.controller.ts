@@ -13,6 +13,7 @@ import type { Request, Response } from 'express';
 import type { User } from '@prisma/client';
 import {
   ACCESS_TOKEN_COOKIE,
+  OAUTH_RETURN_URL_COOKIE,
   OAUTH_STATE_COOKIE,
   REFRESH_TOKEN_COOKIE,
 } from '@/auth/auth.constants';
@@ -38,8 +39,11 @@ export class AuthController {
   ) {}
 
   @Get('auth/kakao/login')
-  redirectToKakao(@Res() response: Response): void {
-    this.redirectToProvider(response, (state) =>
+  redirectToKakao(
+    @Query('returnUrl') returnUrl: unknown,
+    @Res() response: Response,
+  ): void {
+    this.redirectToProvider(response, returnUrl, (state) =>
       this.kakaoAuthService.getAuthorizationUrl(state),
     );
   }
@@ -66,8 +70,11 @@ export class AuthController {
   }
 
   @Get('auth/google/login')
-  redirectToGoogle(@Res() response: Response): void {
-    this.redirectToProvider(response, (state) =>
+  redirectToGoogle(
+    @Query('returnUrl') returnUrl: unknown,
+    @Res() response: Response,
+  ): void {
+    this.redirectToProvider(response, returnUrl, (state) =>
       this.googleAuthService.getAuthorizationUrl(state),
     );
   }
@@ -138,14 +145,23 @@ export class AuthController {
 
   private redirectToProvider(
     response: Response,
+    returnUrl: unknown,
     getAuthorizationUrl: (state: string) => string,
   ): void {
     const state = randomBytes(24).toString('base64url');
+    const validatedReturnUrl =
+      this.authCookieService.getSafeOAuthReturnUrl(returnUrl);
 
     response.cookie(OAUTH_STATE_COOKIE, state, {
       ...this.authCookieService.getBaseCookieOptions(),
       maxAge: 5 * 60 * 1000,
     });
+    if (validatedReturnUrl) {
+      response.cookie(OAUTH_RETURN_URL_COOKIE, validatedReturnUrl, {
+        ...this.authCookieService.getBaseCookieOptions(),
+        maxAge: 5 * 60 * 1000,
+      });
+    }
     response.redirect(getAuthorizationUrl(state));
   }
 }

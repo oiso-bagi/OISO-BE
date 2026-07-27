@@ -1,13 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma, User } from '@prisma/client';
+import { Prisma } from '@prisma/client';
+import type { User } from '@prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
-import {
+import type { SocialAuthUser, UserIdOnly } from '@/auth/types/auth-user.types';
+import type {
   SocialProvider,
   SocialUserProfile,
 } from '@/auth/types/social-auth.types';
-
-export type UserIdOnly = Pick<User, 'id'>;
-export type SocialAuthUser = Omit<User, 'passwordHash'>;
 
 const socialUserSelect = {
   id: true,

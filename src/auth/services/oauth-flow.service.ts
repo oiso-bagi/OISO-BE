@@ -2,12 +2,13 @@ import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import {
   ACCESS_TOKEN_COOKIE,
+  OAUTH_RETURN_URL_COOKIE,
   OAUTH_STATE_COOKIE,
   REFRESH_TOKEN_COOKIE,
 } from '@/auth/auth.constants';
 import { AuthCookieService } from '@/auth/services/auth-cookie.service';
-import { AuthTokens } from '@/auth/services/auth.service';
-import { SocialUserProfile } from '@/auth/types/social-auth.types';
+import type { SocialLoginResult } from '@/auth/types/auth-result.types';
+import type { SocialUserProfile } from '@/auth/types/social-auth.types';
 
 interface SocialCallbackParams {
   code: unknown;
@@ -17,7 +18,7 @@ interface SocialCallbackParams {
   response: Response;
   providerName: string;
   getProfile: (code: string) => Promise<SocialUserProfile>;
-  login: (profile: SocialUserProfile) => Promise<{ tokens: AuthTokens }>;
+  login: (profile: SocialUserProfile) => Promise<SocialLoginResult>;
 }
 
 @Injectable()
@@ -65,7 +66,10 @@ export class OAuthFlowService {
       this.authCookieService.validateOAuthState(validatedState, storedState);
 
       const profile = await getProfile(validatedCode);
-      const { tokens } = await login(profile);
+      const { tokens, isNewUser } = await login(profile);
+      const returnUrl = this.authCookieService.getSafeOAuthReturnUrl(
+        cookies[OAUTH_RETURN_URL_COOKIE],
+      );
 
       this.setRefreshTokenCookie(response, tokens.refreshToken);
       response.clearCookie(
@@ -76,11 +80,31 @@ export class OAuthFlowService {
         OAUTH_STATE_COOKIE,
         this.authCookieService.getBaseCookieOptions(),
       );
-      response.redirect(this.authCookieService.getSuccessRedirectUrl());
+      response.clearCookie(
+        OAUTH_RETURN_URL_COOKIE,
+        this.authCookieService.getBaseCookieOptions(),
+      );
+      response.redirect(
+        isNewUser
+          ? this.authCookieService.getConsentRedirectUrl()
+          : this.authCookieService.getSuccessRedirectUrl(returnUrl),
+      );
     } catch (err) {
       this.logger.error(`${providerName} OAuth callback failed.`, err);
       response.clearCookie(
+        ACCESS_TOKEN_COOKIE,
+        this.authCookieService.getBaseCookieOptions(),
+      );
+      response.clearCookie(
+        REFRESH_TOKEN_COOKIE,
+        this.authCookieService.getBaseCookieOptions(),
+      );
+      response.clearCookie(
         OAUTH_STATE_COOKIE,
+        this.authCookieService.getBaseCookieOptions(),
+      );
+      response.clearCookie(
+        OAUTH_RETURN_URL_COOKIE,
         this.authCookieService.getBaseCookieOptions(),
       );
       response.redirect(
