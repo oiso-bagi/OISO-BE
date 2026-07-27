@@ -1,4 +1,4 @@
-import { SocialUserProfile } from '@/auth/types/social-auth.types';
+import type { SocialUserProfile } from '@/auth/types/social-auth.types';
 
 export interface GoogleTokenResponse {
   token_type: string;

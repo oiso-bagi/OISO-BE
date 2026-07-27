@@ -150,12 +150,10 @@ export class AuthService {
     userId: string,
     profile: SocialUserProfile,
   ): Promise<SocialUserResolution> {
-    const user = await this.updateSocialUserHandlingEmailConflict(
-      userId,
-      profile,
-    );
-
-    return { user, isNewUser: false };
+    return {
+      user: await this.updateSocialUserHandlingEmailConflict(userId, profile),
+      isNewUser: false,
+    };
   }
 
   private async createSocialUserWithAvailableNickname(
