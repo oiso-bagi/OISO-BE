@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { User } from '@prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
-import { KakaoUserProfile } from '@/auth/types/kakao-auth.types';
+import { SocialUserProfile } from '@/auth/types/social-auth.types';
 
 export type UserIdOnly = Pick<User, 'id'>;
 
@@ -41,23 +41,34 @@ export class AuthRepository {
     });
   }
 
-  createKakaoUser(profile: KakaoUserProfile, nickname: string): Promise<User> {
-    return this.prisma.user.create({
+  async createSocialUser(
+    provider: string,
+    profile: SocialUserProfile,
+    nickname: string,
+  ): Promise<User> {
+    const user = await this.prisma.user.create({
       data: {
         email: profile.email,
         nickname,
-        provider: 'kakao',
+        provider,
         providerId: profile.providerId,
       },
     });
+
+    return user;
   }
 
-  updateKakaoUser(userId: string, profile: KakaoUserProfile): Promise<User> {
-    return this.prisma.user.update({
+  async updateSocialUser(
+    userId: string,
+    profile: SocialUserProfile,
+  ): Promise<User> {
+    const user = await this.prisma.user.update({
       where: { id: userId },
       data: {
         email: profile.email,
       },
     });
+
+    return user;
   }
 }
