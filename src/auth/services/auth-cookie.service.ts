@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+} from '@nestjs/common';
 import { timingSafeEqual } from 'node:crypto';
 import type { CookieOptions, Request } from 'express';
 
@@ -111,16 +115,26 @@ export class AuthCookieService {
 
   getFailureReason(error: unknown): string {
     if (error instanceof BadRequestException) {
-      const response = error.getResponse();
-      const message =
-        typeof response === 'object' &&
-        response !== null &&
-        'message' in response
-          ? String(response.message)
-          : error.message;
+      const message = this.getExceptionMessage(error);
 
       if (message.includes('canceled')) {
-        return 'kakao_canceled';
+        if (message.includes('Kakao')) {
+          return 'kakao_canceled';
+        }
+
+        if (message.includes('Google')) {
+          return 'google_canceled';
+        }
+
+        return 'oauth_canceled';
+      }
+
+      if (message.includes('Failed to exchange')) {
+        return 'token_exchange_failed';
+      }
+
+      if (message.includes('Failed to fetch')) {
+        return 'profile_fetch_failed';
       }
 
       if (message.includes('authorization code')) {
@@ -131,20 +145,20 @@ export class AuthCookieService {
         return 'invalid_state';
       }
 
-      if (message.includes('exchange Kakao')) {
-        return 'token_exchange_failed';
-      }
-
-      if (message.includes('fetch Kakao')) {
-        return 'profile_fetch_failed';
-      }
-
       if (message.includes('email')) {
         return 'email_required';
       }
 
       if (message.includes('nickname')) {
         return 'nickname_required';
+      }
+    }
+
+    if (error instanceof ConflictException) {
+      const message = this.getExceptionMessage(error);
+
+      if (message.includes('Email') || message === 'email_conflict') {
+        return 'email_conflict';
       }
     }
 
@@ -157,6 +171,18 @@ export class AuthCookieService {
     } catch {
       return value;
     }
+  }
+
+  private getExceptionMessage(
+    error: BadRequestException | ConflictException,
+  ): string {
+    const response = error.getResponse();
+
+    return typeof response === 'object' &&
+      response !== null &&
+      'message' in response
+      ? String(response.message)
+      : error.message;
   }
 
   private isEqual(left: string, right: string): boolean {

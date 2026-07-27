@@ -5,7 +5,9 @@ import { AuthRepository } from '@/auth/repositories/auth.repository';
 import { AuthCookieService } from '@/auth/services/auth-cookie.service';
 import { AuthService } from '@/auth/services/auth.service';
 import { AuthTokenService } from '@/auth/services/auth-token.service';
+import { GoogleAuthService } from '@/auth/services/google-auth.service';
 import { KakaoAuthService } from '@/auth/services/kakao-auth.service';
+import { OAuthFlowService } from '@/auth/services/oauth-flow.service';
 import { AuthGuard } from '@/common/guards/auth.guard';
 
 @Module({
@@ -16,7 +18,9 @@ import { AuthGuard } from '@/common/guards/auth.guard';
     AuthRepository,
     AuthTokenService,
     AuthCookieService,
+    OAuthFlowService,
     KakaoAuthService,
+    GoogleAuthService,
     AuthGuard,
   ],
   exports: [AuthService, AuthCookieService, AuthGuard],

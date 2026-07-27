@@ -5,9 +5,17 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { Prisma, User } from '@prisma/client';
-import { AuthRepository } from '@/auth/repositories/auth.repository';
+import {
+  AuthRepository,
+  SocialAuthUser,
+} from '@/auth/repositories/auth.repository';
 import { AuthTokenService } from '@/auth/services/auth-token.service';
+import { GoogleUserProfile } from '@/auth/types/google-auth.types';
 import { KakaoUserProfile } from '@/auth/types/kakao-auth.types';
+import {
+  SocialProvider,
+  SocialUserProfile,
+} from '@/auth/types/social-auth.types';
 
 export interface AuthTokens {
   refreshToken: string;
@@ -21,23 +29,17 @@ export class AuthService {
   ) {}
 
   async loginWithKakao(profile: KakaoUserProfile): Promise<{
-    user: User;
+    user: SocialAuthUser;
     tokens: AuthTokens;
   }> {
-    this.getNormalizedNickname(profile.nickname);
+    return this.loginWithSocialProvider('kakao', profile);
+  }
 
-    const existingUser = await this.authRepository.findUserByProvider(
-      'kakao',
-      profile.providerId,
-    );
-    const user = existingUser
-      ? await this.authRepository.updateKakaoUser(existingUser.id, profile)
-      : await this.createKakaoUserHandlingRace(profile);
-
-    return {
-      user,
-      tokens: this.issueTokens(user),
-    };
+  async loginWithGoogle(profile: GoogleUserProfile): Promise<{
+    user: SocialAuthUser;
+    tokens: AuthTokens;
+  }> {
+    return this.loginWithSocialProvider('google', profile);
   }
 
   async getCurrentUser(accessToken: string | undefined): Promise<User> {
@@ -91,7 +93,33 @@ export class AuthService {
     }
   }
 
-  private issueTokens(user: User): AuthTokens {
+  private async loginWithSocialProvider(
+    provider: SocialProvider,
+    profile: SocialUserProfile,
+  ): Promise<{
+    user: SocialAuthUser;
+    tokens: AuthTokens;
+  }> {
+    this.getNormalizedNickname(profile.nickname);
+
+    const existingUser = await this.authRepository.findUserByProvider(
+      provider,
+      profile.providerId,
+    );
+    const user = existingUser
+      ? await this.updateSocialUserHandlingEmailConflict(
+          existingUser.id,
+          profile,
+        )
+      : await this.createSocialUserHandlingRace(provider, profile);
+
+    return {
+      user,
+      tokens: this.issueTokens(user),
+    };
+  }
+
+  private issueTokens(user: Pick<User, 'id' | 'provider'>): AuthTokens {
     return {
       refreshToken: this.authTokenService.issueRefreshToken(
         user.id,
@@ -100,15 +128,17 @@ export class AuthService {
     };
   }
 
-  private async createKakaoUserHandlingRace(
-    profile: KakaoUserProfile,
-  ): Promise<User> {
-    return this.createKakaoUserWithAvailableNickname(profile);
+  private async createSocialUserHandlingRace(
+    provider: SocialProvider,
+    profile: SocialUserProfile,
+  ): Promise<SocialAuthUser> {
+    return this.createSocialUserWithAvailableNickname(provider, profile);
   }
 
-  private async createKakaoUserWithAvailableNickname(
-    profile: KakaoUserProfile,
-  ): Promise<User> {
+  private async createSocialUserWithAvailableNickname(
+    provider: SocialProvider,
+    profile: SocialUserProfile,
+  ): Promise<SocialAuthUser> {
     for (const nickname of this.getNicknameCandidates(profile)) {
       const existing = await this.authRepository.findUserByNickname(nickname);
 
@@ -117,27 +147,55 @@ export class AuthService {
       }
 
       try {
-        return await this.authRepository.createKakaoUser(profile, nickname);
+        return await this.authRepository.createSocialUser(
+          provider,
+          profile,
+          nickname,
+        );
       } catch (error) {
+        if (this.isUniqueConstraintError(error, 'email')) {
+          throw new ConflictException(
+            'Email is already linked to another account.',
+          );
+        }
+
         if (!this.isUniqueConstraintError(error)) {
           throw error;
         }
 
         const existingUser = await this.authRepository.findUserByProvider(
-          'kakao',
+          provider,
           profile.providerId,
         );
 
         if (existingUser) {
-          return this.authRepository.updateKakaoUser(existingUser.id, profile);
+          return this.updateSocialUserHandlingEmailConflict(
+            existingUser.id,
+            profile,
+          );
         }
       }
     }
 
-    throw new ConflictException('Available Kakao nickname was not found.');
+    throw new ConflictException('Available nickname was not found.');
   }
 
-  private getNicknameCandidates(profile: KakaoUserProfile): string[] {
+  private async updateSocialUserHandlingEmailConflict(
+    userId: string,
+    profile: SocialUserProfile,
+  ): Promise<SocialAuthUser> {
+    try {
+      return await this.authRepository.updateSocialUser(userId, profile);
+    } catch (error) {
+      if (this.isUniqueConstraintError(error, 'email')) {
+        throw new ConflictException('email_conflict');
+      }
+
+      throw error;
+    }
+  }
+
+  private getNicknameCandidates(profile: SocialUserProfile): string[] {
     const baseNickname = this.getNormalizedNickname(profile.nickname);
 
     return [
@@ -153,16 +211,26 @@ export class AuthService {
     const baseNickname = nickname.trim();
 
     if (!baseNickname) {
-      throw new BadRequestException('Kakao nickname is required.');
+      throw new BadRequestException('Nickname is required.');
     }
 
     return baseNickname;
   }
 
-  private isUniqueConstraintError(error: unknown): boolean {
-    return (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === 'P2002'
-    );
+  private isUniqueConstraintError(error: unknown, field?: string): boolean {
+    if (
+      !(error instanceof Prisma.PrismaClientKnownRequestError) ||
+      error.code !== 'P2002'
+    ) {
+      return false;
+    }
+
+    if (!field) {
+      return true;
+    }
+
+    const target = error.meta?.target;
+
+    return Array.isArray(target) && target.includes(field);
   }
 }
