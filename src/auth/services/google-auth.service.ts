@@ -10,6 +10,11 @@ import {
   GoogleUserResponse,
 } from '@/auth/types/google-auth.types';
 
+const GOOGLE_TOKEN_EXCHANGE_FAILED_MESSAGE =
+  'Failed to exchange Google authorization code.';
+const GOOGLE_PROFILE_FETCH_FAILED_MESSAGE =
+  'Failed to fetch Google user profile.';
+
 @Injectable()
 export class GoogleAuthService {
   getAuthorizationUrl(state: string): string {
@@ -71,21 +76,20 @@ export class GoogleAuthService {
         },
         body: params,
       },
-      'Failed to exchange Google authorization code.',
+      GOOGLE_TOKEN_EXCHANGE_FAILED_MESSAGE,
     );
 
     if (!response.ok) {
-      throw new BadRequestException(
-        'Failed to exchange Google authorization code.',
-      );
+      throw new BadRequestException(GOOGLE_TOKEN_EXCHANGE_FAILED_MESSAGE);
     }
 
-    const tokenResponse: unknown = await response.json();
+    const tokenResponse = await this.parseGoogleResponse(
+      response,
+      GOOGLE_TOKEN_EXCHANGE_FAILED_MESSAGE,
+    );
 
     if (!this.isGoogleTokenResponse(tokenResponse)) {
-      throw new BadRequestException(
-        'Failed to exchange Google authorization code.',
-      );
+      throw new BadRequestException(GOOGLE_TOKEN_EXCHANGE_FAILED_MESSAGE);
     }
 
     return tokenResponse;
@@ -100,17 +104,20 @@ export class GoogleAuthService {
           Authorization: `Bearer ${accessToken}`,
         },
       },
-      'Failed to fetch Google user profile.',
+      GOOGLE_PROFILE_FETCH_FAILED_MESSAGE,
     );
 
     if (!response.ok) {
-      throw new BadRequestException('Failed to fetch Google user profile.');
+      throw new BadRequestException(GOOGLE_PROFILE_FETCH_FAILED_MESSAGE);
     }
 
-    const googleUser: unknown = await response.json();
+    const googleUser = await this.parseGoogleResponse(
+      response,
+      GOOGLE_PROFILE_FETCH_FAILED_MESSAGE,
+    );
 
     if (!this.isGoogleUserResponse(googleUser)) {
-      throw new BadRequestException('Failed to fetch Google user profile.');
+      throw new BadRequestException(GOOGLE_PROFILE_FETCH_FAILED_MESSAGE);
     }
 
     return googleUser;
@@ -141,6 +148,17 @@ export class GoogleAuthService {
         throw new GatewayTimeoutException('Google API request timed out.');
       }
 
+      throw new BadRequestException(failureMessage);
+    }
+  }
+
+  private async parseGoogleResponse(
+    response: Response,
+    failureMessage: string,
+  ): Promise<unknown> {
+    try {
+      return await response.json();
+    } catch {
       throw new BadRequestException(failureMessage);
     }
   }

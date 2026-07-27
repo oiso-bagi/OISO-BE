@@ -52,6 +52,14 @@ describe('GoogleAuthService', () => {
     );
   });
 
+  it('wraps rejected token response parsing as a token exchange failure', async () => {
+    mockFetchJsonFailure();
+
+    await expect(service.getUserProfile('code')).rejects.toThrow(
+      new BadRequestException('Failed to exchange Google authorization code.'),
+    );
+  });
+
   it('rejects profile responses without a non-empty subject', async () => {
     mockFetchJson({
       access_token: 'access-token',
@@ -139,6 +147,17 @@ describe('GoogleAuthService', () => {
     );
   });
 
+  it('wraps rejected profile response parsing as a profile fetch failure', async () => {
+    mockFetchJson({
+      access_token: 'access-token',
+    });
+    mockFetchJsonFailure();
+
+    await expect(service.getUserProfile('code')).rejects.toThrow(
+      new BadRequestException('Failed to fetch Google user profile.'),
+    );
+  });
+
   it('preserves timeout failures as gateway timeouts', async () => {
     const timeout = new Error('timeout');
     timeout.name = 'TimeoutError';
@@ -153,6 +172,13 @@ describe('GoogleAuthService', () => {
     (global.fetch as jest.Mock).mockResolvedValueOnce({
       ok: true,
       json: jest.fn().mockResolvedValue(body),
+    });
+  }
+
+  function mockFetchJsonFailure(): void {
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: jest.fn().mockRejectedValue(new Error('invalid json')),
     });
   }
 });
