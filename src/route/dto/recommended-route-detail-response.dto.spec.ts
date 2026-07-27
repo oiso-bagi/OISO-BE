@@ -1,4 +1,7 @@
-import { RecommendedRouteDetailResponseDto } from './recommended-route-detail-response.dto';
+import {
+  RecommendedRouteDetailResponseDto,
+  RouteWithStops,
+} from '@/route/dto/recommended-route-detail-response.dto';
 
 describe('RecommendedRouteDetailResponseDto', () => {
   it('returns safe defaults when route data is incomplete', () => {
@@ -10,7 +13,7 @@ describe('RecommendedRouteDetailResponseDto', () => {
       score: null,
       routeType: 'RECOMMENDED',
       stops: undefined,
-    } as any);
+    } as unknown as RouteWithStops);
 
     expect(dto.stopCount).toBe(0);
     expect(dto.totalDistanceKm).toBe(3.2);
@@ -43,7 +46,7 @@ describe('RecommendedRouteDetailResponseDto', () => {
           place: null,
         },
       ],
-    } as any);
+    } as unknown as RouteWithStops);
 
     expect(dto.stopCount).toBe(1);
     expect(dto.transportType).toBe('BUS');
