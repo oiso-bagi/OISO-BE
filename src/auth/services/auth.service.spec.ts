@@ -134,7 +134,7 @@ describe('AuthService', () => {
         tokens: {
           refreshToken: 'refresh-token',
         },
-        isNewUser: true,
+        isNewUser: false,
       });
       expect(mockAuthRepository.updateSocialUser).toHaveBeenCalledWith(
         'user-id',

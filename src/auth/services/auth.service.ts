@@ -27,6 +27,11 @@ export interface SocialLoginResult {
   isNewUser: boolean;
 }
 
+interface SocialUserResolution {
+  user: SocialAuthUser;
+  isNewUser: boolean;
+}
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -105,18 +110,20 @@ export class AuthService {
       provider,
       profile.providerId,
     );
-    const isNewUser = !existingUser;
-    const user = existingUser
-      ? await this.updateSocialUserHandlingEmailConflict(
-          existingUser.id,
-          profile,
-        )
+    const resolvedUser = existingUser
+      ? {
+          user: await this.updateSocialUserHandlingEmailConflict(
+            existingUser.id,
+            profile,
+          ),
+          isNewUser: false,
+        }
       : await this.createSocialUserHandlingRace(provider, profile);
 
     return {
-      user,
-      tokens: this.issueTokens(user),
-      isNewUser,
+      user: resolvedUser.user,
+      tokens: this.issueTokens(resolvedUser.user),
+      isNewUser: resolvedUser.isNewUser,
     };
   }
 
@@ -132,14 +139,14 @@ export class AuthService {
   private async createSocialUserHandlingRace(
     provider: SocialProvider,
     profile: SocialUserProfile,
-  ): Promise<SocialAuthUser> {
+  ): Promise<SocialUserResolution> {
     return this.createSocialUserWithAvailableNickname(provider, profile);
   }
 
   private async createSocialUserWithAvailableNickname(
     provider: SocialProvider,
     profile: SocialUserProfile,
-  ): Promise<SocialAuthUser> {
+  ): Promise<SocialUserResolution> {
     for (const nickname of this.getNicknameCandidates(profile)) {
       const existing = await this.authRepository.findUserByNickname(nickname);
 
@@ -148,11 +155,13 @@ export class AuthService {
       }
 
       try {
-        return await this.authRepository.createSocialUser(
+        const user = await this.authRepository.createSocialUser(
           provider,
           profile,
           nickname,
         );
+
+        return { user, isNewUser: true };
       } catch (error) {
         if (this.isUniqueConstraintError(error, 'email')) {
           throw new ConflictException(
@@ -170,10 +179,12 @@ export class AuthService {
         );
 
         if (existingUser) {
-          return this.updateSocialUserHandlingEmailConflict(
+          const user = await this.updateSocialUserHandlingEmailConflict(
             existingUser.id,
             profile,
           );
+
+          return { user, isNewUser: false };
         }
       }
     }
