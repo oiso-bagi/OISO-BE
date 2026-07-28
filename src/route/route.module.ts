@@ -5,6 +5,7 @@ import { RouteRepository } from './route.repository';
 import { SavedRouteController } from './saved-route.controller';
 import { SavedRouteService } from './saved-route.service';
 import { SavedRouteRepository } from './saved-route.repository';
+import { RouteCongestionCronService } from './services/route-congestion-cron.service';
 
 @Module({
   controllers: [RouteController, SavedRouteController],
@@ -13,6 +14,7 @@ import { SavedRouteRepository } from './saved-route.repository';
     RouteRepository,
     SavedRouteService,
     SavedRouteRepository,
+    RouteCongestionCronService,
   ],
 })
 export class RouteModule {}

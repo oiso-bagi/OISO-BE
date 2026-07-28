@@ -7,6 +7,7 @@ describe('RouteService', () => {
   const mockRouteRepository = {
     findDetailWithStopsAndPlace: jest.fn(),
     findListWithStops: jest.fn(),
+    findRecommendedCandidates: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -90,5 +91,51 @@ describe('RouteService', () => {
       },
     ]);
     expect(result[0]).not.toHaveProperty('stops');
+  });
+
+  describe('getRecommendedRoutes', () => {
+    it('throws BadRequestException if budget is invalid', async () => {
+      await expect(
+        service.getRecommendedRoutes({
+          budget: 0,
+          ratios: { foodRatio: 0.4, experienceRatio: 0.4, transportRatio: 0.2 },
+        }),
+      ).rejects.toThrow('유효한 총 예산(budget)을 입력해 주세요.');
+    });
+
+    it('filters candidates by budget and ranks by finalScore returning top 3', async () => {
+      const mockCandidates = [
+        {
+          id: 'route-1',
+          name: '루트 1',
+          score: 80,
+          estimatedCostWon: 10000,
+          foodCostWon: 4000, // 0.4
+          experienceCostWon: 4000, // 0.4
+          transportCostWon: 2000, // 0.2
+        },
+        {
+          id: 'route-2',
+          name: '루트 2',
+          score: 90,
+          estimatedCostWon: 10000,
+          foodCostWon: 1000, // 0.1 (오차 큼)
+          experienceCostWon: 8000, // 0.8
+          transportCostWon: 1000, // 0.1
+        },
+      ];
+
+      mockRouteRepository.findRecommendedCandidates.mockResolvedValue(
+        mockCandidates,
+      );
+
+      const result = await service.getRecommendedRoutes({
+        budget: 15000,
+        ratios: { foodRatio: 0.4, experienceRatio: 0.4, transportRatio: 0.2 },
+      });
+
+      expect(result.length).toBe(2);
+      expect(result[0].id).toBe('route-1'); // 오차 적은 루트1이 1위
+    });
   });
 });

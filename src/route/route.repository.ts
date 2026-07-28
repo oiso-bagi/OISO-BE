@@ -90,4 +90,66 @@ export class RouteRepository {
       select: routeListSelect,
     });
   }
+
+  /**
+   * 1단계 Hard Filter: 사용자의 예산(budget) 이하인 추천 경로 후보군만 DB 레벨에서 선별 조회합니다.
+   */
+  async findRecommendedCandidates(budget: number) {
+    return this.prisma.route.findMany({
+      where: {
+        routeType: 'RECOMMENDED',
+        isPublished: true,
+        estimatedCostWon: {
+          lte: budget,
+        },
+      },
+      select: {
+        id: true,
+        name: true,
+        summary: true,
+        region: true,
+        description: true,
+        routeType: true,
+        congestionLevel: true,
+        score: true,
+        estimatedCostWon: true,
+        foodCostWon: true,
+        experienceCostWon: true,
+        transportCostWon: true,
+        tpiIndex: true,
+        totalElevationGainMeters: true,
+        totalDifficultyScore: true,
+        estimatedDurationMin: true,
+        totalDistanceMeters: true,
+        estimatedSavingsWon: true,
+        stops: {
+          orderBy: {
+            orderIndex: 'asc',
+          },
+          select: {
+            orderIndex: true,
+            transitType: true,
+            travelMinutesFromPrev: true,
+            stayMinutes: true,
+            fareWon: true,
+            estimatedPriceWon: true,
+            elevationGainMeters: true,
+            difficultyScore: true,
+            place: {
+              select: {
+                id: true,
+                name: true,
+                category: true,
+                openTime: true,
+                closeTime: true,
+                latitude: true,
+                longitude: true,
+              },
+            },
+          },
+        },
+      },
+      take: 50,
+    });
+  }
 }
