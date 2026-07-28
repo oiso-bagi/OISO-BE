@@ -147,23 +147,29 @@ model Theme {
 
 /// 경로 도메인: 복수의 장소(Place)가 연결되어 생성된 추천 또는 커스텀 여행 동선 정보를 통합 관리합니다.
 model Route {
-  id                   String          @id @default(cuid()) /// 경로 고유 식별자 (CUID)
-  name                 String                               /// 여행 경로 타이틀 명칭
-  summary              String?                              /// 경로 한 줄 요약 문구
-  region               String                               /// 여행 대상 지역 (예: 부산)
-  description          String?                              /// 경로 상세 일정 및 팁 설명
-  routeType            RouteType       @default(RECOMMENDED)/// 경로 소스 타입 분류
-  congestionLevel      CongestionLevel @default(MEDIUM)     /// 경로 전반의 예측 혼잡도 단계
-  score                Decimal?        @db.Decimal(5, 2)    /// 알고리즘 연산으로 산출된 가성비 최종 스코어
-  estimatedCostWon     Int                                  /// 경로 전체 예상 총 소요 비용 (원화)
-  estimatedDurationMin Int                                  /// 경로 전체 예상 총 소요 시간 (분 단위)
-  totalDistanceMeters  Int                                  /// 경로 총 이동 거리 (미터 단위)
-  estimatedSavingsWon  Int             @default(0)          /// 가성비 추천을 통해 절감된 예측 비용 (원화)
-  localContributionScore Int           @default(0)          /// 이 경로의 로컬(외곽상권) 기여 지수 점수 (0~100)
-  isPublished          Boolean         @default(true)       /// 전체 공개 여부
-  createdAt            DateTime        @default(now())      /// 경로 생성 일시
-  updatedAt            DateTime        @updatedAt           /// 경로 수정 일시
-  averageRating        Decimal?        @db.Decimal(3, 2)    /// 가성비 분자 연산용 '만족도' 데이터 대체재
+  id                      String          @id @default(cuid()) /// 경로 고유 식별자 (CUID)
+  name                    String                               /// 여행 경로 타이틀 명칭
+  summary                 String?                              /// 경로 한 줄 요약 문구
+  region                  String                               /// 여행 대상 지역 (예: 부산)
+  description             String?                              /// 경로 상세 일정 및 팁 설명
+  routeType               RouteType       @default(RECOMMENDED)/// 경로 소스 타입 분류
+  congestionLevel         CongestionLevel @default(MEDIUM)     /// 경로 전반의 예측 혼잡도 단계
+  score                   Decimal?        @db.Decimal(5, 2)    /// 알고리즘 연산으로 산출된 가성비 최종 스코어
+  estimatedCostWon        Int                                  /// 경로 전체 예상 총 소요 비용 (원화)
+  foodCostWon             Int             @default(0)          /// 식비(FOOD/CAFE) 총합 (역정규화 필드)
+  experienceCostWon       Int             @default(0)          /// 체험/입장료/관광 총합 (역정규화 필드)
+  transportCostWon        Int             @default(0)          /// 대중교통/이동 비용 총합 (역정규화 필드)
+  tpiIndex                Decimal?        @db.Decimal(5, 2)    /// 관광객 프리미엄 지수 (TPI)
+  totalElevationGainMeters Int            @default(0)          /// 경로 전체 총 고도 상승분 (m 단위)
+  totalDifficultyScore    Decimal?        @db.Decimal(7, 2)    /// 경로 전체 구간 이동 난이도 총점
+  estimatedDurationMin    Int                                  /// 경로 전체 예상 총 소요 시간 (분 단위)
+  totalDistanceMeters     Int                                  /// 경로 총 이동 거리 (미터 단위)
+  estimatedSavingsWon     Int             @default(0)          /// 가성비 추천을 통해 절감된 예측 비용 (원화)
+  localContributionScore  Int             @default(0)          /// 이 경로의 로컬(외곽상권) 기여 지수 점수 (0~100)
+  isPublished             Boolean         @default(true)       /// 전체 공개 여부
+  createdAt               DateTime        @default(now())      /// 경로 생성 일시
+  updatedAt               DateTime        @updatedAt           /// 경로 수정 일시
+  averageRating           Decimal?        @db.Decimal(3, 2)    /// 가성비 분자 연산용 '만족도' 데이터 대체재
   
   stops     RouteStop[]
   savedBy   SavedRoute[]
@@ -173,6 +179,7 @@ model Route {
   @@index([region])
   @@index([score])
   @@index([routeType, score])
+  @@index([estimatedCostWon])
 }
 
 /// 경로 경유지 도메인: 특정 여행 경로에 포함된 세부 장소들의 방문 순서와 구간별 이동 비용/수단을 정의합니다.
@@ -187,6 +194,7 @@ model RouteStop {
   travelMinutesFromPrev  Int?                              /// 이전 경유지로부터 이동하는 데 소요되는 시간 (분 단위)
   distanceFromPrevMeters Int?                              /// 이전 경유지로부터의 이동 거리 (미터 단위)
   elevationGainMeters    Int?                              /// 산복도로 피로도 연산용 '고도 상승' 데이터 (미터 단위)
+  difficultyScore        Decimal?     @db.Decimal(6, 2)    /// 구간 체감 이동 난이도 점수 (보행 경사 가중치 반영)
   fareWon                Int?                              /// 해당 구간 이동 시 발생하는 교통 요금 (원화)
   trafficNotes           String?                           /// 환승 및 길 찾기 관련 백엔드/API 텍스트 메모
   estimatedPriceWon      Int?                              /// 해당 장소에서 소비할 것으로 예측되는 비용 (원화)
