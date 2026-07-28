@@ -1,4 +1,4 @@
-import { INestApplication } from '@nestjs/common';
+import { BadRequestException, INestApplication } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { SavedRouteController } from '../src/route/saved-route.controller';
@@ -35,10 +35,17 @@ describe('SavedRouteController (e2e)', () => {
   });
 
   it('returns 400 for empty routeId in GET /saved-routes/:routeId', async () => {
+    savedRouteService.getSavedRouteDetail.mockRejectedValue(
+      new BadRequestException('Saved route ID must not be empty.'),
+    );
+
     await request(app.getHttpServer() as App)
       .get('/saved-routes/%20?userId=user-1')
       .expect(400);
-    expect(savedRouteService.getSavedRouteDetail).not.toHaveBeenCalled();
+    expect(savedRouteService.getSavedRouteDetail).toHaveBeenCalledWith(
+      ' ',
+      'user-1',
+    );
   });
 
   it('returns 200 and saved route list payload for GET /saved-routes', async () => {
