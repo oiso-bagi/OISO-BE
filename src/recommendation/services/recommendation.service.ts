@@ -92,13 +92,15 @@ export class RecommendationService {
       );
     }
 
-    if (!this.isNonEmptyStringArray(value)) {
+    const rawTravelStyleSlugs: unknown[] = value;
+
+    if (!this.isNonEmptyStringArray(rawTravelStyleSlugs)) {
       throw new BadRequestException(
         'travelStyleSlugs must contain only non-empty strings.',
       );
     }
 
-    const travelStyleSlugs = value
+    const travelStyleSlugs = rawTravelStyleSlugs
       .map((travelStyleSlug) => travelStyleSlug.trim())
       .filter(
         (travelStyleSlug, index, self) =>
