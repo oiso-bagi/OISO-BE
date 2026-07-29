@@ -81,6 +81,25 @@ describe('RecommendationService', () => {
     ).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ['numeric element', ['local-food', 1]],
+    ['object element', ['local-food', {}]],
+  ])(
+    'rejects recommendation request when travel styles contain a %s',
+    async (_caseName, travelStyleSlugs) => {
+      await expect(
+        service.recommendRoutes({
+          travelStyleSlugs,
+          durationDays: 1,
+          dailyBudgetWon: 60000,
+        }),
+      ).rejects.toThrow(BadRequestException);
+      expect(
+        mockRecommendationRepository.findRecommendedRoutes,
+      ).not.toHaveBeenCalled();
+    },
+  );
+
   it('rejects recommendation request when duration days are out of range', async () => {
     await expect(
       service.recommendRoutes({
@@ -99,5 +118,18 @@ describe('RecommendationService', () => {
         dailyBudgetWon: 0,
       }),
     ).rejects.toThrow(BadRequestException);
+  });
+
+  it('rejects recommendation request when daily budget exceeds the safe integer range', async () => {
+    await expect(
+      service.recommendRoutes({
+        travelStyleSlugs: ['local-food'],
+        durationDays: 1,
+        dailyBudgetWon: Number.MAX_SAFE_INTEGER + 1,
+      }),
+    ).rejects.toThrow(BadRequestException);
+    expect(
+      mockRecommendationRepository.findRecommendedRoutes,
+    ).not.toHaveBeenCalled();
   });
 });

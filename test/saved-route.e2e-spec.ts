@@ -1,22 +1,32 @@
-import { BadRequestException, INestApplication } from '@nestjs/common';
+import { INestApplication } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import {
+  CongestionLevel,
+  PlaceCategory,
+  RouteType,
+  TransitType,
+} from '@prisma/client';
 import request from 'supertest';
 import { SavedRouteController } from '../src/route/saved-route.controller';
+import { SavedRouteRepository } from '../src/route/saved-route.repository';
 import { SavedRouteService } from '../src/route/saved-route.service';
 
 type App = Parameters<typeof request>[0];
 
 describe('SavedRouteController (e2e)', () => {
   let app: INestApplication;
-  const savedRouteService = {
-    getSavedRouteList: jest.fn(),
-    getSavedRouteDetail: jest.fn(),
+  const savedRouteRepository = {
+    findListByUserId: jest.fn(),
+    findDetailByRouteId: jest.fn(),
   };
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       controllers: [SavedRouteController],
-      providers: [{ provide: SavedRouteService, useValue: savedRouteService }],
+      providers: [
+        SavedRouteService,
+        { provide: SavedRouteRepository, useValue: savedRouteRepository },
+      ],
     }).compile();
 
     app = moduleFixture.createNestApplication();
@@ -24,8 +34,8 @@ describe('SavedRouteController (e2e)', () => {
   });
 
   beforeEach(() => {
-    savedRouteService.getSavedRouteList.mockReset();
-    savedRouteService.getSavedRouteDetail.mockReset();
+    savedRouteRepository.findListByUserId.mockReset();
+    savedRouteRepository.findDetailByRouteId.mockReset();
   });
 
   afterAll(async () => {
@@ -35,92 +45,143 @@ describe('SavedRouteController (e2e)', () => {
   });
 
   it('returns 400 for empty routeId in GET /saved-routes/:routeId', async () => {
-    savedRouteService.getSavedRouteDetail.mockRejectedValue(
-      new BadRequestException('Saved route ID must not be empty.'),
-    );
-
     await request(app.getHttpServer() as App)
       .get('/saved-routes/%20?userId=user-1')
       .expect(400);
-    expect(savedRouteService.getSavedRouteDetail).toHaveBeenCalledWith(
-      ' ',
-      'user-1',
-    );
+
+    expect(savedRouteRepository.findDetailByRouteId).not.toHaveBeenCalled();
   });
 
   it('returns 200 and saved route list payload for GET /saved-routes', async () => {
-    const payload = {
-      savedRouteCount: 1,
-      totalSavedSavingsWon: 3500,
-      savedRoutes: [
-        {
-          routeId: 'route-1',
-          routeName: '부산 해운대 감성 힐링 코스',
-          savedAt: '2026-07-24T10:00:00.000Z',
-          isCompleted: true,
-          stopCount: 2,
-          totalDistanceKm: 4.2,
-          transitTypes: ['BUS', 'WALKING'],
-          totalCost: 12500,
-          totalTimeMinutes: 80,
+    savedRouteRepository.findListByUserId.mockResolvedValue([
+      {
+        savedAt: new Date('2026-07-24T10:00:00.000Z'),
+        route: {
+          id: 'route-1',
+          name: '부산 해운대 감성 산책 코스',
+          totalDistanceMeters: 4200,
           estimatedSavingsWon: 3500,
+          stops: [
+            {
+              orderIndex: 0,
+              transitType: TransitType.BUS,
+              travelMinutesFromPrev: 20,
+              stayMinutes: 40,
+              fareWon: 1500,
+              estimatedPriceWon: 5000,
+            },
+            {
+              orderIndex: 1,
+              transitType: TransitType.WALKING,
+              travelMinutesFromPrev: 10,
+              stayMinutes: 40,
+              fareWon: 0,
+              estimatedPriceWon: 6000,
+            },
+          ],
+          tripLogs: [{ isCompleted: true }],
         },
-      ],
-    };
-
-    savedRouteService.getSavedRouteList.mockResolvedValue(payload);
+      },
+    ]);
 
     await request(app.getHttpServer() as App)
       .get('/saved-routes?userId=user-1')
       .expect(200)
-      .expect(payload);
+      .expect({
+        savedRouteCount: 1,
+        totalSavedSavingsWon: 3500,
+        savedRoutes: [
+          {
+            routeId: 'route-1',
+            routeName: '부산 해운대 감성 산책 코스',
+            savedAt: '2026-07-24T10:00:00.000Z',
+            isCompleted: true,
+            stopCount: 2,
+            totalDistanceKm: 4.2,
+            transitTypes: ['BUS', 'WALKING'],
+            totalCost: 12500,
+            totalTimeMinutes: 110,
+            estimatedSavingsWon: 3500,
+          },
+        ],
+      });
 
-    expect(savedRouteService.getSavedRouteList).toHaveBeenCalledWith('user-1');
+    expect(savedRouteRepository.findListByUserId).toHaveBeenCalledWith(
+      'user-1',
+    );
   });
 
   it('returns 200 and detail payload for GET /saved-routes/:routeId', async () => {
-    const payload = {
-      routeId: 'route-1',
-      routeName: '부산 해운대 감성 힐링 코스',
-      savedAt: '2026-07-24T10:00:00.000Z',
-      isCompleted: true,
-      stopCount: 1,
-      totalDistanceKm: 4.2,
-      transportType: 'BUS',
-      congestionLevel: 'MEDIUM',
-      savedCost: 3500,
-      recommendScore: 4.8,
-      isRecommended: true,
-      isSaved: true,
-      totalCost: 12500,
-      totalTimeMinutes: 80,
-      totalTimeDisplay: '1h 20m',
-      metaCost: { transportCost: 1500, placeCost: 11000 },
-      metaTime: { pureTravelTime: 30, stayTime: 50 },
-      estimatedSavingsWon: 3500,
-      stops: [
-        {
-          sequence: 0,
-          placeName: '해운대 해수욕장',
-          category: 'NATURE',
-          openTime: '00:00',
-          closeTime: '24:00',
-          nextTransportType: 'BUS',
-          nextTravelTimeMinutes: 20,
-          latitude: 35.1587,
-          longitude: 129.1604,
-        },
-      ],
-    };
-
-    savedRouteService.getSavedRouteDetail.mockResolvedValue(payload);
+    savedRouteRepository.findDetailByRouteId.mockResolvedValue({
+      savedAt: new Date('2026-07-24T10:00:00.000Z'),
+      route: {
+        id: 'route-1',
+        name: '부산 해운대 감성 산책 코스',
+        totalDistanceMeters: 4200,
+        estimatedSavingsWon: 3500,
+        score: 4.8,
+        routeType: RouteType.RECOMMENDED,
+        congestionLevel: CongestionLevel.MEDIUM,
+        stops: [
+          {
+            orderIndex: 0,
+            transitType: TransitType.BUS,
+            travelMinutesFromPrev: 20,
+            stayMinutes: 40,
+            fareWon: 1500,
+            estimatedPriceWon: 5000,
+            place: {
+              name: '해운대 해수욕장',
+              category: PlaceCategory.NATURE,
+              openTime: '00:00',
+              closeTime: '24:00',
+              latitude: 35.1587,
+              longitude: 129.1604,
+            },
+          },
+        ],
+        tripLogs: [{ isCompleted: true }],
+      },
+    });
 
     await request(app.getHttpServer() as App)
       .get('/saved-routes/route-1?userId=user-1')
       .expect(200)
-      .expect(payload);
+      .expect({
+        routeId: 'route-1',
+        routeName: '부산 해운대 감성 산책 코스',
+        savedAt: '2026-07-24T10:00:00.000Z',
+        isCompleted: true,
+        stopCount: 1,
+        totalDistanceKm: 4.2,
+        transportType: 'BUS',
+        congestionLevel: 'MEDIUM',
+        savedCost: 3500,
+        recommendScore: 4.8,
+        isRecommended: true,
+        isSaved: true,
+        totalCost: 6500,
+        totalTimeMinutes: 60,
+        totalTimeDisplay: '1h 0m',
+        metaCost: { transportCost: 1500, placeCost: 5000 },
+        metaTime: { pureTravelTime: 20, stayTime: 40 },
+        estimatedSavingsWon: 3500,
+        stops: [
+          {
+            sequence: 0,
+            placeName: '해운대 해수욕장',
+            category: 'NATURE',
+            openTime: '00:00',
+            closeTime: '24:00',
+            nextTransportType: 'BUS',
+            nextTravelTimeMinutes: 20,
+            latitude: 35.1587,
+            longitude: 129.1604,
+          },
+        ],
+      });
 
-    expect(savedRouteService.getSavedRouteDetail).toHaveBeenCalledWith(
+    expect(savedRouteRepository.findDetailByRouteId).toHaveBeenCalledWith(
       'route-1',
       'user-1',
     );

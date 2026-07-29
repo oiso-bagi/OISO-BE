@@ -93,8 +93,7 @@ export class RecommendationRepository {
     return Array.from(
       new Set(
         travelStyleSlugs.flatMap(
-          (travelStyleSlug) =>
-            TRAVEL_STYLE_CATEGORY_MAP[travelStyleSlug] ?? [],
+          (travelStyleSlug) => TRAVEL_STYLE_CATEGORY_MAP[travelStyleSlug] ?? [],
         ),
       ),
     );

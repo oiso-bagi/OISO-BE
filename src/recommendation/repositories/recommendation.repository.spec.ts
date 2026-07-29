@@ -4,26 +4,25 @@ import { RecommendationRepository } from '@/recommendation/repositories/recommen
 
 describe('RecommendationRepository', () => {
   let repository: RecommendationRepository;
-  let prismaService: {
-    route: {
-      findMany: jest.Mock;
-    };
-  };
+  let prismaService: PrismaService;
+  let findMany: jest.MockedFunction<PrismaService['route']['findMany']>;
 
   beforeEach(() => {
-    prismaService = {
-      route: {
-        findMany: jest.fn(),
+    findMany = jest.fn() as jest.MockedFunction<
+      PrismaService['route']['findMany']
+    >;
+    prismaService = Object.create(PrismaService.prototype) as PrismaService;
+    Object.defineProperty(prismaService, 'route', {
+      value: {
+        findMany,
       },
-    };
-    repository = new RecommendationRepository(
-      prismaService as unknown as PrismaService,
-    );
+    });
+    repository = new RecommendationRepository(prismaService);
   });
 
   it('finds recommended routes with request body filters', async () => {
     const routes = [{ id: 'route-1' }];
-    prismaService.route.findMany.mockResolvedValue(routes);
+    findMany.mockResolvedValue(routes);
 
     await expect(
       repository.findRecommendedRoutes({

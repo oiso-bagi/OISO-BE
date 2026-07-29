@@ -58,9 +58,7 @@ export class RecommendationService {
   ): Promise<RecommendedRouteListResponseDto[]> {
     const validatedInput = this.validateRecommendationInput(body);
     const recommendedRoutes =
-      await this.recommendationRepository.findRecommendedRoutes(
-        validatedInput,
-      );
+      await this.recommendationRepository.findRecommendedRoutes(validatedInput);
 
     return recommendedRoutes.map((route) =>
       RecommendedRouteListResponseDto.from(route),
@@ -89,23 +87,30 @@ export class RecommendationService {
 
   private validateTravelStyleSlugs(value: unknown): string[] {
     if (!Array.isArray(value)) {
+      throw new BadRequestException('여행 스타일은 1개 이상 선택해야 합니다.');
+    }
+
+    const hasInvalidTravelStyleSlug = value.some(
+      (travelStyleSlug) =>
+        typeof travelStyleSlug !== 'string' ||
+        travelStyleSlug.trim().length === 0,
+    );
+
+    if (hasInvalidTravelStyleSlug) {
       throw new BadRequestException(
-        '여행 스타일은 1개 이상 선택해야 합니다.',
+        '여행 스타일은 비어 있지 않은 문자열이어야 합니다.',
       );
     }
 
     const travelStyleSlugs = value
-      .filter(
-        (travelStyleSlug): travelStyleSlug is string =>
-          typeof travelStyleSlug === 'string',
-      )
       .map((travelStyleSlug) => travelStyleSlug.trim())
-      .filter((travelStyleSlug) => travelStyleSlug.length > 0);
+      .filter(
+        (travelStyleSlug, index, self) =>
+          self.indexOf(travelStyleSlug) === index,
+      );
 
     if (travelStyleSlugs.length === 0) {
-      throw new BadRequestException(
-        '여행 스타일은 1개 이상 선택해야 합니다.',
-      );
+      throw new BadRequestException('여행 스타일은 1개 이상 선택해야 합니다.');
     }
 
     const supportedTravelStyleSlugs = new Set(
@@ -121,7 +126,7 @@ export class RecommendationService {
       );
     }
 
-    return Array.from(new Set(travelStyleSlugs));
+    return travelStyleSlugs;
   }
 
   private validateDurationDays(value: unknown): number {
@@ -145,9 +150,10 @@ export class RecommendationService {
     if (
       typeof parsedValue !== 'number' ||
       !Number.isInteger(parsedValue) ||
+      !Number.isSafeInteger(parsedValue) ||
       parsedValue <= 0
     ) {
-      throw new BadRequestException(`${label}은 양의 정수여야 합니다.`);
+      throw new BadRequestException(`${label}은 안전한 양의 정수여야 합니다.`);
     }
 
     return parsedValue;
