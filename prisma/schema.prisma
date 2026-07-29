@@ -1,7 +1,7 @@
 // Prisma schema draft for the Oiso travel app
 
 generator client {
-  provider = "prisma-client-js"
+  provider   = "prisma-client-js"
   engineType = "binary"
 }
 
@@ -18,49 +18,49 @@ datasource db {
 
 /// 시스템 내 사용자 권한을 정의하는 열거형입니다.
 enum UserRole {
-  USER  /// 일반 서비스 이용자
+  USER /// 일반 서비스 이용자
   ADMIN /// 서비스 관리자
 }
 
 /// 장소(관광지)의 분류 카테고리를 정의하는 열거형입니다.
 enum PlaceCategory {
-  MARKET     /// 전통시장 / 쇼핑몰
-  CAFE       /// 카페
-  FOOD       /// 음식점 / 식당
-  CULTURE    /// 문화시설 / 박물관 / 미술관
-  NATURE     /// 자연경관 / 바다 / 산
+  MARKET /// 전통시장 / 쇼핑몰
+  CAFE /// 카페
+  FOOD /// 음식점 / 식당
+  CULTURE /// 문화시설 / 박물관 / 미술관
+  NATURE /// 자연경관 / 바다 / 산
   EXPERIENCE /// 체험 활동 / 액티비티
-  VIEWPOINT  /// 전망대 / 야경 명소
-  ETC        /// 기타 분류
+  VIEWPOINT /// 전망대 / 야경 명소
+  ETC /// 기타 분류
 }
 
 /// 리포트 통계용 상권 구분을 정의하는 열거형입니다.
 enum DistrictType {
   DOWNTOWN /// 원도심 / 중심 상권
-  TOURIST  /// 주요 관광지 상권
-  LOCAL    /// 외곽 상권 / 로컬 지역
+  TOURIST /// 주요 관광지 상권
+  LOCAL /// 외곽 상권 / 로컬 지역
 }
 
 /// 여행 경로의 생성 및 제공 형태를 분류하는 열거형입니다.
 enum RouteType {
   RECOMMENDED /// 알고리즘이 연산하여 추천하는 경로
-  SAVED       /// 본인 보관함에 저장한 경로
+  SAVED /// 본인 보관함에 저장한 경로
 }
 
 /// 특정 장소나 지역의 혼잡도(인구밀도) 단계를 표현하는 열거형입니다.
 enum CongestionLevel {
-  LOW    /// 원활
+  LOW /// 원활
   MEDIUM /// 보통
-  HIGH   /// 혼잡
+  HIGH /// 혼잡
 }
 
 /// 유저가 동의할 수 있는 서비스 약관 및 권한의 종류를 정의하는 열거형입니다.
 enum ConsentType {
-  TERMS     /// 서비스 이용약관 (필수)
-  PRIVACY   /// 개인정보 수집 및 이용동의 (필수)
-  AGE       /// 만 14세 이상 확인 (필수)
+  TERMS /// 서비스 이용약관 (필수)
+  PRIVACY /// 개인정보 수집 및 이용동의 (필수)
+  AGE /// 만 14세 이상 확인 (필수)
   MARKETING /// 마케팅 정보 수신 동의 (선택)
-  LOCATION  /// 위치 기반 서비스 이용약관 동의 (선택)
+  LOCATION /// 위치 기반 서비스 이용약관 동의 (선택)
 }
 
 /// 약관 동의 항목의 법적/비즈니스적 필수 여부를 정의하는 열거형입니다.
@@ -72,32 +72,32 @@ enum ConsentScope {
 /// 경유지 간 이동 시 사용하는 교통수단의 종류를 정의하는 열거형입니다.
 enum TransitType {
   WALKING /// 도보 이동
-  BUS     /// 버스
-  SUBWAY  /// 지하철 
+  BUS /// 버스
+  SUBWAY /// 지하철 
   DRIVING /// 자차 또는 렌터카 운전
-  TAXI    /// 택시 이용
-  BIKING  /// 자전거 
+  TAXI /// 택시 이용
+  BIKING /// 자전거 
 }
 
 /// 유저 도메인: 서비스를 이용하는 회원의 인증 정보, 권한 및 관련 활동 데이터를 통합 관리합니다.
 model User {
   id           String    @id @default(cuid()) /// 유저 고유 식별자 (CUID)
-  email        String    @unique              /// 로그인용 이메일 주소 (고유값)
-  passwordHash String?                        /// 암호화된 비밀번호 해시값 (소셜 가입 시 null 가능)
-  provider     String    @default("local")    /// OAuth 제공자 (local, kakao, google)
-  providerId   String?                        /// OAuth 고유 식별 ID
-  nickname     String    @unique              /// 서비스 내 노출될 유저 닉네임 (고유값)
-  phone        String?                        /// 연락처 번호
-  role         UserRole  @default(USER)       /// 시스템 접근 권한 등급
-  birthDate    DateTime?                      /// 연령대 확인을 위한 생년월일
-  isActive     Boolean   @default(true)       /// 계정 활성화 여부 (탈퇴 및 정지 플래그)
-  createdAt    DateTime  @default(now())      /// 계정 생성 일시
-  updatedAt    DateTime  @updatedAt           /// 회원정보 수정 일시
+  email        String    @unique /// 로그인용 이메일 주소 (고유값)
+  passwordHash String? /// 암호화된 비밀번호 해시값 (소셜 가입 시 null 가능)
+  provider     String    @default("local") /// OAuth 제공자 (local, kakao, google)
+  providerId   String? /// OAuth 고유 식별 ID
+  nickname     String    @unique /// 서비스 내 노출될 유저 닉네임 (고유값)
+  phone        String? /// 연락처 번호
+  role         UserRole  @default(USER) /// 시스템 접근 권한 등급
+  birthDate    DateTime? /// 연령대 확인을 위한 생년월일
+  isActive     Boolean   @default(true) /// 계정 활성화 여부 (탈퇴 및 정지 플래그)
+  createdAt    DateTime  @default(now()) /// 계정 생성 일시
+  updatedAt    DateTime  @updatedAt /// 회원정보 수정 일시
 
   savedRoutes         SavedRoute[]
   notificationSetting NotificationSetting?
   consents            UserConsent[]
-  tripLogs            RouteTrip[]            
+  tripLogs            RouteTrip[]
 
   @@unique([provider, providerId])
 }
@@ -105,28 +105,28 @@ model User {
 /// 장소 도메인: 부산 지역의 주요 관광지, 맛집, 카페 등의 공공데이터 및 메타데이터를 저장합니다.
 model Place {
   id              String        @id @default(cuid()) /// 장소 고유 식별자 (CUID)
-  name            String                             /// 장소명 / 상호명
-  description     String?                            /// 장소 상세 설명 및 소개
-  address         String?                            /// 지번 주소
-  roadAddress     String?                            /// 도로명 주소
-  region          String                             /// 상위 지역 분류 (예: 부산광역시)
-  district        String?                            /// 하위 행정구역 분류 (예: 해운대구, 금정구)
-  districtType    DistrictType  @default(TOURIST)    /// 💡 로컬 기여 지수 및 차트 통계용 상권 구분 필드
-  category        PlaceCategory                      /// 장소 업종 및 카테고리 분류
-  apiSourceId     String?       @unique              /// 한국관광공사 Open API 등 외부 데이터 연동용 고유 ID
-  premiumIndex    Decimal?      @db.Decimal(5, 2)    /// 자체 알고리즘으로 산출한 관광 프리미엄 지수 (지도 마커 표기용)
-  latitude        Decimal?      @db.Decimal(10, 7)   /// 위도 좌표 (GPS)
-  longitude       Decimal?      @db.Decimal(10, 7)   /// 경도 좌표 (GPS)
-  averagePriceWon Int?                               /// 해당 장소의 평균 예산 및 가격대 (원화)
-  isActive        Boolean       @default(true)       /// 장소 운영 및 데이터 노출 활성화 여부
-  createdAt       DateTime      @default(now())      /// 데이터 등록 일시
-  updatedAt       DateTime      @updatedAt           /// 데이터 수정 일시
-  openTime       String?                             /// 오픈시간
-  closeTime      String?                             /// 마감시간
-  breakTime      String?                             /// 브레이크 타임
-  closedDays     String?                             /// 휴무일
+  name            String /// 장소명 / 상호명
+  description     String? /// 장소 상세 설명 및 소개
+  address         String? /// 지번 주소
+  roadAddress     String? /// 도로명 주소
+  region          String /// 상위 지역 분류 (예: 부산광역시)
+  district        String? /// 하위 행정구역 분류 (예: 해운대구, 금정구)
+  districtType    DistrictType  @default(TOURIST) /// 💡 로컬 기여 지수 및 차트 통계용 상권 구분 필드
+  category        PlaceCategory /// 장소 업종 및 카테고리 분류
+  apiSourceId     String?       @unique /// 한국관광공사 Open API 등 외부 데이터 연동용 고유 ID
+  premiumIndex    Decimal?      @db.Decimal(5, 2) /// 자체 알고리즘으로 산출한 관광 프리미엄 지수 (지도 마커 표기용)
+  latitude        Decimal?      @db.Decimal(10, 7) /// 위도 좌표 (GPS)
+  longitude       Decimal?      @db.Decimal(10, 7) /// 경도 좌표 (GPS)
+  averagePriceWon Int? /// 해당 장소의 평균 예산 및 가격대 (원화)
+  isActive        Boolean       @default(true) /// 장소 운영 및 데이터 노출 활성화 여부
+  createdAt       DateTime      @default(now()) /// 데이터 등록 일시
+  updatedAt       DateTime      @updatedAt /// 데이터 수정 일시
+  openTime        String? /// 오픈시간
+  closeTime       String? /// 마감시간
+  breakTime       String? /// 브레이크 타임
+  closedDays      String? /// 휴무일
 
-  routeStops      RouteStop[]
+  routeStops RouteStop[]
 
   @@index([region])
   @@index([category])
@@ -138,37 +138,37 @@ model Place {
 /// 테마 도메인: 여행 경로의 성격이나 목적을 분류하기 위한 태그 정보를 관리합니다.
 model Theme {
   id        String   @id @default(cuid()) /// 테마 고유 식별자 (CUID)
-  name      String                        /// 테마 태그 명칭 (예: 힐링, 식도락, 짠내투어)
-  slug      String   @unique              /// URL 및 검색 최적화용 고유 영문 매핑 텍스트
-  createdAt DateTime @default(now())      /// 테마 생성 일시
+  name      String /// 테마 태그 명칭 (예: 힐링, 식도락, 짠내투어)
+  slug      String   @unique /// URL 및 검색 최적화용 고유 영문 매핑 텍스트
+  createdAt DateTime @default(now()) /// 테마 생성 일시
 
   routeThemes RouteTheme[]
 }
 
 /// 경로 도메인: 복수의 장소(Place)가 연결되어 생성된 추천 또는 커스텀 여행 동선 정보를 통합 관리합니다.
 model Route {
-  id                   String          @id @default(cuid()) /// 경로 고유 식별자 (CUID)
-  name                 String                               /// 여행 경로 타이틀 명칭
-  summary              String?                              /// 경로 한 줄 요약 문구
-  region               String                               /// 여행 대상 지역 (예: 부산)
-  description          String?                              /// 경로 상세 일정 및 팁 설명
-  routeType            RouteType       @default(RECOMMENDED)/// 경로 소스 타입 분류
-  congestionLevel      CongestionLevel @default(MEDIUM)     /// 경로 전반의 예측 혼잡도 단계
-  score                Decimal?        @db.Decimal(5, 2)    /// 알고리즘 연산으로 산출된 가성비 최종 스코어
-  estimatedCostWon     Int                                  /// 경로 전체 예상 총 소요 비용 (원화)
-  estimatedDurationMin Int                                  /// 경로 전체 예상 총 소요 시간 (분 단위)
-  totalDistanceMeters  Int                                  /// 경로 총 이동 거리 (미터 단위)
-  estimatedSavingsWon  Int             @default(0)          /// 가성비 추천을 통해 절감된 예측 비용 (원화)
-  localContributionScore Int           @default(0)          /// 이 경로의 로컬(외곽상권) 기여 지수 점수 (0~100)
-  isPublished          Boolean         @default(true)       /// 전체 공개 여부
-  createdAt            DateTime        @default(now())      /// 경로 생성 일시
-  updatedAt            DateTime        @updatedAt           /// 경로 수정 일시
-  averageRating        Decimal?        @db.Decimal(3, 2)    /// 가성비 분자 연산용 '만족도' 데이터 대체재
-  
-  stops     RouteStop[]
-  savedBy   SavedRoute[]
-  themes    RouteTheme[]
-  tripLogs  RouteTrip[]
+  id                     String          @id @default(cuid()) /// 경로 고유 식별자 (CUID)
+  name                   String /// 여행 경로 타이틀 명칭
+  summary                String? /// 경로 한 줄 요약 문구
+  region                 String /// 여행 대상 지역 (예: 부산)
+  description            String? /// 경로 상세 일정 및 팁 설명
+  routeType              RouteType       @default(RECOMMENDED) /// 경로 소스 타입 분류
+  congestionLevel        CongestionLevel @default(MEDIUM) /// 경로 전반의 예측 혼잡도 단계
+  score                  Decimal?        @db.Decimal(5, 2) /// 알고리즘 연산으로 산출된 가성비 최종 스코어
+  estimatedCostWon       Int /// 경로 전체 예상 총 소요 비용 (원화)
+  estimatedDurationMin   Int /// 경로 전체 예상 총 소요 시간 (분 단위)
+  totalDistanceMeters    Int /// 경로 총 이동 거리 (미터 단위)
+  estimatedSavingsWon    Int             @default(0) /// 가성비 추천을 통해 절감된 예측 비용 (원화)
+  localContributionScore Int             @default(0) /// 이 경로의 로컬(외곽상권) 기여 지수 점수 (0~100)
+  isPublished            Boolean         @default(true) /// 전체 공개 여부
+  createdAt              DateTime        @default(now()) /// 경로 생성 일시
+  updatedAt              DateTime        @updatedAt /// 경로 수정 일시
+  averageRating          Decimal?        @db.Decimal(3, 2) /// 가성비 분자 연산용 '만족도' 데이터 대체재
+
+  stops    RouteStop[]
+  savedBy  SavedRoute[]
+  themes   RouteTheme[]
+  tripLogs RouteTrip[]
 
   @@index([region])
   @@index([score])
@@ -178,20 +178,20 @@ model Route {
 /// 경로 경유지 도메인: 특정 여행 경로에 포함된 세부 장소들의 방문 순서와 구간별 이동 비용/수단을 정의합니다.
 model RouteStop {
   id                     String       @id @default(cuid()) /// 경유지 고유 식별자 (CUID)
-  routeId                String                            /// 연결된 경로 모델의 ID
-  placeId                String                            /// 방문할 장소 모델의 ID
-  orderIndex             Int                               /// 경로 내에서 방문하는 정렬 순서 (0부터 시작)
-  transitType            TransitType?                      /// 이전 경유지로부터 현재 경유지까지의 교통수단 종류
-  transitDetails         Json?                             /// 대중교통 노선 번호, 지하철 호선 등 외부 맵 API의 상세 응답 데이터
-  stayMinutes            Int?                              /// 해당 장소에 머무르는 예상 시간 (분 단위)
-  travelMinutesFromPrev  Int?                              /// 이전 경유지로부터 이동하는 데 소요되는 시간 (분 단위)
-  distanceFromPrevMeters Int?                              /// 이전 경유지로부터의 이동 거리 (미터 단위)
-  elevationGainMeters    Int?                              /// 산복도로 피로도 연산용 '고도 상승' 데이터 (미터 단위)
-  fareWon                Int?                              /// 해당 구간 이동 시 발생하는 교통 요금 (원화)
-  trafficNotes           String?                           /// 환승 및 길 찾기 관련 백엔드/API 텍스트 메모
-  estimatedPriceWon      Int?                              /// 해당 장소에서 소비할 것으로 예측되는 비용 (원화)
-  savingsWon             Int          @default(0)          /// 이 특정 스팟(경유지)에서 일반 관광지 대비 절약한 세부 금액
-  createdAt              DateTime     @default(now())      /// 데이터 적재 일시
+  routeId                String /// 연결된 경로 모델의 ID
+  placeId                String /// 방문할 장소 모델의 ID
+  orderIndex             Int /// 경로 내에서 방문하는 정렬 순서 (0부터 시작)
+  transitType            TransitType? /// 이전 경유지로부터 현재 경유지까지의 교통수단 종류
+  transitDetails         Json? /// 대중교통 노선 번호, 지하철 호선 등 외부 맵 API의 상세 응답 데이터
+  stayMinutes            Int? /// 해당 장소에 머무르는 예상 시간 (분 단위)
+  travelMinutesFromPrev  Int? /// 이전 경유지로부터 이동하는 데 소요되는 시간 (분 단위)
+  distanceFromPrevMeters Int? /// 이전 경유지로부터의 이동 거리 (미터 단위)
+  elevationGainMeters    Int? /// 산복도로 피로도 연산용 '고도 상승' 데이터 (미터 단위)
+  fareWon                Int? /// 해당 구간 이동 시 발생하는 교통 요금 (원화)
+  trafficNotes           String? /// 환승 및 길 찾기 관련 백엔드/API 텍스트 메모
+  estimatedPriceWon      Int? /// 해당 장소에서 소비할 것으로 예측되는 비용 (원화)
+  savingsWon             Int          @default(0) /// 이 특정 스팟(경유지)에서 일반 관광지 대비 절약한 세부 금액
+  createdAt              DateTime     @default(now()) /// 데이터 적재 일시
 
   route Route @relation(fields: [routeId], references: [id], onDelete: Cascade)
   place Place @relation(fields: [placeId], references: [id], onDelete: Restrict)
@@ -204,8 +204,8 @@ model RouteStop {
 
 /// 경로 테마 매핑 도메인: 경로(Route)와 테마 태그(Theme) 간의 다대다(N:M) 관계를 정의하는 관계 테이블입니다.
 model RouteTheme {
-  routeId   String   /// 대상 경로 ID
-  themeId   String   /// 매핑할 테마 ID
+  routeId   String /// 대상 경로 ID
+  themeId   String /// 매핑할 테마 ID
   createdAt DateTime @default(now()) /// 테마 지정 일시
 
   route Route @relation(fields: [routeId], references: [id], onDelete: Cascade)
@@ -218,8 +218,8 @@ model RouteTheme {
 
 /// 저장된 경로 도메인: 유저가 마음에 드는 여행 경로를 자신의 보관함에 저장한 내역을 관리합니다.
 model SavedRoute {
-  userId  String   /// 보관함을 소유한 유저 ID
-  routeId String   /// 보관 처리된 경로 ID
+  userId  String /// 보관함을 소유한 유저 ID
+  routeId String /// 보관 처리된 경로 ID
   savedAt DateTime @default(now()) /// 저장 일시
 
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -235,12 +235,12 @@ model SavedRoute {
 /// 알림 설정 도메인: 유저별 앱 푸시 알림 및 마케팅 정보 수신 여부에 대한 커스텀 개인 설정을 관리합니다. 
 model NotificationSetting {
   id                         String   @id @default(cuid()) /// 알림 설정 고유 식별자 (CUID)
-  userId                     String   @unique              /// 설정을 소유한 유저 ID
-  pushEnabled                Boolean  @default(true)       /// 앱 기본 푸시 알림 수신 동의 여부
-  marketingEnabled           Boolean  @default(false)      /// 광고 및 마케팅 푸시 알림 수신 동의 여부
-  nightModeEnabled           Boolean  @default(true)       /// 야간(21시~08시) 알림 수신 제한 활성화 여부
-  routeRecommendationEnabled Boolean  @default(true)       /// 맞춤형 가성비 경로 추천 알림 수신 여부
-  updatedAt                  DateTime @updatedAt           /// 설정 최종 변경 일시
+  userId                     String   @unique /// 설정을 소유한 유저 ID
+  pushEnabled                Boolean  @default(true) /// 앱 기본 푸시 알림 수신 동의 여부
+  marketingEnabled           Boolean  @default(false) /// 광고 및 마케팅 푸시 알림 수신 동의 여부
+  nightModeEnabled           Boolean  @default(true) /// 야간(21시~08시) 알림 수신 제한 활성화 여부
+  routeRecommendationEnabled Boolean  @default(true) /// 맞춤형 가성비 경로 추천 알림 수신 여부
+  updatedAt                  DateTime @updatedAt /// 설정 최종 변경 일시
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
@@ -248,14 +248,14 @@ model NotificationSetting {
 /// 유저 약관 동의 도메인: 회원가입 및 서비스 이용 시 유저가 동의한 개인정보 및 서비스 약관 이력을 법적 명세에 맞춰 관리합니다.
 model UserConsent {
   id        String       @id @default(cuid()) /// 동의 이력 고유 식별자 (CUID)
-  userId    String                            /// 약관에 동의한 유저 ID
-  type      ConsentType                       /// 동의한 약관의 유형 (TERMS, PRIVACY 등)
-  scope     ConsentScope                      /// 필수(REQUIRED) 및 선택(OPTIONAL) 항목 구분 정보
-  isAgreed  Boolean      @default(true)       /// 동의 여부 (철회 시 False)
-  version   String                            /// 동의한 약관 문서의 버전 명칭 (예: v1.0.2)
-  agreedAt  DateTime     @default(now())      /// 최초 동의 처리 일시
-  revokedAt DateTime?                         /// 선택 약관 등 동의를 철회한 경우 기록되는 일시
-  createdAt DateTime     @default(now())      /// 데이터 적재 일시
+  userId    String /// 약관에 동의한 유저 ID
+  type      ConsentType /// 동의한 약관의 유형 (TERMS, PRIVACY 등)
+  scope     ConsentScope /// 필수(REQUIRED) 및 선택(OPTIONAL) 항목 구분 정보
+  isAgreed  Boolean      @default(true) /// 동의 여부 (철회 시 False)
+  version   String /// 동의한 약관 문서의 버전 명칭 (예: v1.0.2)
+  agreedAt  DateTime     @default(now()) /// 최초 동의 처리 일시
+  revokedAt DateTime? /// 선택 약관 등 동의를 철회한 경우 기록되는 일시
+  createdAt DateTime     @default(now()) /// 데이터 적재 일시
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -266,13 +266,13 @@ model UserConsent {
 
 /// 경로 여정 로그 도메인: 유저가 추천 경로를 선택하여 실제로 부산 여행을 수행한 이력을 추적 및 기록합니다.
 model RouteTrip {
-  id                    String    @id @default(cuid()) /// 여정 로그 고유 식별자 (CUID)
-  userId                String                         /// 여정을 수행한 유저 ID
-  routeId               String                         /// 기반이 된 소스 추천 경로 ID
-  actualCostWon         Int?                           /// 유저가 이 여행에서 실제로 지출한 총 비용 (평균 가격 연산용)
-  isCompleted           Boolean   @default(true)       /// 여행 완료 상태 플래그
-  startedAt             DateTime  @default(now())      /// 여행 시작 일시 (여행 횟수 집계 기준)
-  createdAt             DateTime  @default(now())
+  id            String   @id @default(cuid()) /// 여정 로그 고유 식별자 (CUID)
+  userId        String /// 여정을 수행한 유저 ID
+  routeId       String /// 기반이 된 소스 추천 경로 ID
+  actualCostWon Int? /// 유저가 이 여행에서 실제로 지출한 총 비용 (평균 가격 연산용)
+  isCompleted   Boolean  @default(true) /// 여행 완료 상태 플래그
+  startedAt     DateTime @default(now()) /// 여행 시작 일시 (여행 횟수 집계 기준)
+  createdAt     DateTime @default(now())
 
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
   route Route @relation(fields: [routeId], references: [id], onDelete: Cascade)
