@@ -76,12 +76,16 @@ export class RecommendationService {
       body?.dailyBudgetWon,
       'dailyBudgetWon',
     );
+    const totalBudgetWon = this.validateTotalBudgetWon(
+      durationDays,
+      dailyBudgetWon,
+    );
 
     return {
       travelStyleSlugs,
       durationDays,
       dailyBudgetWon,
-      totalBudgetWon: durationDays * dailyBudgetWon,
+      totalBudgetWon,
     };
   }
 
@@ -100,12 +104,11 @@ export class RecommendationService {
       );
     }
 
-    const travelStyleSlugs = rawTravelStyleSlugs
-      .map((travelStyleSlug) => travelStyleSlug.trim())
-      .filter(
-        (travelStyleSlug, index, self) =>
-          self.indexOf(travelStyleSlug) === index,
-      );
+    const travelStyleSlugs = Array.from(
+      new Set(
+        rawTravelStyleSlugs.map((travelStyleSlug) => travelStyleSlug.trim()),
+      ),
+    );
 
     if (travelStyleSlugs.length === 0) {
       throw new BadRequestException(
@@ -145,6 +148,19 @@ export class RecommendationService {
     }
 
     return durationDays;
+  }
+
+  private validateTotalBudgetWon(
+    durationDays: number,
+    dailyBudgetWon: number,
+  ): number {
+    if (dailyBudgetWon > Math.floor(Number.MAX_SAFE_INTEGER / durationDays)) {
+      throw new BadRequestException(
+        'totalBudgetWon must be a safe positive integer.',
+      );
+    }
+
+    return durationDays * dailyBudgetWon;
   }
 
   private validatePositiveInteger(value: unknown, label: string): number {

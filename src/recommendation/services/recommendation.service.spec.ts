@@ -132,4 +132,38 @@ describe('RecommendationService', () => {
       mockRecommendationRepository.findRecommendedRoutes,
     ).not.toHaveBeenCalled();
   });
+
+  it('allows total budget at the safe integer boundary', async () => {
+    mockRecommendationRepository.findRecommendedRoutes.mockResolvedValue([]);
+
+    await expect(
+      service.recommendRoutes({
+        travelStyleSlugs: ['local-food'],
+        durationDays: 1,
+        dailyBudgetWon: Number.MAX_SAFE_INTEGER,
+      }),
+    ).resolves.toEqual([]);
+
+    expect(
+      mockRecommendationRepository.findRecommendedRoutes,
+    ).toHaveBeenCalledWith({
+      travelStyleSlugs: ['local-food'],
+      durationDays: 1,
+      dailyBudgetWon: Number.MAX_SAFE_INTEGER,
+      totalBudgetWon: Number.MAX_SAFE_INTEGER,
+    });
+  });
+
+  it('rejects recommendation request when total budget overflows the safe integer range', async () => {
+    await expect(
+      service.recommendRoutes({
+        travelStyleSlugs: ['local-food'],
+        durationDays: 2,
+        dailyBudgetWon: Math.floor(Number.MAX_SAFE_INTEGER / 2) + 1,
+      }),
+    ).rejects.toThrow(BadRequestException);
+    expect(
+      mockRecommendationRepository.findRecommendedRoutes,
+    ).not.toHaveBeenCalled();
+  });
 });
