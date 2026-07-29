@@ -74,7 +74,7 @@ export class RecommendationService {
     const durationDays = this.validateDurationDays(body?.durationDays);
     const dailyBudgetWon = this.validatePositiveInteger(
       body?.dailyBudgetWon,
-      '하루 예산',
+      'dailyBudgetWon',
     );
 
     return {
@@ -87,18 +87,14 @@ export class RecommendationService {
 
   private validateTravelStyleSlugs(value: unknown): string[] {
     if (!Array.isArray(value)) {
-      throw new BadRequestException('여행 스타일은 1개 이상 선택해야 합니다.');
+      throw new BadRequestException(
+        'travelStyleSlugs must include at least one item.',
+      );
     }
 
-    const hasInvalidTravelStyleSlug = value.some(
-      (travelStyleSlug) =>
-        typeof travelStyleSlug !== 'string' ||
-        travelStyleSlug.trim().length === 0,
-    );
-
-    if (hasInvalidTravelStyleSlug) {
+    if (!this.isNonEmptyStringArray(value)) {
       throw new BadRequestException(
-        '여행 스타일은 비어 있지 않은 문자열이어야 합니다.',
+        'travelStyleSlugs must contain only non-empty strings.',
       );
     }
 
@@ -110,7 +106,9 @@ export class RecommendationService {
       );
 
     if (travelStyleSlugs.length === 0) {
-      throw new BadRequestException('여행 스타일은 1개 이상 선택해야 합니다.');
+      throw new BadRequestException(
+        'travelStyleSlugs must include at least one item.',
+      );
     }
 
     const supportedTravelStyleSlugs = new Set(
@@ -122,20 +120,26 @@ export class RecommendationService {
 
     if (hasUnsupportedTravelStyle) {
       throw new BadRequestException(
-        '지원하지 않는 여행 스타일이 포함되어 있습니다.',
+        'travelStyleSlugs contains an unsupported item.',
       );
     }
 
     return travelStyleSlugs;
   }
 
+  private isNonEmptyStringArray(value: unknown[]): value is string[] {
+    return value.every(
+      (travelStyleSlug): travelStyleSlug is string =>
+        typeof travelStyleSlug === 'string' &&
+        travelStyleSlug.trim().length > 0,
+    );
+  }
+
   private validateDurationDays(value: unknown): number {
-    const durationDays = this.validatePositiveInteger(value, '여행 기간');
+    const durationDays = this.validatePositiveInteger(value, 'durationDays');
 
     if (!DURATION_DAY_OPTIONS.includes(durationDays)) {
-      throw new BadRequestException(
-        '여행 기간은 1일부터 5일까지 선택할 수 있습니다.',
-      );
+      throw new BadRequestException('durationDays must be between 1 and 5.');
     }
 
     return durationDays;
@@ -153,7 +157,9 @@ export class RecommendationService {
       !Number.isSafeInteger(parsedValue) ||
       parsedValue <= 0
     ) {
-      throw new BadRequestException(`${label}은 안전한 양의 정수여야 합니다.`);
+      throw new BadRequestException(
+        `${label} must be a safe positive integer.`,
+      );
     }
 
     return parsedValue;

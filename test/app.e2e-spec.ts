@@ -5,6 +5,21 @@ import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 
+type RecommendationOptionsBody = {
+  travelStyles: { slug: string }[];
+  durationDays: number[];
+  budgetAllocation: {
+    defaultDailyBudgetWon: number;
+  };
+};
+
+type RecommendedRouteBody = {
+  id: string;
+  name: string;
+  estimatedSavingsWon: number;
+  isRecommended: boolean;
+}[];
+
 describe('AppController (e2e)', () => {
   let app: INestApplication<App>;
   const routeFindMany = jest.fn();
@@ -41,14 +56,15 @@ describe('AppController (e2e)', () => {
     const response = await request(app.getHttpServer())
       .get('/recommended-routes/recommend/options')
       .expect(200);
+    const responseBody = response.body as RecommendationOptionsBody;
 
-    expect(response.body).toMatchObject({
+    expect(responseBody).toMatchObject({
       durationDays: [1, 2, 3, 4, 5],
       budgetAllocation: {
         defaultDailyBudgetWon: 60000,
       },
     });
-    expect(response.body.travelStyles[0]).toMatchObject({
+    expect(responseBody.travelStyles[0]).toMatchObject({
       slug: 'local-food',
     });
   });
@@ -75,9 +91,10 @@ describe('AppController (e2e)', () => {
         dailyBudgetWon: 60000,
       })
       .expect(200);
+    const responseBody = response.body as RecommendedRouteBody;
 
-    expect(response.body).toHaveLength(1);
-    expect(response.body[0]).toMatchObject({
+    expect(responseBody).toHaveLength(1);
+    expect(responseBody[0]).toMatchObject({
       id: 'route-1',
       name: 'Budget route',
       estimatedSavingsWon: 5000,
