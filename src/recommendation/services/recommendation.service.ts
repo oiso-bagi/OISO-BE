@@ -1,36 +1,32 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
-import { RecommendationPreferenceResponseDto } from '@/recommendation/dto/recommendation-preference-response.dto';
+import { RecommendRouteRequestDto } from '@/recommendation/dto/recommend-route-request.dto';
 import { RecommendationOptionsResponseDto } from '@/recommendation/dto/recommendation-options-response.dto';
-import { SubmitRecommendationPreferenceRequestDto } from '@/recommendation/dto/submit-recommendation-preference-request.dto';
 import { RecommendationRepository } from '@/recommendation/repositories/recommendation.repository';
 import type {
-  BudgetAllocationItem,
   BudgetAllocationRule,
   BudgetPreset,
+  RecommendationFilter,
   TravelStyleOption,
 } from '@/recommendation/types/recommendation.types';
+import { RecommendedRouteListResponseDto } from '@/route/dto/recommended-route-list-response.dto';
 
 const DEFAULT_DAILY_BUDGET_WON = 60000;
 
 const TRAVEL_STYLE_OPTIONS: TravelStyleOption[] = [
   { slug: 'local-food', label: '부산 로컬 맛집' },
   { slug: 'cafe', label: '감성 카페' },
-  { slug: 'beach', label: '해변 관광' },
+  { slug: 'beach', label: '바다 관광' },
   { slug: 'photo-spot', label: '포토 스팟' },
-  {
-    slug: 'traditional-market',
-    label: '전통시장',
-  },
+  { slug: 'traditional-market', label: '전통시장' },
   { slug: 'nature-walk', label: '자연 / 산책' },
 ];
 
 const DURATION_DAY_OPTIONS = [1, 2, 3, 4, 5];
 
 const BUDGET_PRESETS: BudgetPreset[] = [
-  { label: '~3만 · 가성비', amountWon: 30000 },
-  { label: '3~6만 · 적당', amountWon: 60000 },
-  { label: '6만+ · 여유', amountWon: 90000 },
+  { label: '~3만원 · 가성비', amountWon: 30000 },
+  { label: '3~6만원 · 적당', amountWon: 60000 },
+  { label: '6만원 이상 · 여유', amountWon: 90000 },
 ];
 
 const BUDGET_ALLOCATION_RULES: BudgetAllocationRule[] = [
@@ -57,40 +53,23 @@ export class RecommendationService {
     });
   }
 
-  async submitPreference(
-    userId: string,
-    body: SubmitRecommendationPreferenceRequestDto,
-  ): Promise<RecommendationPreferenceResponseDto> {
-    const validatedInput = this.validatePreferenceInput(body);
-    const budgetAllocation = this.buildBudgetAllocation(
-      validatedInput.dailyBudgetWon,
+  async recommendRoutes(
+    body: RecommendRouteRequestDto,
+  ): Promise<RecommendedRouteListResponseDto[]> {
+    const validatedInput = this.validateRecommendationInput(body);
+    const recommendedRoutes =
+      await this.recommendationRepository.findRecommendedRoutes(
+        validatedInput,
+      );
+
+    return recommendedRoutes.map((route) =>
+      RecommendedRouteListResponseDto.from(route),
     );
-
-    const savedPreference =
-      await this.recommendationRepository.upsertPreference({
-        userId,
-        ...validatedInput,
-        budgetAllocation,
-      });
-
-    return RecommendationPreferenceResponseDto.from({
-      travelStyleSlugs: savedPreference.travelStyleSlugs,
-      durationDays: savedPreference.durationDays,
-      dailyBudgetWon: savedPreference.dailyBudgetWon,
-      budgetAllocation: this.parseBudgetAllocation(
-        savedPreference.budgetAllocation,
-      ),
-      updatedAt: savedPreference.updatedAt,
-    });
   }
 
-  private validatePreferenceInput(
-    body: SubmitRecommendationPreferenceRequestDto,
-  ): {
-    travelStyleSlugs: string[];
-    durationDays: number;
-    dailyBudgetWon: number;
-  } {
+  private validateRecommendationInput(
+    body: RecommendRouteRequestDto,
+  ): RecommendationFilter {
     const travelStyleSlugs = this.validateTravelStyleSlugs(
       body?.travelStyleSlugs,
     );
@@ -104,12 +83,15 @@ export class RecommendationService {
       travelStyleSlugs,
       durationDays,
       dailyBudgetWon,
+      totalBudgetWon: durationDays * dailyBudgetWon,
     };
   }
 
   private validateTravelStyleSlugs(value: unknown): string[] {
     if (!Array.isArray(value)) {
-      throw new BadRequestException('여행 스타일은 1개 이상 선택해야 합니다.');
+      throw new BadRequestException(
+        '여행 스타일은 1개 이상 선택해야 합니다.',
+      );
     }
 
     const travelStyleSlugs = value
@@ -121,7 +103,9 @@ export class RecommendationService {
       .filter((travelStyleSlug) => travelStyleSlug.length > 0);
 
     if (travelStyleSlugs.length === 0) {
-      throw new BadRequestException('여행 스타일은 1개 이상 선택해야 합니다.');
+      throw new BadRequestException(
+        '여행 스타일은 1개 이상 선택해야 합니다.',
+      );
     }
 
     const supportedTravelStyleSlugs = new Set(
@@ -167,20 +151,5 @@ export class RecommendationService {
     }
 
     return parsedValue;
-  }
-
-  private buildBudgetAllocation(
-    dailyBudgetWon: number,
-  ): BudgetAllocationItem[] {
-    return BUDGET_ALLOCATION_RULES.map((rule) => ({
-      ...rule,
-      amountWon: Math.floor((dailyBudgetWon * rule.percentage) / 100),
-    }));
-  }
-
-  private parseBudgetAllocation(
-    value: Prisma.JsonValue,
-  ): BudgetAllocationItem[] {
-    return Array.isArray(value) ? (value as BudgetAllocationItem[]) : [];
   }
 }

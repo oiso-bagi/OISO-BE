@@ -1,38 +1,23 @@
-import {
-  Body,
-  Controller,
-  Get,
-  HttpCode,
-  Post,
-  UseGuards,
-} from '@nestjs/common';
-import type { User } from '@prisma/client';
-import { CurrentUser } from '@/common/decorators/current-user.decorator';
-import { AuthGuard } from '@/common/guards/auth.guard';
-import { RecommendationPreferenceResponseDto } from '@/recommendation/dto/recommendation-preference-response.dto';
+import { Body, Controller, Get, HttpCode, Post } from '@nestjs/common';
+import { RecommendRouteRequestDto } from '@/recommendation/dto/recommend-route-request.dto';
 import { RecommendationOptionsResponseDto } from '@/recommendation/dto/recommendation-options-response.dto';
-import { SubmitRecommendationPreferenceRequestDto } from '@/recommendation/dto/submit-recommendation-preference-request.dto';
 import { RecommendationService } from '@/recommendation/services/recommendation.service';
+import { RecommendedRouteListResponseDto } from '@/route/dto/recommended-route-list-response.dto';
 
-@Controller('api/v1/recommendation-preferences')
+@Controller('recommended-routes')
 export class RecommendationController {
   constructor(private readonly recommendationService: RecommendationService) {}
 
-  @Get('options')
+  @Get('recommend/options')
   getOptions(): RecommendationOptionsResponseDto {
     return this.recommendationService.getOptions();
   }
 
-  @Post()
-  @UseGuards(AuthGuard)
+  @Post('recommend')
   @HttpCode(200)
-  submitPreference(
-    @CurrentUser() user: User,
-    @Body() body: SubmitRecommendationPreferenceRequestDto,
-  ): Promise<RecommendationPreferenceResponseDto> {
-    const preferenceResponse: Promise<RecommendationPreferenceResponseDto> =
-      this.recommendationService.submitPreference(user.id, body);
-
-    return preferenceResponse;
+  recommendRoutes(
+    @Body() body: RecommendRouteRequestDto,
+  ): Promise<RecommendedRouteListResponseDto[]> {
+    return this.recommendationService.recommendRoutes(body);
   }
 }

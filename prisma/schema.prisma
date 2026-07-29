@@ -94,28 +94,12 @@ model User {
   createdAt    DateTime  @default(now()) /// 계정 생성 일시
   updatedAt    DateTime  @updatedAt /// 회원정보 수정 일시
 
-  savedRoutes              SavedRoute[]
-  notificationSetting      NotificationSetting?
-  recommendationPreference RecommendationPreference?
-  consents                 UserConsent[]
-  tripLogs                 RouteTrip[]
+  savedRoutes         SavedRoute[]
+  notificationSetting NotificationSetting?
+  consents            UserConsent[]
+  tripLogs            RouteTrip[]
 
   @@unique([provider, providerId])
-}
-
-model RecommendationPreference {
-  id               String   @id @default(cuid())
-  userId           String   @unique
-  travelStyleSlugs String[]
-  durationDays     Int
-  dailyBudgetWon   Int
-  budgetAllocation Json
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
 }
 
 /// 장소 도메인: 부산 지역의 주요 관광지, 맛집, 카페 등의 공공데이터 및 메타데이터를 저장합니다.

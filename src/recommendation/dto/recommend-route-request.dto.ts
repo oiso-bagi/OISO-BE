@@ -1,4 +1,4 @@
-export class SubmitRecommendationPreferenceRequestDto {
+export class RecommendRouteRequestDto {
   travelStyleSlugs?: unknown;
   durationDays?: unknown;
   dailyBudgetWon?: unknown;

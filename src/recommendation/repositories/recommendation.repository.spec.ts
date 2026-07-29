@@ -1,18 +1,19 @@
+import { PlaceCategory } from '@prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
 import { RecommendationRepository } from '@/recommendation/repositories/recommendation.repository';
 
 describe('RecommendationRepository', () => {
   let repository: RecommendationRepository;
   let prismaService: {
-    recommendationPreference: {
-      upsert: jest.Mock;
+    route: {
+      findMany: jest.Mock;
     };
   };
 
   beforeEach(() => {
     prismaService = {
-      recommendationPreference: {
-        upsert: jest.fn(),
+      route: {
+        findMany: jest.fn(),
       },
     };
     repository = new RecommendationRepository(
@@ -20,45 +21,46 @@ describe('RecommendationRepository', () => {
     );
   });
 
-  it('upserts recommendation preference by user id', async () => {
-    const savedPreference = { userId: 'user-1' };
-    const budgetAllocation = [
-      {
-        type: 'transport',
-        label: '교통비',
-        percentage: 40,
-        amountWon: 24000,
-      },
-    ];
-    prismaService.recommendationPreference.upsert.mockResolvedValue(
-      savedPreference,
-    );
+  it('finds recommended routes with request body filters', async () => {
+    const routes = [{ id: 'route-1' }];
+    prismaService.route.findMany.mockResolvedValue(routes);
 
     await expect(
-      repository.upsertPreference({
-        userId: 'user-1',
-        travelStyleSlugs: ['local-food'],
-        durationDays: 1,
+      repository.findRecommendedRoutes({
+        travelStyleSlugs: ['local-food', 'cafe'],
+        durationDays: 2,
         dailyBudgetWon: 60000,
-        budgetAllocation,
+        totalBudgetWon: 120000,
       }),
-    ).resolves.toBe(savedPreference);
+    ).resolves.toBe(routes);
 
-    expect(prismaService.recommendationPreference.upsert).toHaveBeenCalledWith({
-      where: { userId: 'user-1' },
-      create: {
-        userId: 'user-1',
-        travelStyleSlugs: ['local-food'],
-        durationDays: 1,
-        dailyBudgetWon: 60000,
-        budgetAllocation,
-      },
-      update: {
-        travelStyleSlugs: ['local-food'],
-        durationDays: 1,
-        dailyBudgetWon: 60000,
-        budgetAllocation,
-      },
-    });
+    expect(prismaService.route.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          routeType: 'RECOMMENDED',
+          isPublished: true,
+          estimatedCostWon: {
+            lte: 120000,
+          },
+          estimatedDurationMin: {
+            lte: 2880,
+          },
+          stops: {
+            some: {
+              place: {
+                category: {
+                  in: [
+                    PlaceCategory.FOOD,
+                    PlaceCategory.MARKET,
+                    PlaceCategory.CAFE,
+                  ],
+                },
+              },
+            },
+          },
+        }),
+        take: 10,
+      }),
+    );
   });
 });

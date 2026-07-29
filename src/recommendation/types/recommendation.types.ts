@@ -19,3 +19,10 @@ export type BudgetAllocationRule = {
 export type BudgetAllocationItem = BudgetAllocationRule & {
   amountWon: number;
 };
+
+export type RecommendationFilter = {
+  travelStyleSlugs: string[];
+  durationDays: number;
+  dailyBudgetWon: number;
+  totalBudgetWon: number;
+};

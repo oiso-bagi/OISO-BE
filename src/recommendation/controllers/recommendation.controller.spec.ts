@@ -4,7 +4,7 @@ import { RecommendationService } from '@/recommendation/services/recommendation.
 describe('RecommendationController', () => {
   const mockRecommendationService = {
     getOptions: jest.fn(),
-    submitPreference: jest.fn(),
+    recommendRoutes: jest.fn(),
   };
 
   let controller: RecommendationController;
@@ -32,28 +32,17 @@ describe('RecommendationController', () => {
     expect(mockRecommendationService.getOptions).toHaveBeenCalledTimes(1);
   });
 
-  it('delegates preference submission to service with current user id', async () => {
-    const user = { id: 'user-1' };
+  it('delegates raw recommendation request body to service', async () => {
     const body = {
       travelStyleSlugs: ['local-food', 'cafe'],
       durationDays: 1,
       dailyBudgetWon: 60000,
     };
-    const response = {
-      ...body,
-      budgetAllocation: [],
-      updatedAt: '2026-07-29T00:00:00.000Z',
-    };
-    mockRecommendationService.submitPreference.mockResolvedValue(response);
+    const response = [{ id: 'route-1' }];
+    mockRecommendationService.recommendRoutes.mockResolvedValue(response);
 
-    await expect(
-      controller.submitPreference(
-        user as Parameters<typeof controller.submitPreference>[0],
-        body,
-      ),
-    ).resolves.toBe(response);
-    expect(mockRecommendationService.submitPreference).toHaveBeenCalledWith(
-      'user-1',
+    await expect(controller.recommendRoutes(body)).resolves.toBe(response);
+    expect(mockRecommendationService.recommendRoutes).toHaveBeenCalledWith(
       body,
     );
   });

@@ -4,7 +4,7 @@ import { RecommendationService } from '@/recommendation/services/recommendation.
 
 describe('RecommendationService', () => {
   const mockRecommendationRepository = {
-    upsertPreference: jest.fn(),
+    findRecommendedRoutes: jest.fn(),
   };
 
   let service: RecommendationService;
@@ -16,110 +16,74 @@ describe('RecommendationService', () => {
     );
   });
 
-  it('returns recommendation preference options for onboarding screens', () => {
+  it('returns recommendation options for onboarding screens', () => {
     const result = service.getOptions();
 
-    expect(result).toEqual({
-      travelStyles: [
-        { slug: 'local-food', label: '부산 로컬 맛집' },
-        { slug: 'cafe', label: '감성 카페' },
-        { slug: 'beach', label: '해변 관광' },
-        { slug: 'photo-spot', label: '포토 스팟' },
-        {
-          slug: 'traditional-market',
-          label: '전통시장',
-        },
-        { slug: 'nature-walk', label: '자연 / 산책' },
-      ],
-      durationDays: [1, 2, 3, 4, 5],
-      budgetPresets: [
-        { label: '~3만 · 가성비', amountWon: 30000 },
-        { label: '3~6만 · 적당', amountWon: 60000 },
-        { label: '6만+ · 여유', amountWon: 90000 },
-      ],
-      budgetAllocation: {
-        defaultDailyBudgetWon: 60000,
-        rules: [
-          {
-            type: 'transport',
-            label: '교통비',
-            percentage: 40,
-          },
-          { type: 'food', label: '식비', percentage: 35 },
-          {
-            type: 'activity',
-            label: '체험/입장료',
-            percentage: 25,
-          },
-        ],
-      },
-    });
+    expect(result.durationDays).toEqual([1, 2, 3, 4, 5]);
+    expect(result.budgetAllocation.defaultDailyBudgetWon).toBe(60000);
+    expect(result.travelStyles.map((travelStyle) => travelStyle.slug)).toEqual([
+      'local-food',
+      'cafe',
+      'beach',
+      'photo-spot',
+      'traditional-market',
+      'nature-walk',
+    ]);
   });
 
-  it('stores selected travel styles and calculated budget allocation', async () => {
-    const updatedAt = new Date('2026-07-29T00:00:00.000Z');
-    const budgetAllocation = [
+  it('returns recommended routes from a raw request body without storing preferences', async () => {
+    mockRecommendationRepository.findRecommendedRoutes.mockResolvedValue([
       {
-        type: 'transport',
-        label: '교통비',
-        percentage: 40,
-        amountWon: 24000,
+        id: 'route-1',
+        name: 'Budget route',
+        totalDistanceMeters: 1200,
+        estimatedSavingsWon: 5000,
+        score: 4.5,
+        routeType: 'RECOMMENDED',
+        congestionLevel: 'LOW',
+        stops: [],
       },
-      { type: 'food', label: '식비', percentage: 35, amountWon: 21000 },
-      {
-        type: 'activity',
-        label: '체험/입장료',
-        percentage: 25,
-        amountWon: 15000,
-      },
-    ];
-    mockRecommendationRepository.upsertPreference.mockResolvedValue({
-      userId: 'user-1',
-      travelStyleSlugs: ['local-food', 'cafe'],
-      durationDays: 1,
-      dailyBudgetWon: 60000,
-      budgetAllocation,
-      updatedAt,
-    });
+    ]);
 
-    const result = await service.submitPreference('user-1', {
+    const result = await service.recommendRoutes({
       travelStyleSlugs: ['local-food', 'cafe', 'local-food'],
       durationDays: 1,
       dailyBudgetWon: 60000,
     });
 
-    expect(mockRecommendationRepository.upsertPreference).toHaveBeenCalledWith({
-      userId: 'user-1',
+    expect(
+      mockRecommendationRepository.findRecommendedRoutes,
+    ).toHaveBeenCalledWith({
       travelStyleSlugs: ['local-food', 'cafe'],
       durationDays: 1,
       dailyBudgetWon: 60000,
-      budgetAllocation,
+      totalBudgetWon: 60000,
     });
-    expect(result).toEqual({
-      travelStyleSlugs: ['local-food', 'cafe'],
-      durationDays: 1,
-      dailyBudgetWon: 60000,
-      budgetAllocation,
-      updatedAt: '2026-07-29T00:00:00.000Z',
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
+      id: 'route-1',
+      name: 'Budget route',
+      estimatedSavingsWon: 5000,
+      isRecommended: true,
     });
   });
 
-  it('rejects preference submission when travel styles are empty', async () => {
+  it('rejects recommendation request when travel styles are empty', async () => {
     await expect(
-      service.submitPreference('user-1', {
+      service.recommendRoutes({
         travelStyleSlugs: [],
         durationDays: 1,
         dailyBudgetWon: 60000,
       }),
     ).rejects.toThrow(BadRequestException);
     expect(
-      mockRecommendationRepository.upsertPreference,
+      mockRecommendationRepository.findRecommendedRoutes,
     ).not.toHaveBeenCalled();
   });
 
-  it('rejects preference submission when duration days are out of range', async () => {
+  it('rejects recommendation request when duration days are out of range', async () => {
     await expect(
-      service.submitPreference('user-1', {
+      service.recommendRoutes({
         travelStyleSlugs: ['local-food'],
         durationDays: 6,
         dailyBudgetWon: 60000,
@@ -127,9 +91,9 @@ describe('RecommendationService', () => {
     ).rejects.toThrow(BadRequestException);
   });
 
-  it('rejects preference submission when daily budget is invalid', async () => {
+  it('rejects recommendation request when daily budget is invalid', async () => {
     await expect(
-      service.submitPreference('user-1', {
+      service.recommendRoutes({
         travelStyleSlugs: ['local-food'],
         durationDays: 1,
         dailyBudgetWon: 0,
