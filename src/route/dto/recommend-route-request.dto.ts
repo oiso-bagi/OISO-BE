@@ -74,10 +74,15 @@ export class RecommendRouteRequestDto {
   @IsOptional()
   @IsArray({ message: 'themeSlugs는 배열 형식이어야 합니다.' })
   @IsString({ each: true, message: 'themeSlugs의 요소는 문자열이어야 합니다.' })
-  @IsNotEmpty({ each: true, message: 'themeSlugs의 요소는 빈 문자열일 수 없습니다.' })
-  @Transform(({ value }: { value: unknown }) =>
+  @IsNotEmpty({
+    each: true,
+    message: 'themeSlugs의 요소는 빈 문자열일 수 없습니다.',
+  })
+  @Transform(({ value }: { value: unknown }): unknown =>
     Array.isArray(value)
-      ? value.map((item) => (typeof item === 'string' ? item.trim() : item))
+      ? (value as unknown[]).map((item: unknown) =>
+          typeof item === 'string' ? item.trim() : item,
+        )
       : value,
   )
   themeSlugs?: string[]; // 사용자 선택 선호 테마 슬러그 목록 (예: ["local-food", "photo-spot"])

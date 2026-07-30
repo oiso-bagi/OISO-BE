@@ -74,7 +74,9 @@ export class RouteCongestionCronService {
   /**
    *지역 매핑 헬퍼 (부산 광역시 기본 areaCd: 6)
    */
-  private getRegionalCodes(region?: string): { areaCd: string; signguCd?: string } | null {
+  private getRegionalCodes(
+    region?: string,
+  ): { areaCd: string; signguCd?: string } | null {
     if (!region) return { areaCd: '6' }; // 기본 부산광역시
     if (region.includes('부산')) return { areaCd: '6' };
     return null;
@@ -101,7 +103,9 @@ export class RouteCongestionCronService {
           params: {
             serviceKey,
             areaCd: regionalCodes.areaCd,
-            ...(regionalCodes.signguCd ? { signguCd: regionalCodes.signguCd } : {}),
+            ...(regionalCodes.signguCd
+              ? { signguCd: regionalCodes.signguCd }
+              : {}),
             numOfRows: 10,
             pageNo: 1,
             MobileOS: 'ETC',
@@ -130,8 +134,7 @@ export class RouteCongestionCronService {
           return CongestionLevel.LOW;
         }
       } catch (err: unknown) {
-        const errorMessage =
-          err instanceof Error ? err.message : String(err);
+        const errorMessage = err instanceof Error ? err.message : String(err);
         this.logger.warn(
           `⚠️ TatsCnctrRateService API 연동 실패 (routeId: ${routeId}): ${errorMessage}. 시간대별 Fallback으로 전환합니다.`,
         );
