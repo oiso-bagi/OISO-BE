@@ -117,6 +117,7 @@ model Place {
   premiumIndex    Decimal?      @db.Decimal(5, 2)    /// 자체 알고리즘으로 산출한 관광 프리미엄 지수 (지도 마커 표기용)
   latitude        Decimal?      @db.Decimal(10, 7)   /// 위도 좌표 (GPS)
   longitude       Decimal?      @db.Decimal(10, 7)   /// 경도 좌표 (GPS)
+  elevationMeters Int?                               /// 해당 장소의 해수면 기준 지형 고도 (미터 단위)
   averagePriceWon Int?                               /// 해당 장소의 평균 예산 및 가격대 (원화)
   isActive        Boolean       @default(true)       /// 장소 운영 및 데이터 노출 활성화 여부
   createdAt       DateTime      @default(now())      /// 데이터 등록 일시
@@ -179,7 +180,7 @@ model Route {
   @@index([region])
   @@index([score])
   @@index([routeType, score])
-  @@index([estimatedCostWon])
+  @@index([routeType, estimatedCostWon])
 }
 
 /// 경로 경유지 도메인: 특정 여행 경로에 포함된 세부 장소들의 방문 순서와 구간별 이동 비용/수단을 정의합니다.
