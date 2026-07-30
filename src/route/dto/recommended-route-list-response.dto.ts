@@ -63,7 +63,17 @@ export class RecommendedRouteListResponseDto {
 
     dto.congestionLevel = route.congestionLevel ?? CongestionLevel.MEDIUM;
     dto.estimatedSavingsWon = route.estimatedSavingsWon ?? 0;
-    const score = route.score != null ? Number(route.score) : 0;
+
+    const rawRoute = route as Record<string, unknown>;
+    const calculatedMetrics = rawRoute?.calculatedMetrics as
+      { finalScore?: number } | undefined;
+    const finalScore = calculatedMetrics?.finalScore;
+    const score =
+      finalScore != null
+        ? Number(finalScore)
+        : route.score != null
+          ? Number(route.score)
+          : 0;
     dto.score = Number.isFinite(score) ? score : 0;
     dto.isRecommended = route.routeType === 'RECOMMENDED';
 

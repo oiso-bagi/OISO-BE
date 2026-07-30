@@ -57,16 +57,19 @@ export class RouteService {
     const foodRatio = dto.ratios?.foodRatio ?? 0.4;
     const experienceRatio = dto.ratios?.experienceRatio ?? 0.4;
     const transportRatio = dto.ratios?.transportRatio ?? 0.2;
+    const themeSlugs = dto.themeSlugs;
 
-    // 1단계: Hard Filter (Prisma DB 레벨 - 예산 이하 후보군 선별)
-    const candidates =
-      await this.routeRepository.findRecommendedCandidates(budget);
+    // 1단계: Hard Filter (Prisma DB 레벨 - 예산 이하 & 선호 테마 부합 후보군 Take 50 선별)
+    const candidates = await this.routeRepository.findRecommendedCandidates(
+      budget,
+      themeSlugs,
+    );
 
     if (!candidates || candidates.length === 0) {
       return [];
     }
 
-    // 2단계: Soft Filter (메모리 레벨 - 예산 비율 오차 제곱 분산 패널티 연산)
+    // 2단계: Soft Filter & 4단계 추천도(Final Score) 종합 연산
     const scoredCandidates = candidates.map((route) => {
       const totalCost = route.estimatedCostWon || 1;
 
@@ -79,8 +82,24 @@ export class RouteService {
       const transDiff = Math.pow(transportRatio - actualTransRatio, 2);
 
       const variancePenalty = (foodDiff + expDiff + transDiff) * 100;
-      const baseScore = Number(route.score ?? 50.0);
-      const finalScore = Math.max(0, baseScore - variancePenalty);
+
+      // 1단계: 코스 원본 점수에서 보행 피로도 난이도 점수 D 차감 (BaseScore = InitialRating - 0.05 * D)
+      const difficultyScore = Number(route.totalDifficultyScore ?? 0);
+      const initialRating = Number(route.score ?? 50.0);
+      const baseScore = Math.max(0, initialRating - 0.05 * difficultyScore);
+
+      // 일별 실시간 혼잡도 Caching 상태에 따른 쾌적함 가감점 연산 (LOW: +3점, MEDIUM: 0점, HIGH: -5점)
+      let congestionAdjustment = 0;
+      if (route.congestionLevel === 'LOW') {
+        congestionAdjustment = 3.0;
+      } else if (route.congestionLevel === 'HIGH') {
+        congestionAdjustment = -5.0;
+      }
+
+      const finalScore = Math.max(
+        0,
+        baseScore - variancePenalty + congestionAdjustment,
+      );
 
       return {
         ...route,
@@ -91,16 +110,18 @@ export class RouteService {
             transportRatio: Number(actualTransRatio.toFixed(2)),
           },
           variancePenalty: Number(variancePenalty.toFixed(2)),
+          congestionAdjustment,
           finalScore: Number(finalScore.toFixed(2)),
         },
       };
     });
 
-    // 3단계: Final Score 기준 내림차순 정렬 후 Top 3 추출
+    // 3단계: Final Score 기준 내림차순 정렬 후 Top 3 추출 및 DTO 반환
     scoredCandidates.sort(
       (a, b) => b.calculatedMetrics.finalScore - a.calculatedMetrics.finalScore,
     );
 
-    return scoredCandidates.slice(0, 3);
+    const top3 = scoredCandidates.slice(0, 3);
+    return top3.map((route) => RecommendedRouteListResponseDto.from(route));
   }
 }

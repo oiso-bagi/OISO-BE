@@ -45,7 +45,7 @@ describe('RouteRepository', () => {
     expect(result).toBe(mockList);
     expect(prismaService.route.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { routeType: 'RECOMMENDED' },
+        where: { routeType: 'RECOMMENDED', isPublished: true },
       }),
     );
   });

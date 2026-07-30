@@ -86,23 +86,39 @@ export class RouteRepository {
     return this.prisma.route.findMany({
       where: {
         routeType: 'RECOMMENDED',
+        isPublished: true,
       },
       select: routeListSelect,
     });
   }
 
   /**
-   * 1단계 Hard Filter: 사용자의 예산(budget) 이하인 추천 경로 후보군만 DB 레벨에서 선별 조회합니다.
+   * 1단계 Hard Filter: 사용자의 예산(budget) 및 선호 테마(themeSlugs) 조건에 부합하는 후보군을 Take 50으로 선별 조회합니다.
    */
-  async findRecommendedCandidates(budget: number) {
-    return this.prisma.route.findMany({
-      where: {
-        routeType: 'RECOMMENDED',
-        isPublished: true,
-        estimatedCostWon: {
-          lte: budget,
-        },
+  async findRecommendedCandidates(budget: number, themeSlugs?: string[]) {
+    const whereCondition: Prisma.RouteWhereInput = {
+      routeType: 'RECOMMENDED',
+      isPublished: true,
+      estimatedCostWon: {
+        lte: budget,
       },
+    };
+
+    if (themeSlugs && themeSlugs.length > 0) {
+      whereCondition.themes = {
+        some: {
+          theme: {
+            slug: {
+              in: themeSlugs,
+            },
+          },
+        },
+      };
+    }
+
+    return this.prisma.route.findMany({
+      where: whereCondition,
+      take: 50,
       select: {
         id: true,
         name: true,
@@ -149,7 +165,6 @@ export class RouteRepository {
           },
         },
       },
-      take: 50,
     });
   }
 }

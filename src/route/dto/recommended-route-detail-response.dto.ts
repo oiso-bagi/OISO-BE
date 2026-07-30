@@ -81,6 +81,7 @@ export function buildRouteMetrics(stops: RouteStopWithPlace[]): RouteMetrics {
 
 export class RouteStopResponseDto {
   sequence: number;
+  dayNumber: number; // 일차 번호 (프론트엔드 지도 색상 분기용: 1일차, 2일차...)
   placeName: string;
   category: string;
   openTime: string | null;
@@ -94,6 +95,13 @@ export class RouteStopResponseDto {
     const dto = new RouteStopResponseDto();
 
     dto.sequence = stop.orderIndex ?? 0;
+    // orderIndex 0~3: 1일차, 4~8: 2일차, 9+: 3일차 등 계산 또는 기본 1일차
+    const seq = stop.orderIndex ?? 0;
+    if (seq < 4) dto.dayNumber = 1;
+    else if (seq < 9) dto.dayNumber = 2;
+    else if (seq < 14) dto.dayNumber = 3;
+    else dto.dayNumber = 4; // Day 4+ (Emerald Green) 지원
+
     dto.placeName = stop.place?.name ?? '';
     dto.category = stop.place?.category ?? '';
 
