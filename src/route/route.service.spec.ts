@@ -7,6 +7,7 @@ describe('RouteService', () => {
   const mockRouteRepository = {
     findDetailWithStopsAndPlace: jest.fn(),
     findListWithStops: jest.fn(),
+    findRecommendedCandidates: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -90,5 +91,113 @@ describe('RouteService', () => {
       },
     ]);
     expect(result[0]).not.toHaveProperty('stops');
+  });
+
+  describe('getRecommendedRoutes', () => {
+    it('throws BadRequestException if budget is invalid', async () => {
+      await expect(
+        service.getRecommendedRoutes({
+          budget: 0,
+          ratios: { foodRatio: 0.4, experienceRatio: 0.4, transportRatio: 0.2 },
+        }),
+      ).rejects.toThrow('유효한 총 예산(budget)을 입력해 주세요.');
+    });
+
+    it('passes requested budget to findRecommendedCandidates and returns top 3 routes', async () => {
+      const mockCandidates = [
+        {
+          id: 'route-1',
+          name: '루트 1',
+          score: 80,
+          estimatedCostWon: 10000,
+          foodCostWon: 4000,
+          experienceCostWon: 4000,
+          transportCostWon: 2000,
+          congestionLevel: 'MEDIUM',
+        },
+        {
+          id: 'route-2',
+          name: '루트 2',
+          score: 85,
+          estimatedCostWon: 10000,
+          foodCostWon: 3000,
+          experienceCostWon: 5000,
+          transportCostWon: 2000,
+          congestionLevel: 'MEDIUM',
+        },
+        {
+          id: 'route-3',
+          name: '루트 3',
+          score: 80,
+          estimatedCostWon: 10000,
+          foodCostWon: 2000,
+          experienceCostWon: 6000,
+          transportCostWon: 2000,
+          congestionLevel: 'MEDIUM',
+        },
+        {
+          id: 'route-4',
+          name: '루트 4',
+          score: 50,
+          estimatedCostWon: 10000,
+          foodCostWon: 1000,
+          experienceCostWon: 8000,
+          transportCostWon: 1000,
+          congestionLevel: 'HIGH',
+        },
+      ];
+
+      mockRouteRepository.findRecommendedCandidates.mockResolvedValue(
+        mockCandidates,
+      );
+
+      const result = await service.getRecommendedRoutes({
+        budget: 15000,
+        ratios: { foodRatio: 0.4, experienceRatio: 0.4, transportRatio: 0.2 },
+      });
+
+      expect(
+        mockRouteRepository.findRecommendedCandidates,
+      ).toHaveBeenCalledWith(15000, undefined);
+      expect(result.length).toBe(3);
+    });
+
+    it('independently ranks LOW congestion route higher than HIGH congestion route given identical base score and ratios', async () => {
+      const mockCandidates = [
+        {
+          id: 'route-high',
+          name: '혼잡한 루트',
+          score: 80,
+          estimatedCostWon: 10000,
+          foodCostWon: 4000, // 0.4
+          experienceCostWon: 4000, // 0.4
+          transportCostWon: 2000, // 0.2
+          congestionLevel: 'HIGH', // -5.0 감점
+        },
+        {
+          id: 'route-low',
+          name: '쾌적한 루트',
+          score: 80,
+          estimatedCostWon: 10000,
+          foodCostWon: 4000, // 0.4
+          experienceCostWon: 4000, // 0.4
+          transportCostWon: 2000, // 0.2
+          congestionLevel: 'LOW', // +3.0 가점
+        },
+      ];
+
+      mockRouteRepository.findRecommendedCandidates.mockResolvedValue(
+        mockCandidates,
+      );
+
+      const result = await service.getRecommendedRoutes({
+        budget: 15000,
+        ratios: { foodRatio: 0.4, experienceRatio: 0.4, transportRatio: 0.2 },
+      });
+
+      expect(result.length).toBe(2);
+      expect(result[0].id).toBe('route-low');
+      expect(result[1].id).toBe('route-high');
+    });
   });
 });

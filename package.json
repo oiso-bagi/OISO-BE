@@ -22,7 +22,10 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "db:seed": "prisma db seed"
+    "db:seed": "ts-node prisma/seed.ts",
+    "seed:places": "ts-node scripts/seed-tour-api-test.ts",
+    "seed:routes": "ts-node scripts/seed-recommend-routes.ts",
+    "seed:all": "pnpm db:seed && pnpm seed:places && pnpm seed:routes"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
@@ -33,8 +36,11 @@
     "@nestjs/jwt": "^11.0.2",
     "@nestjs/platform-express": "^11.0.1",
     "@nestjs/swagger": "^11.4.6",
+    "@nestjs/schedule": "^6.1.3",
     "@prisma/client": "5.22.0",
     "axios": "^1.18.1",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.15.1",
     "dotenv": "^17.4.2",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1"
