@@ -1,5 +1,75 @@
 # Coding Convention
 
+## OISO-BE Import Path
+
+- `src/**`에서 프로젝트 내부 코드를 import할 때는 `@/` 절대 alias를 사용합니다.
+- 새로 작성하거나 수정하는 코드에는 `./`, `../` 상대 import를 추가하지 않습니다.
+- 내부 도메인, DTO, common, prisma, guard, decorator import는 `@/`로 시작하게 작성합니다.
+- Node 내장 모듈과 npm 패키지는 기존처럼 패키지명으로 import합니다.
+- 기존 파일에 상대 import가 남아 있더라도, 변경하는 import부터 `@/` alias로 정리합니다. 요청 범위를 벗어나는 대규모 import 정리는 별도 작업으로 분리합니다.
+
+```tsx
+import { AuthService } from '@/auth/services/auth.service';
+import { CurrentUser } from '@/common/decorators/current-user.decorator';
+import { PrismaService } from '@/prisma/prisma.service';
+```
+
+---
+
+## OISO-BE Endpoint And Domain Addition
+
+- Canonical domain structure follows the current `src/auth/` module layout.
+- New domains use plural responsibility folders: `controllers/`, `services/`, `repositories/`, `dto/`, and `types/`.
+- Domain modules are registered from `src/app.module.ts`; each domain module wires controllers and providers like `src/auth/auth.module.ts`.
+- Existing auth example:
+
+```tsx
+src/
+  auth/
+    controllers/
+      auth.controller.ts
+    dto/
+      current-user-response.dto.ts
+    repositories/
+      auth.repository.ts
+    services/
+      auth.service.ts
+      social-auth.service.ts
+      auth-token.service.ts
+      auth-cookie.service.ts
+      oauth-flow.service.ts
+      kakao-auth.service.ts
+      google-auth.service.ts
+    types/
+      auth-result.types.ts
+      auth-user.types.ts
+      social-auth.types.ts
+    auth.module.ts
+```
+
+- 새 엔드포인트를 추가하기 전에 먼저 어느 도메인 책임인지 결정합니다.
+- 기존 도메인 기능이면 해당 도메인 폴더의 controller/service/repository/dto 패턴을 따릅니다.
+- 새 도메인이면 `src/<domain>/` 아래에 다음 구조를 기본으로 만듭니다.
+
+```tsx
+src/
+  <domain>/
+    controllers/
+    services/
+    repositories/
+    dto/
+    types/
+    <domain>.module.ts
+```
+
+- 새 도메인 module은 `src/app.module.ts`에 import합니다.
+- Controller는 HTTP method, route, param/query/body 수집, guard/decorator, response 위임만 담당합니다.
+- Service는 입력 정규화, 도메인 규칙, 신규/기존 상태 분기, 예외 처리를 담당합니다.
+- Repository는 Prisma query와 DB 접근만 담당합니다.
+- DTO는 외부 API 응답 계약을 고정합니다.
+- 새 API는 path, method, 요청 값, 응답 DTO, 실패 케이스, 인증 필요 여부를 함께 정리한 뒤 구현합니다.
+- API route prefix는 같은 도메인의 기존 controller 패턴을 우선 따릅니다. 새 인증/회원/동의성 API는 `api/v1` prefix 사용을 우선 검토합니다.
+
 ## File And Folder
 
 | Target | Convention | Example |

@@ -1,3 +1,5 @@
+import type { SocialUserProfile } from '@/auth/types/social-auth.types';
+
 export interface KakaoTokenResponse {
   token_type: string;
   access_token: string;
@@ -17,8 +19,4 @@ export interface KakaoUserResponse {
   };
 }
 
-export interface KakaoUserProfile {
-  providerId: string;
-  email: string;
-  nickname: string;
-}
+export type KakaoUserProfile = SocialUserProfile;

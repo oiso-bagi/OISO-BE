@@ -1,9 +1,7 @@
 import {
-  BadRequestException,
   Controller,
   Get,
   HttpCode,
-  Logger,
   Post,
   Query,
   Req,
@@ -15,6 +13,7 @@ import type { Request, Response } from 'express';
 import type { User } from '@prisma/client';
 import {
   ACCESS_TOKEN_COOKIE,
+  OAUTH_RETURN_URL_COOKIE,
   OAUTH_STATE_COOKIE,
   REFRESH_TOKEN_COOKIE,
 } from '@/auth/auth.constants';
@@ -23,29 +22,30 @@ import { AuthTokenResponseDto } from '@/auth/dto/auth-token-response.dto';
 import { CurrentUserResponseDto } from '@/auth/dto/current-user-response.dto';
 import { AuthCookieService } from '@/auth/services/auth-cookie.service';
 import { AuthService } from '@/auth/services/auth.service';
+import { GoogleAuthService } from '@/auth/services/google-auth.service';
 import { KakaoAuthService } from '@/auth/services/kakao-auth.service';
+import { OAuthFlowService } from '@/auth/services/oauth-flow.service';
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
 import { AuthGuard } from '@/common/guards/auth.guard';
 
 @Controller('api/v1')
 export class AuthController {
-  private readonly logger = new Logger(AuthController.name);
-
   constructor(
     private readonly authService: AuthService,
     private readonly kakaoAuthService: KakaoAuthService,
+    private readonly googleAuthService: GoogleAuthService,
     private readonly authCookieService: AuthCookieService,
+    private readonly oauthFlowService: OAuthFlowService,
   ) {}
 
   @Get('auth/kakao/login')
-  redirectToKakao(@Res() response: Response): void {
-    const state = randomBytes(24).toString('base64url');
-
-    response.cookie(OAUTH_STATE_COOKIE, state, {
-      ...this.authCookieService.getBaseCookieOptions(),
-      maxAge: 5 * 60 * 1000,
-    });
-    response.redirect(this.kakaoAuthService.getAuthorizationUrl(state));
+  redirectToKakao(
+    @Query('returnUrl') returnUrl: unknown,
+    @Res() response: Response,
+  ): void {
+    this.redirectToProvider(response, returnUrl, (state) =>
+      this.kakaoAuthService.getAuthorizationUrl(state),
+    );
   }
 
   @Get('auth/kakao/callback')
@@ -56,53 +56,48 @@ export class AuthController {
     @Req() request: Request,
     @Res() response: Response,
   ): Promise<void> {
-    try {
-      if (error) {
-        throw new BadRequestException('Kakao login was canceled.');
-      }
+    await this.oauthFlowService.handleSocialCallback({
+      code,
+      state,
+      error,
+      request,
+      response,
+      providerName: 'Kakao',
+      getProfile: (validatedCode) =>
+        this.kakaoAuthService.getUserProfile(validatedCode),
+      login: (profile) => this.authService.loginWithKakao(profile),
+    });
+  }
 
-      const validatedCode = this.getRequiredQueryString(
-        code,
-        'Kakao authorization code is required.',
-      );
-      const validatedState = this.getRequiredQueryString(
-        state,
-        'Kakao OAuth state is required.',
-      );
+  @Get('auth/google/login')
+  redirectToGoogle(
+    @Query('returnUrl') returnUrl: unknown,
+    @Res() response: Response,
+  ): void {
+    this.redirectToProvider(response, returnUrl, (state) =>
+      this.googleAuthService.getAuthorizationUrl(state),
+    );
+  }
 
-      const cookies = this.authCookieService.parseCookies(request);
-
-      this.authCookieService.validateOAuthState(
-        validatedState,
-        cookies[OAUTH_STATE_COOKIE],
-      );
-
-      const kakaoProfile =
-        await this.kakaoAuthService.getUserProfile(validatedCode);
-      const { tokens } = await this.authService.loginWithKakao(kakaoProfile);
-
-      this.setRefreshTokenCookie(response, tokens.refreshToken);
-      response.clearCookie(
-        ACCESS_TOKEN_COOKIE,
-        this.authCookieService.getBaseCookieOptions(),
-      );
-      response.clearCookie(
-        OAUTH_STATE_COOKIE,
-        this.authCookieService.getBaseCookieOptions(),
-      );
-      response.redirect(this.authCookieService.getSuccessRedirectUrl());
-    } catch (error) {
-      this.logger.error('Kakao OAuth callback failed.', error);
-      response.clearCookie(
-        OAUTH_STATE_COOKIE,
-        this.authCookieService.getBaseCookieOptions(),
-      );
-      response.redirect(
-        this.authCookieService.getFailureRedirectUrl(
-          this.authCookieService.getFailureReason(error),
-        ),
-      );
-    }
+  @Get('auth/google/callback')
+  async handleGoogleCallback(
+    @Query('code') code: unknown,
+    @Query('state') state: unknown,
+    @Query('error') error: unknown,
+    @Req() request: Request,
+    @Res() response: Response,
+  ): Promise<void> {
+    await this.oauthFlowService.handleSocialCallback({
+      code,
+      state,
+      error,
+      request,
+      response,
+      providerName: 'Google',
+      getProfile: (validatedCode) =>
+        this.googleAuthService.getUserProfile(validatedCode),
+      login: (profile) => this.authService.loginWithGoogle(profile),
+    });
   }
 
   @Get('me')
@@ -148,23 +143,25 @@ export class AuthController {
     response.send();
   }
 
-  private setRefreshTokenCookie(
+  private redirectToProvider(
     response: Response,
-    refreshToken: string,
+    returnUrl: unknown,
+    getAuthorizationUrl: (state: string) => string,
   ): void {
-    response.cookie(REFRESH_TOKEN_COOKIE, refreshToken, {
+    const state = randomBytes(24).toString('base64url');
+    const validatedReturnUrl =
+      this.authCookieService.getSafeOAuthReturnUrl(returnUrl);
+
+    response.cookie(OAUTH_STATE_COOKIE, state, {
       ...this.authCookieService.getBaseCookieOptions(),
-      maxAge: this.authCookieService.getDurationMilliseconds(
-        process.env.JWT_REFRESH_EXPIRES_IN ?? '14d',
-      ),
+      maxAge: 5 * 60 * 1000,
     });
-  }
-
-  private getRequiredQueryString(value: unknown, message: string): string {
-    if (typeof value !== 'string' || value.trim().length === 0) {
-      throw new BadRequestException(message);
+    if (validatedReturnUrl) {
+      response.cookie(OAUTH_RETURN_URL_COOKIE, validatedReturnUrl, {
+        ...this.authCookieService.getBaseCookieOptions(),
+        maxAge: 5 * 60 * 1000,
+      });
     }
-
-    return value.trim();
+    response.redirect(getAuthorizationUrl(state));
   }
 }

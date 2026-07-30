@@ -1,0 +1,185 @@
+import { BadRequestException, Injectable } from '@nestjs/common';
+import { RecommendRouteRequestDto } from '@/recommendation/dto/recommend-route-request.dto';
+import { RecommendationOptionsResponseDto } from '@/recommendation/dto/recommendation-options-response.dto';
+import { RecommendationRepository } from '@/recommendation/repositories/recommendation.repository';
+import type {
+  BudgetAllocationRule,
+  BudgetPreset,
+  RecommendationFilter,
+  TravelStyleOption,
+} from '@/recommendation/types/recommendation.types';
+import { RecommendedRouteListResponseDto } from '@/route/dto/recommended-route-list-response.dto';
+
+const DEFAULT_DAILY_BUDGET_WON = 60000;
+
+const TRAVEL_STYLE_OPTIONS: TravelStyleOption[] = [
+  { slug: 'local-food', label: '부산 로컬 맛집' },
+  { slug: 'cafe', label: '감성 카페' },
+  { slug: 'beach', label: '바다 관광' },
+  { slug: 'photo-spot', label: '포토 스팟' },
+  { slug: 'traditional-market', label: '전통시장' },
+  { slug: 'nature-walk', label: '자연 / 산책' },
+];
+
+const DURATION_DAY_OPTIONS = [1, 2, 3, 4, 5];
+
+const BUDGET_PRESETS: BudgetPreset[] = [
+  { label: '~3만원 · 가성비', amountWon: 30000 },
+  { label: '3~6만원 · 적당', amountWon: 60000 },
+  { label: '6만원 이상 · 여유', amountWon: 90000 },
+];
+
+const BUDGET_ALLOCATION_RULES: BudgetAllocationRule[] = [
+  { type: 'transport', label: '교통비', percentage: 40 },
+  { type: 'food', label: '식비', percentage: 35 },
+  { type: 'activity', label: '체험/입장료', percentage: 25 },
+];
+
+@Injectable()
+export class RecommendationService {
+  constructor(
+    private readonly recommendationRepository: RecommendationRepository,
+  ) {}
+
+  getOptions(): RecommendationOptionsResponseDto {
+    return RecommendationOptionsResponseDto.of({
+      travelStyles: TRAVEL_STYLE_OPTIONS,
+      durationDays: DURATION_DAY_OPTIONS,
+      budgetPresets: BUDGET_PRESETS,
+      budgetAllocation: {
+        defaultDailyBudgetWon: DEFAULT_DAILY_BUDGET_WON,
+        rules: BUDGET_ALLOCATION_RULES,
+      },
+    });
+  }
+
+  async recommendRoutes(
+    body: RecommendRouteRequestDto,
+  ): Promise<RecommendedRouteListResponseDto[]> {
+    const validatedInput = this.validateRecommendationInput(body);
+    const recommendedRoutes =
+      await this.recommendationRepository.findRecommendedRoutes(validatedInput);
+
+    return recommendedRoutes.map((route) =>
+      RecommendedRouteListResponseDto.from(route),
+    );
+  }
+
+  private validateRecommendationInput(
+    body: RecommendRouteRequestDto,
+  ): RecommendationFilter {
+    const travelStyleSlugs = this.validateTravelStyleSlugs(
+      body?.travelStyleSlugs,
+    );
+    const durationDays = this.validateDurationDays(body?.durationDays);
+    const dailyBudgetWon = this.validatePositiveInteger(
+      body?.dailyBudgetWon,
+      'dailyBudgetWon',
+    );
+    const totalBudgetWon = this.validateTotalBudgetWon(
+      durationDays,
+      dailyBudgetWon,
+    );
+
+    return {
+      travelStyleSlugs,
+      durationDays,
+      dailyBudgetWon,
+      totalBudgetWon,
+    };
+  }
+
+  private validateTravelStyleSlugs(value: unknown): string[] {
+    if (!Array.isArray(value)) {
+      throw new BadRequestException(
+        'travelStyleSlugs must include at least one item.',
+      );
+    }
+
+    const rawTravelStyleSlugs: unknown[] = value;
+
+    if (!this.isNonEmptyStringArray(rawTravelStyleSlugs)) {
+      throw new BadRequestException(
+        'travelStyleSlugs must contain only non-empty strings.',
+      );
+    }
+
+    const travelStyleSlugs = Array.from(
+      new Set(
+        rawTravelStyleSlugs.map((travelStyleSlug) => travelStyleSlug.trim()),
+      ),
+    );
+
+    if (travelStyleSlugs.length === 0) {
+      throw new BadRequestException(
+        'travelStyleSlugs must include at least one item.',
+      );
+    }
+
+    const supportedTravelStyleSlugs = new Set(
+      TRAVEL_STYLE_OPTIONS.map((travelStyle) => travelStyle.slug),
+    );
+    const hasUnsupportedTravelStyle = travelStyleSlugs.some(
+      (travelStyleSlug) => !supportedTravelStyleSlugs.has(travelStyleSlug),
+    );
+
+    if (hasUnsupportedTravelStyle) {
+      throw new BadRequestException(
+        'travelStyleSlugs contains an unsupported item.',
+      );
+    }
+
+    return travelStyleSlugs;
+  }
+
+  private isNonEmptyStringArray(value: unknown[]): value is string[] {
+    return value.every(
+      (travelStyleSlug): travelStyleSlug is string =>
+        typeof travelStyleSlug === 'string' &&
+        travelStyleSlug.trim().length > 0,
+    );
+  }
+
+  private validateDurationDays(value: unknown): number {
+    const durationDays = this.validatePositiveInteger(value, 'durationDays');
+
+    if (!DURATION_DAY_OPTIONS.includes(durationDays)) {
+      throw new BadRequestException('durationDays must be between 1 and 5.');
+    }
+
+    return durationDays;
+  }
+
+  private validateTotalBudgetWon(
+    durationDays: number,
+    dailyBudgetWon: number,
+  ): number {
+    if (dailyBudgetWon > Math.floor(Number.MAX_SAFE_INTEGER / durationDays)) {
+      throw new BadRequestException(
+        'totalBudgetWon must be a safe positive integer.',
+      );
+    }
+
+    return durationDays * dailyBudgetWon;
+  }
+
+  private validatePositiveInteger(value: unknown, label: string): number {
+    const parsedValue =
+      typeof value === 'string' && value.trim().length > 0
+        ? Number(value)
+        : value;
+
+    if (
+      typeof parsedValue !== 'number' ||
+      !Number.isInteger(parsedValue) ||
+      !Number.isSafeInteger(parsedValue) ||
+      parsedValue <= 0
+    ) {
+      throw new BadRequestException(
+        `${label} must be a safe positive integer.`,
+      );
+    }
+
+    return parsedValue;
+  }
+}

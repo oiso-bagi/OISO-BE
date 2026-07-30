@@ -1,9 +1,26 @@
 import { Injectable } from '@nestjs/common';
-import { User } from '@prisma/client';
+import { Prisma } from '@prisma/client';
+import type { User } from '@prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
-import { KakaoUserProfile } from '@/auth/types/kakao-auth.types';
+import type { SocialAuthUser, UserIdOnly } from '@/auth/types/auth-user.types';
+import type {
+  SocialProvider,
+  SocialUserProfile,
+} from '@/auth/types/social-auth.types';
 
-export type UserIdOnly = Pick<User, 'id'>;
+const socialUserSelect = {
+  id: true,
+  email: true,
+  provider: true,
+  providerId: true,
+  nickname: true,
+  phone: true,
+  role: true,
+  birthDate: true,
+  isActive: true,
+  createdAt: true,
+  updatedAt: true,
+} satisfies Prisma.UserSelect;
 
 @Injectable()
 export class AuthRepository {
@@ -16,7 +33,7 @@ export class AuthRepository {
   }
 
   findUserByProvider(
-    provider: string,
+    provider: SocialProvider,
     providerId: string,
   ): Promise<UserIdOnly | null> {
     return this.prisma.user.findUnique({
@@ -41,23 +58,36 @@ export class AuthRepository {
     });
   }
 
-  createKakaoUser(profile: KakaoUserProfile, nickname: string): Promise<User> {
-    return this.prisma.user.create({
+  async createSocialUser(
+    provider: SocialProvider,
+    profile: SocialUserProfile,
+    nickname: string,
+  ): Promise<SocialAuthUser> {
+    const user = await this.prisma.user.create({
       data: {
         email: profile.email,
         nickname,
-        provider: 'kakao',
+        provider,
         providerId: profile.providerId,
       },
+      select: socialUserSelect,
     });
+
+    return user;
   }
 
-  updateKakaoUser(userId: string, profile: KakaoUserProfile): Promise<User> {
-    return this.prisma.user.update({
+  async updateSocialUser(
+    userId: string,
+    profile: SocialUserProfile,
+  ): Promise<SocialAuthUser> {
+    const user = await this.prisma.user.update({
       where: { id: userId },
       data: {
         email: profile.email,
       },
+      select: socialUserSelect,
     });
+
+    return user;
   }
 }

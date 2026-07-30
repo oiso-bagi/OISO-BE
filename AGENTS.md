@@ -1,5 +1,33 @@
 # AGENTS.md
 
+## Canonical Domain Structure
+
+- New or expanded domains should follow the current `src/auth/` layout as the canonical NestJS pattern.
+- Put HTTP handlers in `controllers/`, business rules in `services/`, Prisma access in `repositories/`, API DTOs in `dto/`, and shared domain-only types in `types/`.
+- Register new domain modules in `src/app.module.ts`. Inside each domain module, wire controllers and providers like `src/auth/auth.module.ts`.
+
+```text
+src/
+  <domain>/
+    controllers/
+    services/
+    repositories/
+    dto/
+    types/
+    <domain>.module.ts
+```
+
+## 추가 코드 작성 규칙
+
+- 새로 추가하거나 수정하는 `src/**` 내부 import는 `@/` 절대 alias를 사용합니다.
+  - 예: `import { AuthService } from '@/auth/services/auth.service';`
+  - `./`, `../` 상대 import는 새 코드에 추가하지 않습니다.
+  - Node 내장 모듈과 npm 패키지 import는 기존 방식대로 둡니다.
+- 새 엔드포인트를 추가하기 전에 기존 도메인 확장인지 새 도메인 생성인지 먼저 결정합니다.
+- 새 도메인은 `src/<domain>/` 아래에 module/controller/service/repository/dto/types 경계를 만들고 `AppModule`에 연결합니다.
+- 기존 도메인의 새 API는 해당 도메인 module/controller/service/repository/DTO 패턴을 따릅니다.
+- Controller는 HTTP 라우팅과 요청 값 수집만 담당하고, 도메인 규칙과 상태 분기는 Service에 둡니다.
+
 이 문서는 OISO-BE 저장소에서 AI 에이전트가 작업할 때 따라야 할 프로젝트별 기준입니다.
 
 ## 프로젝트 개요

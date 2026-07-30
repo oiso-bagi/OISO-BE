@@ -13,6 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       issues: write
+      pull-requests: write
     steps:
       - name: Assign PR to author
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553
@@ -38,7 +39,7 @@ jobs:
               })
             } catch (error) {
               if (isExpectedAssignmentError(error)) {
-                core.warning(`Could not add assignee due to permissions or missing user: ${error.message}`)
+                core.setFailed(`Could not add assignee due to permissions or missing user: ${error.message}`)
                 return
               }
 

@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+} from '@nestjs/common';
 import { timingSafeEqual } from 'node:crypto';
 import type { CookieOptions, Request } from 'express';
 
@@ -82,11 +86,49 @@ export class AuthCookieService {
     return authorization.slice('Bearer '.length).trim();
   }
 
-  getSuccessRedirectUrl(): string {
+  getSafeOAuthReturnUrl(value: unknown): string | undefined {
+    if (typeof value !== 'string') {
+      return undefined;
+    }
+
+    const returnUrl = value.trim();
+
+    if (!returnUrl) {
+      return undefined;
+    }
+
+    try {
+      const frontendOrigin = this.getFrontendOrigin();
+      const url = new URL(returnUrl, frontendOrigin);
+
+      if (url.origin !== frontendOrigin) {
+        return undefined;
+      }
+
+      return returnUrl.startsWith('/')
+        ? `${url.pathname}${url.search}${url.hash}`
+        : url.toString();
+    } catch {
+      return undefined;
+    }
+  }
+
+  getSuccessRedirectUrl(returnUrl?: string): string {
     const successUrl =
       process.env.FRONTEND_AUTH_SUCCESS_REDIRECT ??
       'http://localhost:5173/auth/kakao/success';
-    const url = new URL(successUrl);
+    const url = this.getFrontendRedirectUrl(returnUrl || successUrl);
+
+    url.searchParams.set('login', 'success');
+
+    return url.toString();
+  }
+
+  getConsentRedirectUrl(): string {
+    const consentUrl =
+      process.env.FRONTEND_AUTH_CONSENT_REDIRECT ??
+      'http://localhost:5173/consents';
+    const url = this.getFrontendRedirectUrl(consentUrl);
 
     url.searchParams.set('login', 'success');
 
@@ -111,16 +153,26 @@ export class AuthCookieService {
 
   getFailureReason(error: unknown): string {
     if (error instanceof BadRequestException) {
-      const response = error.getResponse();
-      const message =
-        typeof response === 'object' &&
-        response !== null &&
-        'message' in response
-          ? String(response.message)
-          : error.message;
+      const message = this.getExceptionMessage(error);
 
       if (message.includes('canceled')) {
-        return 'kakao_canceled';
+        if (message.includes('Kakao')) {
+          return 'kakao_canceled';
+        }
+
+        if (message.includes('Google')) {
+          return 'google_canceled';
+        }
+
+        return 'oauth_canceled';
+      }
+
+      if (message.includes('Failed to exchange')) {
+        return 'token_exchange_failed';
+      }
+
+      if (message.includes('Failed to fetch')) {
+        return 'profile_fetch_failed';
       }
 
       if (message.includes('authorization code')) {
@@ -131,20 +183,20 @@ export class AuthCookieService {
         return 'invalid_state';
       }
 
-      if (message.includes('exchange Kakao')) {
-        return 'token_exchange_failed';
-      }
-
-      if (message.includes('fetch Kakao')) {
-        return 'profile_fetch_failed';
-      }
-
       if (message.includes('email')) {
         return 'email_required';
       }
 
       if (message.includes('nickname')) {
         return 'nickname_required';
+      }
+    }
+
+    if (error instanceof ConflictException) {
+      const message = this.getExceptionMessage(error);
+
+      if (message.includes('Email') || message === 'email_conflict') {
+        return 'email_conflict';
       }
     }
 
@@ -159,6 +211,18 @@ export class AuthCookieService {
     }
   }
 
+  private getExceptionMessage(
+    error: BadRequestException | ConflictException,
+  ): string {
+    const response = error.getResponse();
+
+    return typeof response === 'object' &&
+      response !== null &&
+      'message' in response
+      ? String(response.message)
+      : error.message;
+  }
+
   private isEqual(left: string, right: string): boolean {
     const leftBuffer = Buffer.from(left);
     const rightBuffer = Buffer.from(right);
@@ -167,5 +231,27 @@ export class AuthCookieService {
       leftBuffer.length === rightBuffer.length &&
       timingSafeEqual(leftBuffer, rightBuffer)
     );
+  }
+
+  private getFrontendOrigin(): string {
+    const configuredOrigin = process.env.FRONTEND_ORIGIN;
+
+    if (configuredOrigin) {
+      return new URL(configuredOrigin).origin;
+    }
+
+    const successUrl =
+      process.env.FRONTEND_AUTH_SUCCESS_REDIRECT ??
+      'http://localhost:5173/auth/kakao/success';
+
+    return new URL(successUrl).origin;
+  }
+
+  private getFrontendRedirectUrl(value: string): URL {
+    if (value.startsWith('/') && !value.startsWith('//')) {
+      return new URL(value, this.getFrontendOrigin());
+    }
+
+    return new URL(value);
   }
 }

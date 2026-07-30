@@ -4,6 +4,8 @@ import request from 'supertest';
 import { RouteController } from '../src/route/route.controller';
 import { RouteService } from '../src/route/route.service';
 
+type App = Parameters<typeof request>[0];
+
 describe('RouteController (e2e)', () => {
   let app: INestApplication;
   const routeService = {
@@ -33,7 +35,7 @@ describe('RouteController (e2e)', () => {
   });
 
   it('returns 400 for an empty route id', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as App)
       .get('/recommended-routes/%20')
       .expect(400);
     expect(routeService.getRecommendedRouteDetail).not.toHaveBeenCalled();
@@ -60,7 +62,7 @@ describe('RouteController (e2e)', () => {
 
     routeService.getRecommendedRouteList.mockResolvedValue(payload);
 
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as App)
       .get('/recommended-routes')
       .expect(200)
       .expect(payload);
@@ -90,7 +92,7 @@ describe('RouteController (e2e)', () => {
 
     routeService.getRecommendedRouteDetail.mockResolvedValue(payload);
 
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as App)
       .get('/recommended-routes/route-1')
       .expect(200)
       .expect(payload);

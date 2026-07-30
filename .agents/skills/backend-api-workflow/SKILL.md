@@ -5,6 +5,20 @@ description: NestJS API 엔드포인트를 구현하거나 수정할 때 control
 
 # Backend API Workflow
 
+## OISO-BE 추가 필수 규칙
+
+- 새로 추가하거나 수정하는 `src/**` 코드는 프로젝트 내부 import에 상대 경로(`./`, `../`)를 쓰지 말고 `@/` 절대 alias를 사용합니다.
+  - 예: `import { AuthService } from '@/auth/services/auth.service';`
+  - Node 내장 모듈과 npm 패키지 import는 기존 방식 그대로 둡니다.
+  - 기존 파일을 고칠 때는 내가 만지는 import부터 `@/` alias로 정리하고, 요청 범위를 벗어나는 대규모 import 정리는 별도 작업으로 분리합니다.
+- 새 엔드포인트를 추가하기 전에 도메인 위치를 먼저 결정합니다.
+  - 기존 도메인의 기능이면 해당 도메인 폴더의 controller/service/repository/dto 패턴을 따릅니다.
+  - 새 도메인이면 `src/<domain>/` 아래에 `<domain>.module.ts`, `<domain>.controller.ts`, `<domain>.service.ts`, 필요한 경우 `<domain>.repository.ts`, `dto/`, `types/`를 만들고 `AppModule`에 모듈을 연결합니다.
+  - Controller는 HTTP 라우팅과 파라미터 수집만 담당하고, 도메인 규칙과 분기는 Service에 둡니다.
+- 새 API route는 명확한 resource 이름, HTTP method, 요청 값, 응답 DTO, 오류 케이스를 함께 정의합니다.
+- API 경로 prefix는 같은 도메인의 기존 controller 패턴을 우선 따르고, 새 인증/회원/동의성 API는 `api/v1` prefix를 우선 검토합니다.
+- 구현 완료 전 추가/수정한 내부 import가 `@/` alias인지, 새 endpoint가 올바른 domain/module/controller/service/repository/DTO 경계에 있는지 확인합니다.
+
 ## 목적
 
 OISO-BE의 NestJS 계층 구조를 유지하면서 API 변경을 작게 구현합니다.
