@@ -107,13 +107,57 @@ docker compose up -d
 
 #### 4. Prisma DB 스키마 마이그레이션 (테이블 생성)
 
-```Bash
+```bash
 pnpm prisma migrate deploy
+```
+
+---
+
+### 🌱 DB 초기화 & SEED 데이터 적재 온보딩 가이드
+
+로컬 DB를 처음 세팅하거나 DB를 초기화한 후 추천 서비스 데이터를 적재하는 **3단계 표준 SEED 순서**입니다.
+
+#### 💡 [한 줄 완성 지름길 명령어]
+```bash
+# 기본 시드 + TourAPI/Google고도 장소 수집 + 연관 추천 코스 동적 적재 통째로 실행
+pnpm run seed:all
+```
+
+---
+
+#### 🛠️ [단계별 상세 실행 명령어 및 역할]
+
+1. **기본 시스템 데이터 SEED (`prisma/seed.ts`)**:
+   ```bash
+   pnpm run db:seed
+   ```
+   - 동의 항목, 기초 마스터 데이터 등 시스템 기본 레코드를 적재합니다.
+
+2. **1단계: 부산 관광지 마스터 & Google 고도 1회성 일괄 수집 (`scripts/seed-tour-api-test.ts`)**:
+   ```bash
+   pnpm run seed:places
+   # (또는 npx ts-node scripts/seed-tour-api-test.ts)
+   ```
+   - 한국관광공사 TourAPI(`KorService2`)로 부산 관광지/식당/상권 마스터 정보를 수집하고, **Google Elevation API 파이프(`|`) 일괄 호출로 해수면 절대 고도(`Place.elevationMeters`)를 DB `Place` 테이블에 1회성 사전 적재**합니다.
+
+3. **2단계: TourAPI 연관 데이터 기반 추천 코스 동적 조립 적재 (`scripts/seed-recommend-routes.ts`)**:
+   ```bash
+   pnpm run seed:routes
+   # (또는 npx ts-node scripts/seed-recommend-routes.ts)
+   ```
+   - 1단계에서 적재된 `Place` 데이터 기반으로 **한국관광공사 연관 관광지 API (`TarRlteTarService1`)를 호출해 장소 간 연관성을 엮고**, 이동 순서 오르막 상승분(`elevationGainMeters`) 0-Call 연산 및 테마 매핑을 통해 추천 코스(`Route`, `RouteStop`)를 완성합니다.
+
+---
+
+### 🚀 개발 서버 실행 (Development Server)
+
+```bash
+pnpm run start:dev
 ```
 
 #### 5. Prisma Studio (GUI 관리자 화면) 실행
 
-```Bash
+```bash
 pnpm prisma studio
 ```
 
