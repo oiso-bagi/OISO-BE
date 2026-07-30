@@ -6,17 +6,18 @@ import {
   SavingsDashboardSummaryRawData,
 } from '@/dashboard/dto/savings-dashboard-response.dto';
 
-const savingsDashboardHistorySelect = Prisma.validator<Prisma.RouteTripSelect>()({
-  id: true,
-  startedAt: true,
-  route: {
-    select: {
-      id: true,
-      name: true,
-      estimatedSavingsWon: true,
+const savingsDashboardHistorySelect =
+  Prisma.validator<Prisma.RouteTripSelect>()({
+    id: true,
+    startedAt: true,
+    route: {
+      select: {
+        id: true,
+        name: true,
+        estimatedSavingsWon: true,
+      },
     },
-  },
-});
+  });
 
 @Injectable()
 export class DashboardRepository {
