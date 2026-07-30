@@ -17,6 +17,10 @@ import {
 import { AuthSessionResponseDto } from '@/auth/dto/auth-session-response.dto';
 import { AuthTokenResponseDto } from '@/auth/dto/auth-token-response.dto';
 import { CurrentUserResponseDto } from '@/auth/dto/current-user-response.dto';
+import {
+  ApiAccessTokenUnauthorizedResponseDocs,
+  ApiJwtAccessTokenInternalServerErrorResponseDocs,
+} from '@/common/docs/auth-error-swagger.docs';
 
 const socialCallbackFailureDescription = [
   '콜백 처리 중 오류가 발생해도 이 API는 일반적인 4xx/5xx JSON 응답을 반환하지 않습니다.',
@@ -36,20 +40,6 @@ const socialCallbackFailureDescription = [
   '- server_error: 그 외 서버 오류, 외부 API 타임아웃, 설정 누락 등',
 ].join('\n');
 
-const accessTokenUnauthorizedDescription = [
-  '액세스 토큰 인증에 실패하면 401 응답을 반환합니다.',
-  '',
-  '요청 파라미터: 없음',
-  '요청 바디: 없음',
-  '',
-  '발생 가능한 메시지:',
-  '- Access token is required.',
-  '- Expired token.',
-  '- Invalid token.',
-  '- Invalid access token.',
-  '- Authenticated user was not found.',
-].join('\n');
-
 const refreshTokenUnauthorizedDescription = [
   '리프레시 토큰 인증에 실패하면 401 응답을 반환합니다.',
   '',
@@ -64,41 +54,6 @@ const refreshTokenUnauthorizedDescription = [
   '- Invalid refresh token.',
   '- Authenticated user was not found.',
 ].join('\n');
-
-const accessTokenUnauthorizedExamples = {
-  missingAccessToken: {
-    summary: '액세스 토큰 없음',
-    value: {
-      message: 'Access token is required.',
-      error: 'Unauthorized',
-      statusCode: 401,
-    },
-  },
-  expiredToken: {
-    summary: '만료된 토큰',
-    value: {
-      message: 'Expired token.',
-      error: 'Unauthorized',
-      statusCode: 401,
-    },
-  },
-  invalidAccessToken: {
-    summary: '유효하지 않은 액세스 토큰',
-    value: {
-      message: 'Invalid access token.',
-      error: 'Unauthorized',
-      statusCode: 401,
-    },
-  },
-  userNotFound: {
-    summary: '토큰의 사용자를 찾을 수 없음',
-    value: {
-      message: 'Authenticated user was not found.',
-      error: 'Unauthorized',
-      statusCode: 401,
-    },
-  },
-};
 
 const refreshTokenUnauthorizedExamples = {
   missingRefreshToken: {
@@ -280,26 +235,10 @@ export const ApiGetCurrentUserDocs = () =>
       description: '현재 인증된 사용자 정보를 반환합니다.',
       type: CurrentUserResponseDto,
     }),
-    ApiUnauthorizedResponse({
-      description: accessTokenUnauthorizedDescription,
-      content: {
-        'application/json': {
-          examples: accessTokenUnauthorizedExamples,
-        },
-      },
-    }),
-    ApiInternalServerErrorResponse({
-      description:
-        'JWT 액세스 토큰 설정이 누락되었거나 잘못된 경우 500 응답을 반환할 수 있습니다. 관련 설정: JWT_ACCESS_SECRET',
-      content: {
-        'application/json': {
-          examples: {
-            jwtAccessSecretMissing:
-              internalServerErrorExamples.jwtSecretMissing,
-          },
-        },
-      },
-    }),
+    ApiAccessTokenUnauthorizedResponseDocs(),
+    ApiJwtAccessTokenInternalServerErrorResponseDocs(
+      'JWT 액세스 토큰 설정이 누락되었거나 잘못된 경우 500 응답을 반환할 수 있습니다. 관련 설정: JWT_ACCESS_SECRET',
+    ),
   );
 
 export const ApiRefreshAccessTokenDocs = () =>
