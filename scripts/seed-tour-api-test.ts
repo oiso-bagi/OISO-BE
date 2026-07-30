@@ -13,8 +13,24 @@ const prisma = new PrismaClient();
  */
 function mapContentTypeToCategory(
   contentTypeId?: string | number,
+  title?: string,
 ): PlaceCategory {
   const code = String(contentTypeId ?? '');
+  const titleText = title ?? '';
+
+  if (
+    titleText.includes('카페') ||
+    titleText.includes('커피') ||
+    titleText.includes('디저트') ||
+    titleText.includes('베이커리')
+  ) {
+    return PlaceCategory.CAFE;
+  }
+
+  if (titleText.includes('전망대') || titleText.includes('야경')) {
+    return PlaceCategory.VIEWPOINT;
+  }
+
   switch (code) {
     case '12':
       return PlaceCategory.NATURE;
@@ -29,6 +45,29 @@ function mapContentTypeToCategory(
       return PlaceCategory.FOOD;
     default:
       return PlaceCategory.ETC;
+  }
+}
+
+/**
+ * 외부 API 503 / 429 (Rate Limit) 장애 발생 시 Exponential Backoff 기반 3회 재시도 헬퍼 함수
+ */
+async function fetchWithRetry<T>(
+  fn: () => Promise<T>,
+  retries = 3,
+  delayMs = 1000,
+): Promise<T> {
+  try {
+    return await fn();
+  } catch (error: any) {
+    const status = error?.response?.status;
+    if (retries > 0 && (status === 503 || status === 429 || !status)) {
+      console.warn(
+        `⚠️ 외부 API 장애/트래픽 한도 연동 지연 (Status: ${status ?? 'Timeout'}). ${delayMs}ms 후 재시도합니다... (남은 재시도: ${retries}회)`,
+      );
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+      return fetchWithRetry(fn, retries - 1, delayMs * 2);
+    }
+    throw error;
   }
 }
 
@@ -51,22 +90,24 @@ async function seedTourApiTest() {
   const endpoint = 'https://apis.data.go.kr/B551011/KorService2/areaBasedList2';
 
   try {
-    const response = await axios.get(endpoint, {
-      params: {
-        serviceKey,
-        numOfRows: 30,
-        pageNo: 1,
-        MobileOS: 'ETC',
-        MobileApp: 'AppTest',
-        _type: 'json',
-        areaCode: '6', // 부산광역시
-      },
-      headers: {
-        'User-Agent': 'Mozilla/5.0',
-        Accept: 'application/json, text/plain, */*',
-      },
-      timeout: 10000,
-    });
+    const response = await fetchWithRetry(() =>
+      axios.get(endpoint, {
+        params: {
+          serviceKey,
+          numOfRows: 30,
+          pageNo: 1,
+          MobileOS: 'ETC',
+          MobileApp: 'AppTest',
+          _type: 'json',
+          areaCode: '6', // 부산광역시
+        },
+        headers: {
+          'User-Agent': 'Mozilla/5.0',
+          Accept: 'application/json, text/plain, */*',
+        },
+        timeout: 10000,
+      }),
+    );
 
     // 비정상 응답(XML/HTML 텍스트) 방어
     if (
@@ -90,7 +131,8 @@ async function seedTourApiTest() {
 
     console.log(`📦 총 ${items.length}개의 관광지 원본 데이터를 수집했습니다.`);
 
-    let successCount = 0;
+    // Google Elevation API 파이프(|) 일괄 획득을 위한 유효 장소 목록 준비
+    const validItems: Array<{ item: any; lat: number; lng: number }> = [];
     let skipCount = 0;
 
     for (const item of items) {
@@ -98,18 +140,58 @@ async function seedTourApiTest() {
       const mapX = item.mapx ? String(item.mapx).trim() : '';
       const mapY = item.mapy ? String(item.mapy).trim() : '';
 
-      // 유효성 필터링: contentid, mapx(경도), mapy(위도) 중 하나라도 없거나 '0'이면 쓰레기 데이터로 판단하여 스킵
       if (!contentId || !mapX || !mapY || mapX === '0' || mapY === '0') {
-        console.log(
-          `⚠️ 필수 데이터 누락으로 스킵됨 (Title: ${item.title ?? '알 수 없음'}, ContentID: ${contentId})`,
-        );
         skipCount++;
         continue;
       }
 
-      const longitude = new Prisma.Decimal(parseFloat(mapX));
-      const latitude = new Prisma.Decimal(parseFloat(mapY));
-      const category = mapContentTypeToCategory(item.contenttypeid);
+      validItems.push({
+        item,
+        lng: parseFloat(mapX),
+        lat: parseFloat(mapY),
+      });
+    }
+
+    // Google Elevation API 일괄 파이프(|) 획득
+    const googleKey = process.env.GOOGLE_MAPS_API_KEY;
+    const elevationsMap: Record<string, number> = {};
+
+    if (googleKey && validItems.length > 0) {
+      try {
+        const locationsStr = validItems
+          .map((v) => `${v.lat},${v.lng}`)
+          .join('|');
+        const elevUrl = `https://maps.googleapis.com/maps/api/elevation/json?locations=${encodeURIComponent(
+          locationsStr,
+        )}&key=${googleKey}`;
+        const elevRes = await axios.get(elevUrl, { timeout: 5000 });
+
+        if (Array.isArray(elevRes.data?.results)) {
+          elevRes.data.results.forEach((res: any, idx: number) => {
+            if (res?.elevation != null && validItems[idx]) {
+              const contentId = String(validItems[idx].item.contentid);
+              elevationsMap[contentId] = Math.round(res.elevation);
+            }
+          });
+          console.log(
+            `🏔️ Google Elevation API 1회 일괄 수집 완료 (${Object.keys(elevationsMap).length}개 고도 획득)`,
+          );
+        }
+      } catch (err: any) {
+        console.warn(`⚠️ Google Elevation API 일괄 수집 실패: ${err?.message}`);
+      }
+    }
+
+    let successCount = 0;
+    for (const { item, lat, lng } of validItems) {
+      const contentId = String(item.contentid).trim();
+      const longitude = new Prisma.Decimal(lng);
+      const latitude = new Prisma.Decimal(lat);
+      const category = mapContentTypeToCategory(
+        item.contenttypeid,
+        item.title,
+      );
+      const elevationMeters = elevationsMap[contentId] ?? 15; // API 미제공시 기본 15m
 
       const placeData = {
         name: item.title ? String(item.title).trim() : '이름 없음',
@@ -120,10 +202,10 @@ async function seedTourApiTest() {
         category,
         latitude,
         longitude,
+        elevationMeters,
         isActive: true,
       };
 
-      // Prisma Upsert를 통한 멱등성 보장 (contentId 기준)
       await prisma.place.upsert({
         where: { apiSourceId: contentId },
         update: placeData,

@@ -86,8 +86,85 @@ export class RouteRepository {
     return this.prisma.route.findMany({
       where: {
         routeType: 'RECOMMENDED',
+        isPublished: true,
       },
       select: routeListSelect,
+    });
+  }
+
+  /**
+   * 1단계 Hard Filter: 사용자의 예산(budget) 및 선호 테마(themeSlugs) 조건에 부합하는 후보군을 Take 50으로 선별 조회합니다.
+   */
+  async findRecommendedCandidates(budget: number, themeSlugs?: string[]) {
+    const whereCondition: Prisma.RouteWhereInput = {
+      routeType: 'RECOMMENDED',
+      isPublished: true,
+      estimatedCostWon: {
+        lte: budget,
+      },
+    };
+
+    if (themeSlugs && themeSlugs.length > 0) {
+      whereCondition.themes = {
+        some: {
+          theme: {
+            slug: {
+              in: themeSlugs,
+            },
+          },
+        },
+      };
+    }
+
+    return this.prisma.route.findMany({
+      where: whereCondition,
+      take: 50,
+      select: {
+        id: true,
+        name: true,
+        summary: true,
+        region: true,
+        description: true,
+        routeType: true,
+        congestionLevel: true,
+        score: true,
+        estimatedCostWon: true,
+        foodCostWon: true,
+        experienceCostWon: true,
+        transportCostWon: true,
+        tpiIndex: true,
+        totalElevationGainMeters: true,
+        totalDifficultyScore: true,
+        estimatedDurationMin: true,
+        totalDistanceMeters: true,
+        estimatedSavingsWon: true,
+        stops: {
+          orderBy: {
+            orderIndex: 'asc',
+          },
+          select: {
+            orderIndex: true,
+            transitType: true,
+            travelMinutesFromPrev: true,
+            stayMinutes: true,
+            fareWon: true,
+            estimatedPriceWon: true,
+            elevationGainMeters: true,
+            difficultyScore: true,
+            place: {
+              select: {
+                id: true,
+                name: true,
+                category: true,
+                openTime: true,
+                closeTime: true,
+                latitude: true,
+                longitude: true,
+              },
+            },
+          },
+        },
+      },
     });
   }
 }

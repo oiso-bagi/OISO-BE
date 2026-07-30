@@ -8,6 +8,7 @@ import {
 
 export type RouteStopWithPlace = Partial<RouteStop> & {
   orderIndex?: number | null;
+  dayNumber?: number | null;
   transitType?: TransitType | null;
   travelMinutesFromPrev?: number | null;
   stayMinutes?: number | null;
@@ -81,6 +82,7 @@ export function buildRouteMetrics(stops: RouteStopWithPlace[]): RouteMetrics {
 
 export class RouteStopResponseDto {
   sequence: number;
+  dayNumber: number; // 일차 번호 (프론트엔드 지도 색상 분기용: 1일차, 2일차...)
   placeName: string;
   category: string;
   openTime: string | null;
@@ -94,6 +96,17 @@ export class RouteStopResponseDto {
     const dto = new RouteStopResponseDto();
 
     dto.sequence = stop.orderIndex ?? 0;
+    // 저장된 양의 정수 dayNumber만 노출하며, 없을 경우 orderIndex 기반 추론 대신 기본 1일차 지정
+    if (
+      typeof stop.dayNumber === 'number' &&
+      Number.isInteger(stop.dayNumber) &&
+      stop.dayNumber > 0
+    ) {
+      dto.dayNumber = stop.dayNumber;
+    } else {
+      dto.dayNumber = 1;
+    }
+
     dto.placeName = stop.place?.name ?? '';
     dto.category = stop.place?.category ?? '';
 
