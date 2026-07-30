@@ -4,7 +4,9 @@ import { DashboardService } from '@/dashboard/services/dashboard.service';
 
 describe('DashboardService', () => {
   const mockDashboardRepository = {
-    findCompletedSavingsTripsByUserId: jest.fn(),
+    findSavingsSummaryByUserId: jest.fn(),
+    findSavingsCategorySummaryByUserId: jest.fn(),
+    findRecentCompletedSavingsTripsByUserId: jest.fn(),
   };
 
   let service: DashboardService;
@@ -17,14 +19,32 @@ describe('DashboardService', () => {
   });
 
   it('loads completed trips for the normalized user id', async () => {
-    mockDashboardRepository.findCompletedSavingsTripsByUserId.mockResolvedValue(
+    mockDashboardRepository.findSavingsSummaryByUserId.mockResolvedValue({
+      tripCount: 0,
+      totalSavingsWon: 0,
+      localContributionScore: 0,
+    });
+    mockDashboardRepository.findSavingsCategorySummaryByUserId.mockResolvedValue(
+      {
+        foodSavingsWon: 0,
+        transportSavingsWon: 0,
+        experienceSavingsWon: 0,
+      },
+    );
+    mockDashboardRepository.findRecentCompletedSavingsTripsByUserId.mockResolvedValue(
       [],
     );
 
     const result = await service.getSavingsDashboard(' user-1 ');
 
     expect(
-      mockDashboardRepository.findCompletedSavingsTripsByUserId,
+      mockDashboardRepository.findSavingsSummaryByUserId,
+    ).toHaveBeenCalledWith('user-1');
+    expect(
+      mockDashboardRepository.findSavingsCategorySummaryByUserId,
+    ).toHaveBeenCalledWith('user-1');
+    expect(
+      mockDashboardRepository.findRecentCompletedSavingsTripsByUserId,
     ).toHaveBeenCalledWith('user-1');
     expect(result.totalSavingsWon).toBe(0);
   });
@@ -34,7 +54,13 @@ describe('DashboardService', () => {
       BadRequestException,
     );
     expect(
-      mockDashboardRepository.findCompletedSavingsTripsByUserId,
+      mockDashboardRepository.findSavingsSummaryByUserId,
+    ).not.toHaveBeenCalled();
+    expect(
+      mockDashboardRepository.findSavingsCategorySummaryByUserId,
+    ).not.toHaveBeenCalled();
+    expect(
+      mockDashboardRepository.findRecentCompletedSavingsTripsByUserId,
     ).not.toHaveBeenCalled();
   });
 });

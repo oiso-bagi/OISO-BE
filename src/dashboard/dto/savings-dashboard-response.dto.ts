@@ -1,18 +1,3 @@
-import { DistrictType, PlaceCategory } from '@prisma/client';
-
-const FOOD_CATEGORIES = new Set<PlaceCategory>([
-  PlaceCategory.FOOD,
-  PlaceCategory.CAFE,
-]);
-const EXPERIENCE_CATEGORIES = new Set<PlaceCategory>([
-  PlaceCategory.EXPERIENCE,
-  PlaceCategory.CULTURE,
-  PlaceCategory.NATURE,
-  PlaceCategory.MARKET,
-  PlaceCategory.VIEWPOINT,
-  PlaceCategory.ETC,
-]);
-
 export type SavingsDashboardTripRawData = {
   id: string;
   startedAt: Date;
@@ -20,16 +5,19 @@ export type SavingsDashboardTripRawData = {
     id: string;
     name: string;
     estimatedSavingsWon: number | null;
-    localContributionScore: number | null;
-    stops: {
-      savingsWon: number | null;
-      fareWon: number | null;
-      place: {
-        category: PlaceCategory;
-        districtType: DistrictType;
-      } | null;
-    }[];
   };
+};
+
+export type SavingsDashboardSummaryRawData = {
+  tripCount: number;
+  totalSavingsWon: number;
+  localContributionScore: number;
+};
+
+export type SavingsDashboardCategoryRawData = {
+  foodSavingsWon: number;
+  transportSavingsWon: number;
+  experienceSavingsWon: number;
 };
 
 export class SavingsCategoryDto {
@@ -86,25 +74,21 @@ export class SavingsDashboardResponseDto {
   histories: SavingsHistoryDto[];
 
   static from(
-    rawTrips: SavingsDashboardTripRawData[],
+    summary: SavingsDashboardSummaryRawData,
+    categorySummary: SavingsDashboardCategoryRawData,
+    recentTrips: SavingsDashboardTripRawData[],
   ): SavingsDashboardResponseDto {
     const dto = new SavingsDashboardResponseDto();
-    const trips = Array.isArray(rawTrips) ? rawTrips : [];
 
-    dto.tripCount = trips.length;
-    dto.totalSavingsWon = trips.reduce(
-      (sum, trip) => sum + getTripSavingsWon(trip),
-      0,
-    );
+    dto.tripCount = summary.tripCount;
+    dto.totalSavingsWon = summary.totalSavingsWon;
     dto.averageSavingsWon =
       dto.tripCount > 0 ? Math.round(dto.totalSavingsWon / dto.tripCount) : 0;
-    dto.savingsByCategory = buildSavingsByCategory(trips);
+    dto.savingsByCategory = buildSavingsByCategory(categorySummary);
     dto.localContribution = LocalContributionDto.from(
-      buildLocalContributionScore(trips),
+      summary.localContributionScore,
     );
-    dto.histories = trips
-      .slice(0, 3)
-      .map((trip) => SavingsHistoryDto.from(trip));
+    dto.histories = recentTrips.map((trip) => SavingsHistoryDto.from(trip));
 
     return dto;
   }
@@ -114,49 +98,14 @@ function getTripSavingsWon(trip: SavingsDashboardTripRawData): number {
   return trip.route.estimatedSavingsWon ?? 0;
 }
 
-function buildSavingsByCategory(
-  trips: SavingsDashboardTripRawData[],
-): SavingsCategoryDto[] {
-  let foodSavingsWon = 0;
-  let transportSavingsWon = 0;
-  let experienceSavingsWon = 0;
-
-  trips.forEach((trip) => {
-    trip.route.stops.forEach((stop) => {
-      const category = stop.place?.category;
-
-      if (category && FOOD_CATEGORIES.has(category)) {
-        foodSavingsWon += stop.savingsWon ?? 0;
-        transportSavingsWon += stop.fareWon ?? 0;
-        return;
-      }
-
-      if (category && EXPERIENCE_CATEGORIES.has(category)) {
-        experienceSavingsWon += stop.savingsWon ?? 0;
-      }
-
-      transportSavingsWon += stop.fareWon ?? 0;
-    });
-  });
-
+function buildSavingsByCategory({
+  foodSavingsWon,
+  transportSavingsWon,
+  experienceSavingsWon,
+}: SavingsDashboardCategoryRawData): SavingsCategoryDto[] {
   return [
     SavingsCategoryDto.of('식비', foodSavingsWon),
     SavingsCategoryDto.of('교통비', transportSavingsWon),
     SavingsCategoryDto.of('체험비', experienceSavingsWon),
   ];
-}
-
-function buildLocalContributionScore(
-  trips: SavingsDashboardTripRawData[],
-): number {
-  if (trips.length === 0) {
-    return 0;
-  }
-
-  const totalScore = trips.reduce(
-    (sum, trip) => sum + (trip.route.localContributionScore ?? 0),
-    0,
-  );
-
-  return Math.round(totalScore / trips.length);
 }

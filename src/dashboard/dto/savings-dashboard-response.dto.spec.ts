@@ -1,35 +1,40 @@
-import { DistrictType, PlaceCategory } from '@prisma/client';
 import {
+  SavingsDashboardCategoryRawData,
   SavingsDashboardResponseDto,
+  SavingsDashboardSummaryRawData,
   SavingsDashboardTripRawData,
 } from '@/dashboard/dto/savings-dashboard-response.dto';
 
 describe('SavingsDashboardResponseDto', () => {
   it('uses route estimated savings as the display savings amount', () => {
-    const result = SavingsDashboardResponseDto.from([
-      createTrip({
-        id: 'trip-1',
-        route: {
-          id: 'route-trip-1',
-          name: 'Route trip-1',
-          estimatedSavingsWon: 18000,
-          localContributionScore: 0,
-          stops: [],
-        },
-        startedAt: new Date('2026-06-28T00:00:00.000Z'),
+    const result = SavingsDashboardResponseDto.from(
+      createSummary({
+        tripCount: 2,
+        totalSavingsWon: 30000,
+        localContributionScore: 0,
       }),
-      createTrip({
-        id: 'trip-2',
-        route: {
-          id: 'route-trip-2',
-          name: 'Route trip-2',
-          estimatedSavingsWon: 12000,
-          localContributionScore: 0,
-          stops: [],
-        },
-        startedAt: new Date('2026-06-15T00:00:00.000Z'),
-      }),
-    ]);
+      createCategorySummary(),
+      [
+        createTrip({
+          id: 'trip-1',
+          route: {
+            id: 'route-trip-1',
+            name: 'Route trip-1',
+            estimatedSavingsWon: 18000,
+          },
+          startedAt: new Date('2026-06-28T00:00:00.000Z'),
+        }),
+        createTrip({
+          id: 'trip-2',
+          route: {
+            id: 'route-trip-2',
+            name: 'Route trip-2',
+            estimatedSavingsWon: 12000,
+          },
+          startedAt: new Date('2026-06-15T00:00:00.000Z'),
+        }),
+      ],
+    );
 
     expect(result.totalSavingsWon).toBe(30000);
     expect(result.tripCount).toBe(2);
@@ -51,38 +56,19 @@ describe('SavingsDashboardResponseDto', () => {
   });
 
   it('builds category and local contribution values for the dashboard cards', () => {
-    const result = SavingsDashboardResponseDto.from([
-      createTrip({
-        id: 'trip-1',
-        route: {
-          id: 'route-trip-1',
-          name: 'Route trip-1',
-          estimatedSavingsWon: 10000,
-          localContributionScore: 60,
-          stops: [
-            createStop(PlaceCategory.FOOD, DistrictType.TOURIST, 7000, 1500),
-            createStop(
-              PlaceCategory.EXPERIENCE,
-              DistrictType.LOCAL,
-              9000,
-              1200,
-            ),
-          ],
-        },
+    const result = SavingsDashboardResponseDto.from(
+      createSummary({
+        tripCount: 2,
+        totalSavingsWon: 20000,
+        localContributionScore: 70,
       }),
-      createTrip({
-        id: 'trip-2',
-        route: {
-          id: 'route-trip-2',
-          name: 'Route trip-2',
-          estimatedSavingsWon: 10000,
-          localContributionScore: 80,
-          stops: [
-            createStop(PlaceCategory.CAFE, DistrictType.DOWNTOWN, 3000, 0),
-          ],
-        },
+      createCategorySummary({
+        foodSavingsWon: 10000,
+        transportSavingsWon: 2700,
+        experienceSavingsWon: 9000,
       }),
-    ]);
+      [],
+    );
 
     expect(result.savingsByCategory).toEqual([
       { label: '식비', amountWon: 10000 },
@@ -97,7 +83,11 @@ describe('SavingsDashboardResponseDto', () => {
   });
 
   it('returns a stable empty dashboard when the user has no trips', () => {
-    const result = SavingsDashboardResponseDto.from([]);
+    const result = SavingsDashboardResponseDto.from(
+      createSummary(),
+      createCategorySummary(),
+      [],
+    );
 
     expect(result).toEqual({
       totalSavingsWon: 0,
@@ -124,18 +114,24 @@ function createTrip(
   return trip;
 }
 
-function createStop(
-  category: PlaceCategory,
-  districtType: DistrictType,
-  savingsWon: number,
-  fareWon: number,
-): SavingsDashboardTripRawData['route']['stops'][number] {
+function createSummary(
+  overrides: Partial<SavingsDashboardSummaryRawData> = {},
+): SavingsDashboardSummaryRawData {
   return {
-    savingsWon,
-    fareWon,
-    place: {
-      category,
-      districtType,
-    },
+    tripCount: 0,
+    totalSavingsWon: 0,
+    localContributionScore: 0,
+    ...overrides,
+  };
+}
+
+function createCategorySummary(
+  overrides: Partial<SavingsDashboardCategoryRawData> = {},
+): SavingsDashboardCategoryRawData {
+  return {
+    foodSavingsWon: 0,
+    transportSavingsWon: 0,
+    experienceSavingsWon: 0,
+    ...overrides,
   };
 }
