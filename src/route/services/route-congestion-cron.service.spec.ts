@@ -49,7 +49,7 @@ describe('RouteCongestionCronService', () => {
 
       expect(prismaMock.route.findMany).toHaveBeenCalledWith({
         where: { routeType: RouteType.RECOMMENDED, isPublished: true },
-        select: { id: true, name: true },
+        select: { id: true, name: true, region: true },
       });
       expect(prismaMock.route.update).toHaveBeenCalledTimes(2);
     });

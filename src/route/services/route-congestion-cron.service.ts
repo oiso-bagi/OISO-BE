@@ -26,7 +26,7 @@ export class RouteCongestionCronService {
     try {
       const activeRoutes = await this.prisma.route.findMany({
         where: { routeType: RouteType.RECOMMENDED, isPublished: true },
-        select: { id: true, name: true },
+        select: { id: true, name: true, region: true },
       });
 
       this.logger.log(
@@ -34,29 +34,50 @@ export class RouteCongestionCronService {
       );
 
       let updatedCount = 0;
-      for (const route of activeRoutes) {
-        const nextCongestion = await this.fetchAndCalculateCongestion(
-          route.id,
-          serviceKey,
-        );
+      let failureCount = 0;
 
-        await this.prisma.route.update({
-          where: { id: route.id },
-          data: { congestionLevel: nextCongestion },
-        });
-        updatedCount++;
+      for (const route of activeRoutes) {
+        try {
+          const nextCongestion = await this.fetchAndCalculateCongestion(
+            route.id,
+            serviceKey,
+            route.region,
+          );
+
+          await this.prisma.route.update({
+            where: { id: route.id },
+            data: { congestionLevel: nextCongestion },
+          });
+          updatedCount++;
+        } catch (error: unknown) {
+          failureCount++;
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
+          this.logger.error(
+            `❌ [Cron Job] 경로 혼잡도 갱신 실패 (routeId: ${route.id}): ${errorMessage}`,
+          );
+        }
       }
 
       this.logger.log(
-        `✅ [Cron Job] 일별 기준 혼잡도 DB Caching 갱신 완료 (${updatedCount}건 갱신)`,
+        `✅ [Cron Job] 일별 기준 혼잡도 DB Caching 갱신 완료 (성공: ${updatedCount}건, 실패: ${failureCount}건)`,
       );
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
       this.logger.error(
-        `❌ [Cron Job] 경로 혼잡도 갱신 중 오류 발생: ${errorMessage}`,
+        `❌ [Cron Job] 경로 혼잡도 배치 조회 실패: ${errorMessage}`,
       );
     }
+  }
+
+  /**
+   *지역 매핑 헬퍼 (부산 광역시 기본 areaCd: 6)
+   */
+  private getRegionalCodes(region?: string): { areaCd: string; signguCd?: string } | null {
+    if (!region) return { areaCd: '6' }; // 기본 부산광역시
+    if (region.includes('부산')) return { areaCd: '6' };
+    return null;
   }
 
   /**
@@ -65,7 +86,13 @@ export class RouteCongestionCronService {
   async fetchAndCalculateCongestion(
     routeId: string,
     serviceKey: string,
+    region?: string,
   ): Promise<CongestionLevel> {
+    const regionalCodes = this.getRegionalCodes(region);
+    if (!regionalCodes) {
+      return this.calculateRouteCongestion(routeId);
+    }
+
     if (serviceKey) {
       try {
         const endpoint =
@@ -73,6 +100,8 @@ export class RouteCongestionCronService {
         const response = await axios.get(endpoint, {
           params: {
             serviceKey,
+            areaCd: regionalCodes.areaCd,
+            ...(regionalCodes.signguCd ? { signguCd: regionalCodes.signguCd } : {}),
             numOfRows: 10,
             pageNo: 1,
             MobileOS: 'ETC',
@@ -100,8 +129,12 @@ export class RouteCongestionCronService {
           if (avgRate >= 40) return CongestionLevel.MEDIUM;
           return CongestionLevel.LOW;
         }
-      } catch {
-        // 외부 API 실패 시 안전하게 시간대/논리적 Fallback으로 전환
+      } catch (err: unknown) {
+        const errorMessage =
+          err instanceof Error ? err.message : String(err);
+        this.logger.warn(
+          `⚠️ TatsCnctrRateService API 연동 실패 (routeId: ${routeId}): ${errorMessage}. 시간대별 Fallback으로 전환합니다.`,
+        );
       }
     }
 

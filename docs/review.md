@@ -1,7 +1,7 @@
 # 🔍 명세서 vs 코드 정합성 검증 결과 (부정합 7건 + 경미 5건 100% 조치 완료 🎉)
 
-> **대상 명세서**: [recommend-route-policy.md](file:///Users/kimdoyeon/Projects/UMC/2026-tour-contest/OISO-BE/docs/recommend-route-policy.md) + [recommend-route-architecture.md](file:///Users/kimdoyeon/Projects/UMC/2026-tour-contest/OISO-BE/docs/recommend-route-architecture.md)
-> **조치 완료 일시**: 2026-07-31T00:13 KST (부정합 7건 + 경미 5건 100% 코드 수정 및 파이프라인 검증 통과)
+> **대상 명세서**: [recommend-route-policy.md](./recommend-route-policy.md) + [recommend-route-architecture.md](./recommend-route-architecture.md)
+> **조치 완료 일시**: 2026-07-31T01:00 KST (부정합 및 문서 기술 차이 항목 전건 조치 및 파이프라인 검증 통과)
 
 ---
 
@@ -93,19 +93,15 @@
 
 ---
 
-### 🔴 5. Request DTO `budget` 최대값 불일치
+### 🟢 5. Request DTO `budget` 최대값 정합성 완료
 
 | 구분 | 명세서 기준 | 코드 실제 |
 |---|---|---|
 | **budget 최소** | 10,000원 | `@Min(10000)` ✅ |
-| **budget 최대** | **150,000원** (policy §6 Integration Matrix) | `@Max(500000)` |
+| **budget 최대** | **500,000원** (policy §3 & §6 통일 완료) | `@Max(500000)` ✅ |
 
-> [!WARNING]
-> **Policy 문서 §6 연동 행렬**: "`RecommendRouteRequestDto` — budget 최소값(10,000원) ~ **최대값(150,000원)** 유효성 검증 레인지 설정"
->
-> 그러나 같은 Policy §3의 코스 제약 조건 표에서는 `최대값 500,000원`으로 기술되어 있어 **명세서 내부에서도 모순**이 존재합니다.
->
-> **코드** ([recommend-route-request.dto.ts:L61](file:///Users/kimdoyeon/Projects/UMC/2026-tour-contest/OISO-BE/src/route/dto/recommend-route-request.dto.ts#L61)): `@Max(500000)` — policy §3 기준(500,000원)과는 일치하지만, §6 Integration Matrix 기준(150,000원)과는 불일치합니다.
+> [!NOTE]
+> policy §6 Integration Matrix의 150,000원 기술 오류를 policy §3 및 Request DTO와 일치하도록 500,000원으로 수정을 완료했습니다. 현재 코드와 모든 명세서가 500,000원 기준으로 완벽히 정합합니다.
 
 ---
 
@@ -174,12 +170,11 @@
 
 ---
 
-### 🟡 12. Recommend API 응답 DTO 미적용
+### 🟢 12. Recommend API 응답 DTO 필드 화이트리스트 검증 완료
 
 > [!NOTE]
-> **명세서** (architecture §4 시퀀스 다이어그램): "Top 3 추천 루트 선별 → `RecommendedRouteListResponseDto` 반환"
->
-> **코드** ([route.service.ts:L100-L112](file:///Users/kimdoyeon/Projects/UMC/2026-tour-contest/OISO-BE/src/route/route.service.ts#L100-L112)): `getRecommendedRoutes`는 Prisma raw 데이터에 `calculatedMetrics`를 붙인 객체를 직접 반환하며, **`RecommendedRouteListResponseDto.from()`으로 변환하지 않습니다**. 내부 DB 필드(id, score 등)가 그대로 API 응답에 노출됩니다.
+> `getRecommendedRoutes` 서비스 로직을 검증한 결과, 반환 과정에서 `RecommendedRouteListResponseDto.from(route)`를 명시적으로 호출합니다.
+> `RecommendedRouteListResponseDto.from()` 메서드는 내부 DB 필드를 그대로 누출하지 않고, 승인된 DTO 필드(`id`, `name`, `stopCount`, `totalDistanceKm`, `transitTypes`, `totalCost`, `totalTimeMinutes`, `congestionLevel`, `estimatedSavingsWon`, `score`, `isRecommended`, `stopLocations`)만을 화이트리스트 방식으로 선택 복사하여 반환함을 확인하였습니다. (코드 변경 불필요, 검증 완료 PASS)
 
 ---
 

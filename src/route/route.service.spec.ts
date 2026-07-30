@@ -107,21 +107,43 @@ describe('RouteService', () => {
       const mockCandidates = [
         {
           id: 'route-1',
-          name: '루트 1',
+          name: '루트 1 (완벽 매칭)',
           score: 80,
           estimatedCostWon: 10000,
           foodCostWon: 4000, // 0.4
           experienceCostWon: 4000, // 0.4
           transportCostWon: 2000, // 0.2
+          congestionLevel: 'LOW',
         },
         {
           id: 'route-2',
-          name: '루트 2',
-          score: 90,
+          name: '루트 2 (약간 오차)',
+          score: 85,
           estimatedCostWon: 10000,
-          foodCostWon: 1000, // 0.1 (오차 큼)
+          foodCostWon: 3000, // 0.3
+          experienceCostWon: 5000, // 0.5
+          transportCostWon: 2000, // 0.2
+          congestionLevel: 'MEDIUM',
+        },
+        {
+          id: 'route-3',
+          name: '루트 3 (중간 오차)',
+          score: 80,
+          estimatedCostWon: 10000,
+          foodCostWon: 2000, // 0.2
+          experienceCostWon: 6000, // 0.6
+          transportCostWon: 2000, // 0.2
+          congestionLevel: 'MEDIUM',
+        },
+        {
+          id: 'route-4',
+          name: '루트 4 (최하위 - 4위)',
+          score: 50,
+          estimatedCostWon: 10000,
+          foodCostWon: 1000, // 0.1
           experienceCostWon: 8000, // 0.8
           transportCostWon: 1000, // 0.1
+          congestionLevel: 'HIGH',
         },
       ];
 
@@ -134,8 +156,11 @@ describe('RouteService', () => {
         ratios: { foodRatio: 0.4, experienceRatio: 0.4, transportRatio: 0.2 },
       });
 
-      expect(result.length).toBe(2);
-      expect(result[0].id).toBe('route-1'); // 오차 적은 루트1이 1위
+      expect(result.length).toBe(3);
+      expect(result[0].id).toBe('route-1');
+      expect(result[1].id).toBe('route-2');
+      expect(result[2].id).toBe('route-3');
+      expect(result.some((r) => r.id === 'route-4')).toBe(false);
     });
   });
 });

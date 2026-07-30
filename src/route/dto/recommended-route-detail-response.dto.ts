@@ -8,6 +8,7 @@ import {
 
 export type RouteStopWithPlace = Partial<RouteStop> & {
   orderIndex?: number | null;
+  dayNumber?: number | null;
   transitType?: TransitType | null;
   travelMinutesFromPrev?: number | null;
   stayMinutes?: number | null;
@@ -95,12 +96,16 @@ export class RouteStopResponseDto {
     const dto = new RouteStopResponseDto();
 
     dto.sequence = stop.orderIndex ?? 0;
-    // orderIndex 0~3: 1일차, 4~8: 2일차, 9+: 3일차 등 계산 또는 기본 1일차
-    const seq = stop.orderIndex ?? 0;
-    if (seq < 4) dto.dayNumber = 1;
-    else if (seq < 9) dto.dayNumber = 2;
-    else if (seq < 14) dto.dayNumber = 3;
-    else dto.dayNumber = 4; // Day 4+ (Emerald Green) 지원
+    // 명시적으로 기록된 dayNumber가 있는 경우 해당 값을 사용하고, 없을 경우 orderIndex 경계로 기본 산출
+    if (stop.dayNumber != null) {
+      dto.dayNumber = stop.dayNumber;
+    } else {
+      const seq = stop.orderIndex ?? 0;
+      if (seq < 4) dto.dayNumber = 1;
+      else if (seq < 9) dto.dayNumber = 2;
+      else if (seq < 14) dto.dayNumber = 3;
+      else dto.dayNumber = 4; // Day 4+ (Emerald Green) 지원
+    }
 
     dto.placeName = stop.place?.name ?? '';
     dto.category = stop.place?.category ?? '';

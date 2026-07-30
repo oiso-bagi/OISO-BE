@@ -6,7 +6,7 @@
 
 ## 1. System Architecture Overview (전체 아키텍처 개요)
 
-본 시스템은 **한국관광공사 Open API의 일일 호출 한도(1,000회) 방어**와 **실시간 런타임 추천 연산 부하 최소화(타임아웃 0%)**를 최우선 목표로 아키텍처를 3가지 계층(ETL/Seed Layer, Background Worker Layer, Runtime Service Layer)으로 완전 분리하여 설계되었습니다.
+본 시스템은 **한국관광공사 Open API의 일일 호출 한도(1,000회) 방어**와 **실시간 런타임 추천 연산 부하 최소화(목표 응답속도 < 100ms)**를 최우선 목표로 아키텍처를 3가지 계층(ETL/Seed Layer, Background Worker Layer, Runtime Service Layer)으로 완전 분리하여 설계되었습니다. 외부 API 호출 시 3회 제한적 재시도(Bounded Retries)를 베스트 에포트(Best-effort) 실패 방어 전략으로 채택하며, 최종 실패 시 시간대별 Fallback으로 전환됩니다.
 
 ```mermaid
 flowchart TD
@@ -91,7 +91,7 @@ async handleRouteCongestionUpdate() {
 }
 ```
 
-> **※ API 선정 근거:** 과거 집계 및 광역 지자체 단위 데이터인 `DataLabService` 대신, 개별 관광지 스팟 단위의 오늘 및 향후 30일 미래 집중률 예측치를 제공하는 `TatsCnctrRateService`를 채택하여 런타임 코스 추천 시 스팟별 실시간 예상 혼잡도 안내의 정교함을 확보함.
+> **※ API 선정 및 구현 근거:** 개별 관광 스팟 또는 해당 권역 단위의 관광지 집중률 예측치를 제공하는 `TatsCnctrRateService`를 연동하여 `routeId`의 지역 정보(`region`)에 맞추어 `areaCd` 파라미터를 조율 수집합니다. 매핑 실패 또는 외부 API 오류 발생 시 시간대별 피크타임 가중치 논리적 Fallback으로 전환됩니다.
 
 ---
 
@@ -132,7 +132,7 @@ sequenceDiagram
 ```
 
 ### 4.1 Step 1: Hard Filter (Prisma 복합 인덱스 & 테마 필터링)
-- **조건**: `WHERE routeType = 'RECOMMENDED' AND isPublished = true AND estimatedCostWon <= budget AND themes.some.theme.slug IN (themeSlugs)`
+- **조건**: `WHERE routeType = 'RECOMMENDED' AND isPublished = true AND estimatedCostWon <= budget` (단, `RecommendRouteRequestDto.themeSlugs` 입력값이 제공된 경우에 한해 `AND themes.some.theme.slug IN (themeSlugs)` 조건 추가 적용)
 - **복합 인덱스**: `Route` 모델의 `@@index([routeType, estimatedCostWon])` 복합 B-Tree Index Scan과 `RouteTheme` 다대다 조인 필터링을 동시 수행
 
 ### 4.2 Step 2: Soft Filter & 추천도(Final Recommendation Score) 계산 로직
@@ -250,7 +250,7 @@ sequenceDiagram
    - **공식문서**: [Google Maps Elevation API Developer Documentation](https://developers.google.com/maps/documentation/elevation/overview)
 
 ### 9.2 아키텍처 및 알고리즘 참고자료 (Technical References)
-- **OISO 추천 서비스 비즈니스 수치 정책 문서**: [docs/recommend-route-policy.md](file:///Users/kimdoyeon/Projects/UMC/2026-tour-contest/OISO-BE/docs/recommend-route-policy.md)
+- **OISO 추천 서비스 비즈니스 수치 정책 문서**: [recommend-route-policy.md](./recommend-route-policy.md)
 - **PostgreSQL B-Tree & GIN Index Optimization**: PostgreSQL 15 Official Documentation - *Indexing Strategies for Array Containment (`text[]` GIN Index)*
 - **Denormalization for Low Latency Systems**: Martin Fowler - *Enterprise Application Architecture Patterns (Pre-computation & Denormalization)*
 - **Distance & Difficulty Function**: Haversine Formula & Topographic Walking Fatigue Index - *Journal of Transport Geography (Pedestrian Gradient Slope Multipliers)*

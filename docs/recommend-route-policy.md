@@ -50,8 +50,8 @@
 
 - **규칙 1 (DB SEED 단계 장소 재조합 허용)**:
   - 훌륭한 대표 관광지(예: 해리단길, 동백섬)는 출발지 및 릴레이 스팟 구성을 다르게 하여 **서로 다른 마스터 추천 코스(`Route`)의 경유지로 중복 재사용**을 허용합니다. (예: `루트1: A ➡️ B ➡️ C ➡️ D`, `루트2: B ➡️ C ➡️ E ➡️ F`)
-- **규칙 2 (Multi-Day 패키지 조합 시 런타임 장소 중복 차단)**:
-  - 유저가 N박 M일(다일) 여행 코스를 요청하여 백엔드가 1일차, 2일차, 3일차 코스 모듈을 릴레이 조합할 경우, **이미 1일차에 추천된 장소 `Set(PlaceIDs)`를 기록하여 2일차 이후 추천 시 동일한 장소가 중복 등장하지 않도록 런타임 Set Deduplication 필터링**을 적용합니다.
+- **규칙 2 (Multi-Day 패키지 조합 시 런타임 장소 중복 차단 - 예정 정책)**:
+  - 향후 Multi-Day(다일) 추천 코스 패키지 조합 서비스/API 확장 시, 1일차, 2일차, 3일차 코스 모듈 릴레이 조합 과정에서 이미 1일차에 추천된 장소 `Set(PlaceIDs)`를 기록하여 2일차 이후 동일 장소가 중복 등장하지 않도록 런타임 중복 제거 필터링을 적용하는 비즈니스 규칙을 예비 정의합니다.
 
 ---
 
@@ -82,7 +82,7 @@ N박 M일(다일) 추천 코스 응답 시, 프론트엔드 지도(Map Component
 
 | 시스템 컴포넌트 | 본 정책 문서 연동 역할 |
 | --- | --- |
-| **`scripts/seed-recommend-routes.ts`** | 본 수치 정책에 따라 30개 마스터 추천 코스 및 90~150개 스팟 자동 연산 및 SEED 저장 |
+| **`scripts/seed-recommend-routes.ts`** | 본 수치 정책에 따라 30개 마스터 추천 코스 및 120~150개 스팟 자동 연산 및 SEED 저장 |
 | **`RecommendRouteRequestDto`** | `budget` 최소값(10,000원) ~ 최대값(500,000원) 유효성 검증 레인지 설정 |
 | **`RecommendedRouteDetailResponseDto`** | 경유지 객체 내 `dayNumber` 필드를 포함하여 프론트 지도 Color Coding 연동 지원 |
-| **`docs/recommend-route-architecture.md`** | 기술 아키텍처 문서와 연동되어 비즈니스 기획 표준 가이드로 링크 |
+| **`docs/recommend-route-architecture.md`** | [recommend-route-architecture.md](./recommend-route-architecture.md) 기술 아키텍처 문서와 연동되어 비즈니스 기획 표준 가이드로 링크 |

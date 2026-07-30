@@ -7,11 +7,12 @@ import {
   IsOptional,
   IsArray,
   IsString,
+  IsNotEmpty,
   registerDecorator,
   ValidationOptions,
   ValidationArguments,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 
 /**
  * 부동소수점 오차 허용 커스텀 데코레이터 (Math.abs(sum - 1.0) < 0.001)
@@ -73,5 +74,11 @@ export class RecommendRouteRequestDto {
   @IsOptional()
   @IsArray({ message: 'themeSlugs는 배열 형식이어야 합니다.' })
   @IsString({ each: true, message: 'themeSlugs의 요소는 문자열이어야 합니다.' })
+  @IsNotEmpty({ each: true, message: 'themeSlugs의 요소는 빈 문자열일 수 없습니다.' })
+  @Transform(({ value }: { value: unknown }) =>
+    Array.isArray(value)
+      ? value.map((item) => (typeof item === 'string' ? item.trim() : item))
+      : value,
+  )
   themeSlugs?: string[]; // 사용자 선택 선호 테마 슬러그 목록 (예: ["local-food", "photo-spot"])
 }
