@@ -64,4 +64,22 @@ describe('RouteRepository', () => {
       }),
     );
   });
+
+  it('calls prisma.route.findRecommendedCandidates with estimatedCostWon <= budget filter', async () => {
+    const mockCandidates = [{ id: 'route-1', estimatedCostWon: 10000 }];
+    prismaService.route.findMany.mockResolvedValue(mockCandidates);
+
+    const result = await repository.findRecommendedCandidates(15000);
+
+    expect(result).toBe(mockCandidates);
+    expect(prismaService.route.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          routeType: 'RECOMMENDED',
+          isPublished: true,
+          estimatedCostWon: { lte: 15000 },
+        },
+      }),
+    );
+  });
 });

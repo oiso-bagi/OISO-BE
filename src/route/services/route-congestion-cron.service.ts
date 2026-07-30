@@ -33,16 +33,30 @@ export class RouteCongestionCronService {
         `📌 혼잡도 갱신 대상 추천 경로: 총 ${activeRoutes.length}건`,
       );
 
+      const regionalCache = new Map<string, CongestionLevel>();
       let updatedCount = 0;
       let failureCount = 0;
 
       for (const route of activeRoutes) {
         try {
-          const nextCongestion = await this.fetchAndCalculateCongestion(
-            route.id,
-            serviceKey,
-            route.region,
-          );
+          const regionalCodes = this.getRegionalCodes(route.region);
+          const cacheKey = regionalCodes
+            ? `${regionalCodes.areaCd}_${regionalCodes.signguCd}`
+            : null;
+
+          let nextCongestion: CongestionLevel;
+          if (cacheKey && regionalCache.has(cacheKey)) {
+            nextCongestion = regionalCache.get(cacheKey)!;
+          } else {
+            nextCongestion = await this.fetchAndCalculateCongestion(
+              route.id,
+              serviceKey,
+              route.region,
+            );
+            if (cacheKey) {
+              regionalCache.set(cacheKey, nextCongestion);
+            }
+          }
 
           await this.prisma.route.update({
             where: { id: route.id },
@@ -72,13 +86,14 @@ export class RouteCongestionCronService {
   }
 
   /**
-   *지역 매핑 헬퍼 (부산 광역시 기본 areaCd: 6)
+   * 지역 매핑 헬퍼 (부산 광역시 areaCd: 6, signguCd: 1 필수 리턴)
    */
-  private getRegionalCodes(
+  getRegionalCodes(
     region?: string,
-  ): { areaCd: string; signguCd?: string } | null {
-    if (!region) return { areaCd: '6' }; // 기본 부산광역시
-    if (region.includes('부산')) return { areaCd: '6' };
+  ): { areaCd: string; signguCd: string } | null {
+    if (!region || region.includes('부산')) {
+      return { areaCd: '6', signguCd: '1' };
+    }
     return null;
   }
 
@@ -91,21 +106,19 @@ export class RouteCongestionCronService {
     region?: string,
   ): Promise<CongestionLevel> {
     const regionalCodes = this.getRegionalCodes(region);
-    if (!regionalCodes) {
+    if (!regionalCodes || !regionalCodes.areaCd || !regionalCodes.signguCd) {
       return this.calculateRouteCongestion(routeId);
     }
 
     if (serviceKey) {
       try {
         const endpoint =
-          'https://apis.data.go.kr/B551011/TatsCnctrRateService/tatsCnctrRateList';
+          'https://apis.data.go.kr/B551011/TatsCnctrRateService/tatsCnctrRatedList';
         const response = await axios.get(endpoint, {
           params: {
             serviceKey,
             areaCd: regionalCodes.areaCd,
-            ...(regionalCodes.signguCd
-              ? { signguCd: regionalCodes.signguCd }
-              : {}),
+            signguCd: regionalCodes.signguCd,
             numOfRows: 10,
             pageNo: 1,
             MobileOS: 'ETC',
@@ -127,11 +140,15 @@ export class RouteCongestionCronService {
 
         const items = resData?.response?.body?.items?.item;
         if (Array.isArray(items) && items.length > 0) {
-          // 수집된 집중률 지수에 따른 혼잡도 맵핑
-          const avgRate = Number(items[0]?.cnctrRate ?? 50);
-          if (avgRate >= 75) return CongestionLevel.HIGH;
-          if (avgRate >= 40) return CongestionLevel.MEDIUM;
-          return CongestionLevel.LOW;
+          const rawRate = items[0]?.cnctrRate;
+          if (rawRate !== undefined && rawRate !== null && rawRate !== '') {
+            const avgRate = Number(rawRate);
+            if (Number.isFinite(avgRate) && avgRate >= 0 && avgRate <= 100) {
+              if (avgRate >= 75) return CongestionLevel.HIGH;
+              if (avgRate >= 40) return CongestionLevel.MEDIUM;
+              return CongestionLevel.LOW;
+            }
+          }
         }
       } catch (err: unknown) {
         const errorMessage = err instanceof Error ? err.message : String(err);

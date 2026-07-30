@@ -6,7 +6,7 @@
 
 ## 1. System Architecture Overview (전체 아키텍처 개요)
 
-본 시스템은 **한국관광공사 Open API의 일일 호출 한도(1,000회) 방어**와 **실시간 런타임 추천 연산 부하 최소화(목표 응답속도 < 100ms)**를 최우선 목표로 아키텍처를 3가지 계층(ETL/Seed Layer, Background Worker Layer, Runtime Service Layer)으로 완전 분리하여 설계되었습니다. 외부 API 호출 시 3회 제한적 재시도(Bounded Retries)를 베스트 에포트(Best-effort) 실패 방어 전략으로 채택하며, 최종 실패 시 시간대별 Fallback으로 전환됩니다.
+본 시스템은 **한국관광공사 Open API의 일일 호출 한도(1,000회) 방어**와 **실시간 런타임 추천 연산 부하 최소화(목표 응답속도 < 100ms)**를 최우선 목표로 아키텍처를 3가지 계층(ETL/Seed Layer, Background Worker Layer, Runtime Service Layer)으로 완전 분리하여 설계되었습니다. Phase 1 (ETL/SEED) 수집 단계는 최대 3회 백오프 재시도 후 수동 조치 및 실패 정책을 따르며, Phase 2 혼잡도 배치 연동(RouteCongestionCronService) 실패 시에 제한적으로 시간대별 피크타임 Fallback으로 전환됩니다.
 
 ```mermaid
 flowchart TD

@@ -96,15 +96,15 @@ export class RouteStopResponseDto {
     const dto = new RouteStopResponseDto();
 
     dto.sequence = stop.orderIndex ?? 0;
-    // 명시적으로 기록된 dayNumber가 있는 경우 해당 값을 사용하고, 없을 경우 orderIndex 경계로 기본 산출
-    if (stop.dayNumber != null) {
+    // 저장된 양의 정수 dayNumber만 노출하며, 없을 경우 orderIndex 기반 추론 대신 기본 1일차 지정
+    if (
+      typeof stop.dayNumber === 'number' &&
+      Number.isInteger(stop.dayNumber) &&
+      stop.dayNumber > 0
+    ) {
       dto.dayNumber = stop.dayNumber;
     } else {
-      const seq = stop.orderIndex ?? 0;
-      if (seq < 4) dto.dayNumber = 1;
-      else if (seq < 9) dto.dayNumber = 2;
-      else if (seq < 14) dto.dayNumber = 3;
-      else dto.dayNumber = 4; // Day 4+ (Emerald Green) 지원
+      dto.dayNumber = 1;
     }
 
     dto.placeName = stop.place?.name ?? '';

@@ -4,7 +4,7 @@ import {
   Max,
   ValidateNested,
   IsObject,
-  IsOptional,
+  ValidateIf,
   IsArray,
   IsString,
   IsNotEmpty,
@@ -71,7 +71,7 @@ export class RecommendRouteRequestDto {
   @IsValidRatioSum()
   ratios!: BudgetRatiosDto; // 사용자 원하는 비용 분배 비율
 
-  @IsOptional()
+  @ValidateIf((_, value: unknown) => value !== undefined)
   @IsArray({ message: 'themeSlugs는 배열 형식이어야 합니다.' })
   @IsString({ each: true, message: 'themeSlugs의 요소는 문자열이어야 합니다.' })
   @IsNotEmpty({
