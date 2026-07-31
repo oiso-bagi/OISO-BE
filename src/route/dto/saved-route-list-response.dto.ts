@@ -1,3 +1,4 @@
+import { ApiProperty } from '@nestjs/swagger';
 import { Place, RouteStop, TransitType } from '@prisma/client';
 import { buildRouteMetrics } from '@/route/dto/recommended-route-detail-response.dto';
 
@@ -24,15 +25,45 @@ export type SavedRouteRawData = {
 };
 
 export class SavedRouteItemDto {
+  @ApiProperty({ description: '저장 루트 ID', example: 'route_001' })
   routeId!: string;
+
+  @ApiProperty({
+    description: '저장 루트 이름',
+    example: '부산 바다 감성 코스',
+  })
   routeName!: string;
+
+  @ApiProperty({
+    description: '저장 일시',
+    example: '2026-08-01T00:00:00.000Z',
+  })
   savedAt!: Date;
+
+  @ApiProperty({ description: '여행 완료 여부', example: false })
   isCompleted!: boolean;
+
+  @ApiProperty({ description: '경유지 수', example: 4 })
   stopCount!: number;
+
+  @ApiProperty({ description: '총 이동 거리(km)', example: 8.5 })
   totalDistanceKm!: number;
+
+  @ApiProperty({
+    description: '루트에서 사용하는 이동 수단 목록',
+    enum: TransitType,
+    isArray: true,
+    example: ['WALKING', 'BUS'],
+  })
   transitTypes!: TransitType[];
+
+  @ApiProperty({ description: '예상 총 비용(원)', example: 42000 })
   totalCost!: number;
+
+  @ApiProperty({ description: '예상 총 소요 시간(분)', example: 180 })
   totalTimeMinutes!: number;
+
+  @ApiProperty({ description: '예상 절약 금액(원)', example: 15000 })
   estimatedSavingsWon!: number;
 
   static from(rawData: SavedRouteRawData): SavedRouteItemDto {
@@ -44,7 +75,6 @@ export class SavedRouteItemDto {
     dto.routeName = route.name ?? '';
     dto.savedAt = rawData.savedAt;
 
-    // tripLogs가 존재하는 경우 첫 번째 로그의 isCompleted 여부를 확인, 없을 경우 기본값 false
     const tripLog = Array.isArray(route.tripLogs) ? route.tripLogs[0] : null;
     dto.isCompleted = tripLog?.isCompleted ?? false;
 
@@ -73,8 +103,16 @@ export class SavedRouteItemDto {
 }
 
 export class SavedRouteListResponseDto {
+  @ApiProperty({ description: '저장 루트 개수', example: 3 })
   savedRouteCount!: number;
+
+  @ApiProperty({ description: '총 예상 절약 금액(원)', example: 45000 })
   totalSavedSavingsWon!: number;
+
+  @ApiProperty({
+    description: '저장 루트 목록',
+    type: [SavedRouteItemDto],
+  })
   savedRoutes!: SavedRouteItemDto[];
 
   static from(rawList: SavedRouteRawData[]): SavedRouteListResponseDto {
