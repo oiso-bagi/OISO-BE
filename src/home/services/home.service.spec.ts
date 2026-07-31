@@ -76,5 +76,32 @@ describe('HomeService', () => {
       expect(result.totalSavedSavingsWon).toBe(0);
       expect(result.savedRoutes).toEqual([]);
     });
+
+    it('applies 0 defaults when estimatedSavingsWon and totalDistanceMeters are null', async () => {
+      const mockRawDataWithNulls = [
+        {
+          userId: 'user-null',
+          routeId: 'route-null-1',
+          savedAt: new Date('2026-07-30T10:00:00Z'),
+          route: {
+            id: 'route-null-1',
+            name: '정보 없는 코스',
+            estimatedSavingsWon: null,
+            totalDistanceMeters: null,
+          },
+        },
+      ];
+
+      mockHomeRepository.findSavedRoutesByUserId.mockResolvedValue(
+        mockRawDataWithNulls,
+      );
+
+      const result = await service.getHomeSummary('user-null');
+
+      expect(result.totalSavedCount).toBe(1);
+      expect(result.totalSavedSavingsWon).toBe(0);
+      expect(result.savedRoutes[0].savingsWon).toBe(0);
+      expect(result.savedRoutes[0].totalDistanceKm).toBe(0);
+    });
   });
 });
