@@ -59,9 +59,9 @@ describe('RouteCongestionCronService', () => {
         expect.any(String),
         '부산광역시 해운대구',
       );
-      expect(routeRepositoryMock.updateRouteCongestionLevel).toHaveBeenCalledTimes(
-        2,
-      );
+      expect(
+        routeRepositoryMock.updateRouteCongestionLevel,
+      ).toHaveBeenCalledTimes(2);
     });
 
     it('contains failure when one route update fails and continues processing subsequent routes', async () => {
@@ -82,9 +82,9 @@ describe('RouteCongestionCronService', () => {
 
       await service.handleRouteCongestionUpdate();
 
-      expect(routeRepositoryMock.updateRouteCongestionLevel).toHaveBeenCalledTimes(
-        2,
-      );
+      expect(
+        routeRepositoryMock.updateRouteCongestionLevel,
+      ).toHaveBeenCalledTimes(2);
       expect(
         routeRepositoryMock.updateRouteCongestionLevel,
       ).toHaveBeenLastCalledWith('route-success', CongestionLevel.LOW);

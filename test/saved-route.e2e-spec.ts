@@ -13,6 +13,11 @@ import { SavedRouteRepository } from '@/route/repositories/saved-route.repositor
 import { SavedRouteService } from '@/route/services/saved-route.service';
 
 type App = Parameters<typeof request>[0];
+type TestAuthenticatedRequest = {
+  user: {
+    id: string;
+  };
+};
 
 describe('SavedRouteController (e2e)', () => {
   let app: INestApplication;
@@ -32,7 +37,11 @@ describe('SavedRouteController (e2e)', () => {
       .overrideGuard(AuthGuard)
       .useValue({
         canActivate: (context: ExecutionContext) => {
-          context.switchToHttp().getRequest().user = { id: 'user-1' };
+          const request = context
+            .switchToHttp()
+            .getRequest<TestAuthenticatedRequest>();
+          request.user = { id: 'user-1' };
+
           return true;
         },
       })
