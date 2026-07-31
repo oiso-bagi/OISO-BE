@@ -19,7 +19,7 @@ import { RouteService } from '@/route/services/route.service';
 
 @Controller('recommended-routes')
 export class RouteController {
-  constructor(private readonly routeService: RouteService) { }
+  constructor(private readonly routeService: RouteService) {}
 
   @Get()
   async getList(): Promise<RecommendedRouteListResponseDto[]> {
