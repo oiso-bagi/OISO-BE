@@ -57,6 +57,51 @@ describe('applyCommonErrorResponsesToDocument', () => {
           schema: {
             $ref: '#/components/schemas/CommonErrorResponse',
           },
+          example: {
+            statusCode: 500,
+            path: '/api/v1/example',
+            method: 'POST',
+            message: 'Internal server error',
+            error: 'Internal Server Error',
+          },
+        },
+      },
+    });
+  });
+
+  it('adds a status-matched example to documented error responses', () => {
+    const document = createDocument({
+      '/api/v1/auth/google/login': {
+        get: {
+          responses: {
+            '302': {
+              description: 'Found',
+            },
+            '500': {
+              description: 'Internal Server Error',
+            },
+          },
+        },
+      },
+    });
+
+    const result = applyCommonErrorResponsesToDocument(document);
+
+    expect(
+      result.paths['/api/v1/auth/google/login'].get?.responses['500'],
+    ).toMatchObject({
+      content: {
+        'application/json': {
+          schema: {
+            $ref: '#/components/schemas/CommonErrorResponse',
+          },
+          example: {
+            statusCode: 500,
+            path: '/api/v1/auth/google/login',
+            method: 'GET',
+            message: 'Internal server error',
+            error: 'Internal Server Error',
+          },
         },
       },
     });

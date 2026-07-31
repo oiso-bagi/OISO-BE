@@ -20,6 +20,7 @@ import { CurrentUserResponseDto } from '@/auth/dto/current-user-response.dto';
 import {
   ApiAccessTokenUnauthorizedResponseDocs,
   ApiJwtAccessTokenInternalServerErrorResponseDocs,
+  createCommonErrorExample,
 } from '@/common/docs/auth-error-swagger.docs';
 
 const socialCallbackFailureDescription = [
@@ -58,54 +59,76 @@ const refreshTokenUnauthorizedDescription = [
 const refreshTokenUnauthorizedExamples = {
   missingRefreshToken: {
     summary: '리프레시 토큰 없음',
-    value: {
+    value: createCommonErrorExample({
+      statusCode: 401,
+      path: '/api/v1/auth/refresh',
+      method: 'POST',
       message: 'Refresh token is required.',
       error: 'Unauthorized',
-      statusCode: 401,
-    },
+    }),
   },
   expiredToken: {
     summary: '만료된 토큰',
-    value: {
+    value: createCommonErrorExample({
+      statusCode: 401,
+      path: '/api/v1/auth/refresh',
+      method: 'POST',
       message: 'Expired token.',
       error: 'Unauthorized',
-      statusCode: 401,
-    },
+    }),
   },
   invalidRefreshToken: {
     summary: '유효하지 않은 리프레시 토큰',
-    value: {
+    value: createCommonErrorExample({
+      statusCode: 401,
+      path: '/api/v1/auth/refresh',
+      method: 'POST',
       message: 'Invalid refresh token.',
       error: 'Unauthorized',
-      statusCode: 401,
-    },
+    }),
   },
   userNotFound: {
     summary: '토큰의 사용자를 찾을 수 없음',
-    value: {
+    value: createCommonErrorExample({
+      statusCode: 401,
+      path: '/api/v1/auth/refresh',
+      method: 'POST',
       message: 'Authenticated user was not found.',
       error: 'Unauthorized',
-      statusCode: 401,
-    },
+    }),
   },
 };
 
 const internalServerErrorExamples = {
+  jwtRefreshSecretMissing: {
+    summary: 'JWT 리프레시 시크릿 설정 누락',
+    value: createCommonErrorExample({
+      statusCode: 500,
+      path: '/api/v1/auth/refresh',
+      method: 'POST',
+      message: 'JWT_REFRESH_SECRET is not configured.',
+      error: 'Internal Server Error',
+    }),
+  },
   jwtSecretMissing: {
-    summary: 'JWT 시크릿 설정 누락',
-    value: {
+    summary: 'JWT 액세스 시크릿 설정 누락',
+    value: createCommonErrorExample({
+      statusCode: 500,
+      path: '/api/v1/auth/refresh',
+      method: 'POST',
       message: 'JWT_ACCESS_SECRET is not configured.',
       error: 'Internal Server Error',
-      statusCode: 500,
-    },
+    }),
   },
   invalidJwtExpiration: {
     summary: 'JWT 만료 시간 설정 오류',
-    value: {
+    value: createCommonErrorExample({
+      statusCode: 500,
+      path: '/api/v1/auth/refresh',
+      method: 'POST',
       message: 'Invalid JWT expiration config.',
       error: 'Internal Server Error',
-      statusCode: 500,
-    },
+    }),
   },
 };
 
@@ -317,11 +340,13 @@ export const ApiGetSessionDocs = () =>
           examples: {
             jwtRefreshSecretMissing: {
               summary: 'JWT 리프레시 시크릿 설정 누락',
-              value: {
+              value: createCommonErrorExample({
+                statusCode: 500,
+                path: '/api/v1/auth/session',
+                method: 'GET',
                 message: 'JWT_REFRESH_SECRET is not configured.',
                 error: 'Internal Server Error',
-                statusCode: 500,
-              },
+              }),
             },
           },
         },

@@ -3,6 +3,29 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 
+type CommonErrorExampleParams = {
+  statusCode: number;
+  path: string;
+  method: string;
+  message: string;
+  error: string;
+};
+
+export const createCommonErrorExample = ({
+  statusCode,
+  path,
+  method,
+  message,
+  error,
+}: CommonErrorExampleParams) => ({
+  statusCode,
+  timestamp: '2026-08-01T00:00:00.000Z',
+  path,
+  method,
+  message,
+  error,
+});
+
 const accessTokenUnauthorizedDescription = [
   '액세스 토큰 인증에 실패하면 401 응답을 반환합니다.',
   '',
@@ -20,46 +43,56 @@ const accessTokenUnauthorizedDescription = [
 const accessTokenUnauthorizedExamples = {
   missingAccessToken: {
     summary: '액세스 토큰 없음',
-    value: {
+    value: createCommonErrorExample({
+      statusCode: 401,
+      path: '/api/v1/me',
+      method: 'GET',
       message: 'Access token is required.',
       error: 'Unauthorized',
-      statusCode: 401,
-    },
+    }),
   },
   expiredToken: {
     summary: '만료된 토큰',
-    value: {
+    value: createCommonErrorExample({
+      statusCode: 401,
+      path: '/api/v1/me',
+      method: 'GET',
       message: 'Expired token.',
       error: 'Unauthorized',
-      statusCode: 401,
-    },
+    }),
   },
   invalidAccessToken: {
     summary: '유효하지 않은 액세스 토큰',
-    value: {
+    value: createCommonErrorExample({
+      statusCode: 401,
+      path: '/api/v1/me',
+      method: 'GET',
       message: 'Invalid access token.',
       error: 'Unauthorized',
-      statusCode: 401,
-    },
+    }),
   },
   userNotFound: {
     summary: '토큰의 사용자를 찾을 수 없음',
-    value: {
+    value: createCommonErrorExample({
+      statusCode: 401,
+      path: '/api/v1/me',
+      method: 'GET',
       message: 'Authenticated user was not found.',
       error: 'Unauthorized',
-      statusCode: 401,
-    },
+    }),
   },
 };
 
 const jwtAccessSecretMissingExample = {
   jwtAccessSecretMissing: {
     summary: 'JWT 액세스 시크릿 설정 누락',
-    value: {
+    value: createCommonErrorExample({
+      statusCode: 500,
+      path: '/api/v1/me',
+      method: 'GET',
       message: 'JWT_ACCESS_SECRET is not configured.',
       error: 'Internal Server Error',
-      statusCode: 500,
-    },
+    }),
   },
 };
 

@@ -2,6 +2,7 @@ import type { OpenAPIObject } from '@nestjs/swagger';
 
 type OpenApiMediaTypeObject = {
   schema?: Record<string, unknown>;
+  example?: Record<string, unknown>;
   examples?: Record<string, unknown>;
 };
 
@@ -107,12 +108,12 @@ export const applyCommonErrorResponsesToDocument = (
     [ERROR_RESPONSE_SCHEMA_NAME]: commonErrorResponseSchema,
   };
 
-  for (const pathItem of Object.values(document.paths)) {
+  for (const [path, pathItem] of Object.entries(document.paths)) {
     if (!pathItem) {
       continue;
     }
 
-    for (const operation of Object.values(pathItem)) {
+    for (const [method, operation] of Object.entries(pathItem)) {
       if (!isOperationObject(operation)) {
         continue;
       }
@@ -127,12 +128,20 @@ export const applyCommonErrorResponsesToDocument = (
           isErrorStatusCode(statusCode) &&
           isResponseObject(response)
         ) {
-          attachCommonErrorSchema(response);
+          attachCommonErrorSchema({
+            response,
+            statusCode: Number(statusCode),
+            path,
+            method,
+          });
         }
       }
 
       if (!operation.responses['500']) {
-        operation.responses['500'] = commonInternalServerErrorResponse;
+        operation.responses['500'] = createCommonInternalServerErrorResponse({
+          path,
+          method,
+        });
       }
     }
   }
@@ -157,11 +166,105 @@ const isResponseObject = (
   value: OpenApiReferenceObject | OpenApiResponseObject,
 ): value is OpenApiResponseObject => 'description' in value;
 
-const attachCommonErrorSchema = (response: OpenApiResponseObject): void => {
+const attachCommonErrorSchema = ({
+  response,
+  statusCode,
+  path,
+  method,
+}: {
+  response: OpenApiResponseObject;
+  statusCode: number;
+  path: string;
+  method: string;
+}): void => {
   response.content = response.content ?? {};
   response.content['application/json'] =
     response.content['application/json'] ?? {};
   response.content['application/json'].schema = {
     $ref: ERROR_RESPONSE_SCHEMA_REF,
   };
+  if (
+    !response.content['application/json'].example &&
+    !response.content['application/json'].examples
+  ) {
+    response.content['application/json'].example = createErrorExample({
+      statusCode,
+      path,
+      method,
+    });
+  }
+};
+
+const createCommonInternalServerErrorResponse = ({
+  path,
+  method,
+}: {
+  path: string;
+  method: string;
+}): OpenApiResponseObject => ({
+  ...commonInternalServerErrorResponse,
+  content: {
+    'application/json': {
+      schema: {
+        $ref: ERROR_RESPONSE_SCHEMA_REF,
+      },
+      example: createErrorExample({
+        statusCode: 500,
+        path,
+        method,
+      }),
+    },
+  },
+});
+
+const createErrorExample = ({
+  statusCode,
+  path,
+  method,
+}: {
+  statusCode: number;
+  path: string;
+  method: string;
+}) => {
+  const errorName = getErrorName(statusCode);
+
+  return {
+    statusCode,
+    timestamp: '2026-08-01T00:00:00.000Z',
+    path,
+    method: method.toUpperCase(),
+    message:
+      statusCode === 500
+        ? 'Internal server error'
+        : `${errorName} error occurred.`,
+    error: errorName,
+  };
+};
+
+const getErrorName = (statusCode: number): string => {
+  if (statusCode === 400) {
+    return 'Bad Request';
+  }
+
+  if (statusCode === 401) {
+    return 'Unauthorized';
+  }
+
+  if (statusCode === 403) {
+    return 'Forbidden';
+  }
+
+  if (statusCode === 404) {
+    return 'Not Found';
+  }
+
+  if (statusCode === 409) {
+    return 'Conflict';
+  }
+
+  if (statusCode === 504) {
+    return 'Gateway Timeout';
+  }
+
+  return statusCode >= 500 ? 'Internal Server Error' : 'Error';
 };
