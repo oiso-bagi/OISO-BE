@@ -29,6 +29,7 @@ describe('HomeService', () => {
     it('calculates total saved savings won and returns list of saved route items', async () => {
       const mockRawData = [
         {
+          id: 'saved-1',
           userId: 'user-1',
           routeId: 'route-101',
           savedAt: new Date('2026-07-30T10:00:00Z'),
@@ -40,6 +41,7 @@ describe('HomeService', () => {
           },
         },
         {
+          id: 'saved-2',
           userId: 'user-1',
           routeId: 'route-102',
           savedAt: new Date('2026-07-29T10:00:00Z'),
@@ -80,6 +82,7 @@ describe('HomeService', () => {
     it('applies 0 defaults when estimatedSavingsWon and totalDistanceMeters are null', async () => {
       const mockRawDataWithNulls = [
         {
+          id: 'saved-route-null-1',
           userId: 'user-null',
           routeId: 'route-null-1',
           savedAt: new Date('2026-07-30T10:00:00Z'),
@@ -100,6 +103,7 @@ describe('HomeService', () => {
 
       expect(result.totalSavedCount).toBe(1);
       expect(result.totalSavedSavingsWon).toBe(0);
+      expect(result.savedRoutes[0].id).toBe('saved-route-null-1');
       expect(result.savedRoutes[0].savingsWon).toBe(0);
       expect(result.savedRoutes[0].totalDistanceKm).toBe(0);
     });
