@@ -7,7 +7,6 @@ export class SavedRouteSummaryItemDto {
   totalDistanceKm!: number;
 
   static from(savedRoute: {
-    id?: string;
     userId: string;
     routeId: string;
     savedAt: Date;
@@ -19,7 +18,7 @@ export class SavedRouteSummaryItemDto {
     };
   }): SavedRouteSummaryItemDto {
     const dto = new SavedRouteSummaryItemDto();
-    dto.id = savedRoute.id ?? `${savedRoute.userId}_${savedRoute.routeId}`;
+    dto.id = `${savedRoute.userId}_${savedRoute.routeId}`;
     dto.routeId = savedRoute.route.id;
     dto.name = savedRoute.route.name;
     dto.savedAt = savedRoute.savedAt;
