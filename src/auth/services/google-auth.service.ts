@@ -11,9 +11,9 @@ import type {
 } from '@/auth/types/google-auth.types';
 
 const GOOGLE_TOKEN_EXCHANGE_FAILED_MESSAGE =
-  'Failed to exchange Google authorization code.';
+  '구글 인증 코드를 토큰으로 교환하지 못했습니다.';
 const GOOGLE_PROFILE_FETCH_FAILED_MESSAGE =
-  'Failed to fetch Google user profile.';
+  '구글 사용자 프로필 조회에 실패했습니다.';
 
 @Injectable()
 export class GoogleAuthService {
@@ -37,18 +37,18 @@ export class GoogleAuthService {
     const providerId = googleUser.sub;
 
     if (googleUser.email_verified === false) {
-      throw new BadRequestException('Google account email is not verified.');
+      throw new BadRequestException('구글 계정 이메일 인증이 필요합니다.');
     }
 
     const email = googleUser.email?.trim();
     const nickname = googleUser.name?.trim();
 
     if (!email) {
-      throw new BadRequestException('Google account email is required.');
+      throw new BadRequestException('구글 계정 이메일이 필요합니다.');
     }
 
     if (!nickname) {
-      throw new BadRequestException('Google account nickname is required.');
+      throw new BadRequestException('구글 계정 닉네임이 필요합니다.');
     }
 
     return {
@@ -127,7 +127,7 @@ export class GoogleAuthService {
     const value = process.env[name];
 
     if (!value) {
-      throw new InternalServerErrorException(`${name} is not configured.`);
+      throw new InternalServerErrorException(`${name} 설정이 누락되었습니다.`);
     }
 
     return value;
@@ -145,7 +145,9 @@ export class GoogleAuthService {
       });
     } catch (error) {
       if (this.isTimeoutError(error)) {
-        throw new GatewayTimeoutException('Google API request timed out.');
+        throw new GatewayTimeoutException(
+          '구글 API 요청 시간이 초과되었습니다.',
+        );
       }
 
       throw new BadRequestException(failureMessage);

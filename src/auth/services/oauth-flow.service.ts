@@ -40,17 +40,21 @@ export class OAuthFlowService {
     } = params;
 
     try {
+      const providerDisplayName = this.getProviderDisplayName(providerName);
+
       if (error) {
-        throw new BadRequestException(`${providerName} login was canceled.`);
+        throw new BadRequestException(
+          `${providerDisplayName} 로그인이 취소되었습니다.`,
+        );
       }
 
       const validatedCode = this.getRequiredQueryString(
         code,
-        `${providerName} authorization code is required.`,
+        `${providerDisplayName} 인증 코드가 필요합니다.`,
       );
       const validatedState = this.getRequiredQueryString(
         state,
-        `${providerName} OAuth state is required.`,
+        `${providerDisplayName} OAuth state 값이 필요합니다.`,
       );
 
       const cookies = this.authCookieService.parseCookies(request);
@@ -166,5 +170,17 @@ export class OAuthFlowService {
     }
 
     return value.trim();
+  }
+
+  private getProviderDisplayName(providerName: string): string {
+    if (providerName === 'Kakao') {
+      return '카카오';
+    }
+
+    if (providerName === 'Google') {
+      return '구글';
+    }
+
+    return providerName;
   }
 }

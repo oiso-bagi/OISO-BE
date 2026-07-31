@@ -48,7 +48,7 @@ describe('GoogleAuthService', () => {
     });
 
     await expect(service.getUserProfile('code')).rejects.toThrow(
-      new BadRequestException('Failed to exchange Google authorization code.'),
+      new BadRequestException('구글 인증 코드를 토큰으로 교환하지 못했습니다.'),
     );
   });
 
@@ -56,7 +56,7 @@ describe('GoogleAuthService', () => {
     mockFetchJsonFailure();
 
     await expect(service.getUserProfile('code')).rejects.toThrow(
-      new BadRequestException('Failed to exchange Google authorization code.'),
+      new BadRequestException('구글 인증 코드를 토큰으로 교환하지 못했습니다.'),
     );
   });
 
@@ -72,7 +72,7 @@ describe('GoogleAuthService', () => {
     });
 
     await expect(service.getUserProfile('code')).rejects.toThrow(
-      new BadRequestException('Failed to fetch Google user profile.'),
+      new BadRequestException('구글 사용자 프로필 조회에 실패했습니다.'),
     );
   });
 
@@ -93,7 +93,7 @@ describe('GoogleAuthService', () => {
     });
 
     await expect(service.getUserProfile('code')).rejects.toThrow(
-      new BadRequestException('Failed to fetch Google user profile.'),
+      new BadRequestException('구글 사용자 프로필 조회에 실패했습니다.'),
     );
   });
 
@@ -109,7 +109,7 @@ describe('GoogleAuthService', () => {
     });
 
     await expect(service.getUserProfile('code')).rejects.toThrow(
-      new BadRequestException('Google account email is not verified.'),
+      new BadRequestException('구글 계정 이메일 인증이 필요합니다.'),
     );
   });
 
@@ -124,7 +124,7 @@ describe('GoogleAuthService', () => {
     });
 
     await expect(service.getUserProfile('code')).rejects.toThrow(
-      new BadRequestException('Google account nickname is required.'),
+      new BadRequestException('구글 계정 닉네임이 필요합니다.'),
     );
   });
 
@@ -132,7 +132,7 @@ describe('GoogleAuthService', () => {
     (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('network'));
 
     await expect(service.getUserProfile('code')).rejects.toThrow(
-      new BadRequestException('Failed to exchange Google authorization code.'),
+      new BadRequestException('구글 인증 코드를 토큰으로 교환하지 못했습니다.'),
     );
   });
 
@@ -143,7 +143,7 @@ describe('GoogleAuthService', () => {
     (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('network'));
 
     await expect(service.getUserProfile('code')).rejects.toThrow(
-      new BadRequestException('Failed to fetch Google user profile.'),
+      new BadRequestException('구글 사용자 프로필 조회에 실패했습니다.'),
     );
   });
 
@@ -154,7 +154,7 @@ describe('GoogleAuthService', () => {
     mockFetchJsonFailure();
 
     await expect(service.getUserProfile('code')).rejects.toThrow(
-      new BadRequestException('Failed to fetch Google user profile.'),
+      new BadRequestException('구글 사용자 프로필 조회에 실패했습니다.'),
     );
   });
 

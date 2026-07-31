@@ -32,11 +32,11 @@ export class KakaoAuthService {
     const nickname = kakaoUser.kakao_account?.profile?.nickname?.trim();
 
     if (!email) {
-      throw new BadRequestException('Kakao account email is required.');
+      throw new BadRequestException('카카오 계정 이메일이 필요합니다.');
     }
 
     if (!nickname) {
-      throw new BadRequestException('Kakao profile nickname is required.');
+      throw new BadRequestException('카카오 프로필 닉네임이 필요합니다.');
     }
 
     return {
@@ -72,7 +72,7 @@ export class KakaoAuthService {
 
     if (!response.ok) {
       throw new BadRequestException(
-        'Failed to exchange Kakao authorization code.',
+        '카카오 인증 코드를 토큰으로 교환하지 못했습니다.',
       );
     }
 
@@ -91,7 +91,9 @@ export class KakaoAuthService {
     );
 
     if (!response.ok) {
-      throw new BadRequestException('Failed to fetch Kakao user profile.');
+      throw new BadRequestException(
+        '카카오 사용자 프로필 조회에 실패했습니다.',
+      );
     }
 
     return (await response.json()) as KakaoUserResponse;
@@ -101,7 +103,7 @@ export class KakaoAuthService {
     const value = process.env[name];
 
     if (!value) {
-      throw new InternalServerErrorException(`${name} is not configured.`);
+      throw new InternalServerErrorException(`${name} 설정이 누락되었습니다.`);
     }
 
     return value;
@@ -115,7 +117,9 @@ export class KakaoAuthService {
       });
     } catch (error) {
       if (this.isTimeoutError(error)) {
-        throw new GatewayTimeoutException('Kakao API request timed out.');
+        throw new GatewayTimeoutException(
+          '카카오 API 요청 시간이 초과되었습니다.',
+        );
       }
 
       throw error;

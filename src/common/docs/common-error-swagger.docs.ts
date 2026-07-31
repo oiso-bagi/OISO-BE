@@ -54,14 +54,14 @@ const commonErrorResponseSchema = {
       oneOf: [
         {
           type: 'string',
-          example: 'Recommended route ID must not be empty.',
+          example: '추천 루트 ID는 비어 있을 수 없습니다.',
         },
         {
           type: 'array',
           items: {
             type: 'string',
           },
-          example: ['dailyBudgetWon must be a safe positive integer.'],
+          example: ['dailyBudgetWon은 안전한 양의 정수여야 합니다.'],
         },
       ],
       description: 'Error message',
@@ -84,13 +84,13 @@ const commonInternalServerErrorResponse: OpenApiResponseObject = {
       },
       examples: {
         internalServerError: {
-          summary: 'Internal server error',
+          summary: '서버 내부 오류가 발생했습니다.',
           value: {
             statusCode: 500,
             timestamp: '2026-08-01T00:00:00.000Z',
             path: '/api/v1/example',
             method: 'GET',
-            message: 'Internal server error',
+            message: '서버 내부 오류가 발생했습니다.',
             error: 'Internal Server Error',
           },
         },
@@ -235,8 +235,8 @@ const createErrorExample = ({
     method: method.toUpperCase(),
     message:
       statusCode === 500
-        ? 'Internal server error'
-        : `${errorName} error occurred.`,
+        ? '서버 내부 오류가 발생했습니다.'
+        : `${errorName} 오류가 발생했습니다.`,
     error: errorName,
   };
 };

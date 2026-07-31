@@ -31,14 +31,14 @@ export class AuthService {
 
   async getCurrentUser(accessToken: string | undefined): Promise<User> {
     if (!accessToken) {
-      throw new UnauthorizedException('Access token is required.');
+      throw new UnauthorizedException('액세스 토큰이 필요합니다.');
     }
 
     const payload = this.authTokenService.verifyAccessToken(accessToken);
     const user = await this.authRepository.findUserById(payload.sub);
 
     if (!user) {
-      throw new UnauthorizedException('Authenticated user was not found.');
+      throw new UnauthorizedException('인증된 사용자를 찾을 수 없습니다.');
     }
 
     return user;
@@ -46,14 +46,14 @@ export class AuthService {
 
   async refreshAccessToken(refreshToken: string | undefined): Promise<string> {
     if (!refreshToken) {
-      throw new UnauthorizedException('Refresh token is required.');
+      throw new UnauthorizedException('리프레시 토큰이 필요합니다.');
     }
 
     const payload = this.authTokenService.verifyRefreshToken(refreshToken);
     const user = await this.authRepository.findUserById(payload.sub);
 
     if (!user) {
-      throw new UnauthorizedException('Authenticated user was not found.');
+      throw new UnauthorizedException('인증된 사용자를 찾을 수 없습니다.');
     }
 
     return this.authTokenService.issueAccessToken(user.id, user.provider);
@@ -81,7 +81,7 @@ export class AuthService {
       }
 
       throw new Error(
-        'Unexpected error occurred while verifying the refresh token.',
+        '리프레시 토큰 검증 중 예상하지 못한 오류가 발생했습니다.',
       );
     }
   }

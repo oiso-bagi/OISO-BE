@@ -43,7 +43,7 @@ describe('HttpExceptionFilter', () => {
   it('formats HttpException response with request context', () => {
     const filter = new HttpExceptionFilter();
 
-    filter.catch(new BadRequestException('Invalid route id.'), host);
+    filter.catch(new BadRequestException('루트 ID가 유효하지 않습니다.'), host);
 
     expect(status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
     expect(json).toHaveBeenCalledWith(
@@ -51,7 +51,7 @@ describe('HttpExceptionFilter', () => {
         statusCode: HttpStatus.BAD_REQUEST,
         path: '/api/v1/recommended-routes/%20',
         method: 'GET',
-        message: 'Invalid route id.',
+        message: '루트 ID가 유효하지 않습니다.',
         error: 'Bad Request',
       }),
     );
@@ -70,7 +70,7 @@ describe('HttpExceptionFilter', () => {
         statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
         path: '/api/v1/recommended-routes/%20',
         method: 'GET',
-        message: 'Internal server error',
+        message: '서버 내부 오류가 발생했습니다.',
         error: 'Internal Server Error',
       }),
     );

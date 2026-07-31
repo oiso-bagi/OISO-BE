@@ -95,7 +95,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
   ): HttpExceptionResponse {
     if (!exceptionResponse) {
       return {
-        message: 'Internal server error',
+        message: '서버 내부 오류가 발생했습니다.',
         error: 'Internal Server Error',
       };
     }

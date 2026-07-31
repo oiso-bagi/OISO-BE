@@ -57,34 +57,34 @@ describe('AuthCookieService', () => {
     it.each([
       [
         'kakao_canceled',
-        new BadRequestException('Kakao login was canceled.'),
+        new BadRequestException('카카오 로그인이 취소되었습니다.'),
         'kakao_canceled',
       ],
       [
         'google_canceled',
-        new BadRequestException('Google login was canceled.'),
+        new BadRequestException('구글 로그인이 취소되었습니다.'),
         'google_canceled',
       ],
       [
         'token_exchange_failed',
         new BadRequestException(
-          'Failed to exchange Google authorization code.',
+          '구글 인증 코드를 토큰으로 교환하지 못했습니다.',
         ),
         'token_exchange_failed',
       ],
       [
         'profile_fetch_failed',
-        new BadRequestException('Failed to fetch Google user profile.'),
+        new BadRequestException('구글 사용자 프로필 조회에 실패했습니다.'),
         'profile_fetch_failed',
       ],
       [
         'email_required',
-        new BadRequestException('Google account email is required.'),
+        new BadRequestException('구글 계정 이메일이 필요합니다.'),
         'email_required',
       ],
       [
         'nickname_required',
-        new BadRequestException('Google account nickname is required.'),
+        new BadRequestException('구글 계정 닉네임이 필요합니다.'),
         'nickname_required',
       ],
     ])(
@@ -97,7 +97,7 @@ describe('AuthCookieService', () => {
     it('returns email_conflict when a social email already belongs to another account', () => {
       expect(
         service.getFailureReason(
-          new ConflictException('Email is already linked to another account.'),
+          new ConflictException('이미 다른 계정에 연결된 이메일입니다.'),
         ),
       ).toBe('email_conflict');
     });
@@ -112,7 +112,7 @@ describe('AuthCookieService', () => {
       expect(
         service.getFailureReason(
           new BadRequestException({
-            message: 'Failed to fetch Google user profile.',
+            message: '구글 사용자 프로필 조회에 실패했습니다.',
           }),
         ),
       ).toBe('profile_fetch_failed');

@@ -56,7 +56,7 @@ export class AuthTokenService {
     );
 
     if (payload.type !== 'access') {
-      throw new UnauthorizedException('Invalid access token.');
+      throw new UnauthorizedException('유효하지 않은 액세스 토큰입니다.');
     }
 
     return payload;
@@ -69,7 +69,7 @@ export class AuthTokenService {
     );
 
     if (payload.type !== 'refresh') {
-      throw new UnauthorizedException('Invalid refresh token.');
+      throw new UnauthorizedException('유효하지 않은 리프레시 토큰입니다.');
     }
 
     return payload;
@@ -80,10 +80,10 @@ export class AuthTokenService {
       return this.jwtService.verify<TokenPayload>(token, { secret });
     } catch (error) {
       if (this.isTokenExpiredError(error)) {
-        throw new UnauthorizedException('Expired token.');
+        throw new UnauthorizedException('토큰이 만료되었습니다.');
       }
 
-      throw new UnauthorizedException('Invalid token.');
+      throw new UnauthorizedException('유효하지 않은 토큰입니다.');
     }
   }
 
@@ -91,7 +91,7 @@ export class AuthTokenService {
     const value = process.env[name];
 
     if (!value) {
-      throw new InternalServerErrorException(`${name} is not configured.`);
+      throw new InternalServerErrorException(`${name} 설정이 누락되었습니다.`);
     }
 
     return value;
@@ -101,7 +101,9 @@ export class AuthTokenService {
     const match = value.match(/^(\d+)([smhd])$/);
 
     if (!match) {
-      throw new InternalServerErrorException('Invalid JWT expiration config.');
+      throw new InternalServerErrorException(
+        'JWT 만료 시간 설정 형식이 올바르지 않습니다.',
+      );
     }
 
     const amount = Number(match[1]);
