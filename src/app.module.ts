@@ -5,6 +5,7 @@ import { AppService } from '@/app.service';
 import { AuthModule } from '@/auth/auth.module';
 import { ConsentModule } from '@/consent/consent.module';
 import { DashboardModule } from '@/dashboard/dashboard.module';
+import { HomeModule } from '@/home/home.module';
 import { PrismaModule } from '@/prisma/prisma.module';
 import { RecommendationModule } from '@/recommendation/recommendation.module';
 import { RouteModule } from '@/route/route.module';
@@ -18,6 +19,7 @@ import { RouteModule } from '@/route/route.module';
     ConsentModule,
     RecommendationModule,
     DashboardModule,
+    HomeModule,
   ],
   controllers: [AppController],
   providers: [AppService],
