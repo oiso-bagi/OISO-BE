@@ -3,6 +3,7 @@ import { RequestMethod } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from '@/app.module';
+import { applyCommonErrorResponsesToDocument } from '@/common/docs/common-error-swagger.docs';
 
 // Ensure Prisma uses the binary engine at runtime when running locally
 process.env.PRISMA_CLIENT_ENGINE_TYPE =
@@ -24,7 +25,9 @@ async function bootstrap() {
     .addCookieAuth('oiso_refresh_token')
     .build();
   const documentFactory = () =>
-    SwaggerModule.createDocument(app, swaggerConfig);
+    applyCommonErrorResponsesToDocument(
+      SwaggerModule.createDocument(app, swaggerConfig),
+    );
 
   SwaggerModule.setup('api-docs', app, documentFactory, {
     jsonDocumentUrl: 'api-docs/json',
