@@ -24,16 +24,16 @@ export type SavedRouteRawData = {
 };
 
 export class SavedRouteItemDto {
-  routeId: string;
-  routeName: string;
-  savedAt: Date;
-  isCompleted: boolean;
-  stopCount: number;
-  totalDistanceKm: number;
-  transitTypes: TransitType[];
-  totalCost: number;
-  totalTimeMinutes: number;
-  estimatedSavingsWon: number;
+  routeId!: string;
+  routeName!: string;
+  savedAt!: Date;
+  isCompleted!: boolean;
+  stopCount!: number;
+  totalDistanceKm!: number;
+  transitTypes!: TransitType[];
+  totalCost!: number;
+  totalTimeMinutes!: number;
+  estimatedSavingsWon!: number;
 
   static from(rawData: SavedRouteRawData): SavedRouteItemDto {
     const dto = new SavedRouteItemDto();
@@ -73,9 +73,9 @@ export class SavedRouteItemDto {
 }
 
 export class SavedRouteListResponseDto {
-  savedRouteCount: number;
-  totalSavedSavingsWon: number;
-  savedRoutes: SavedRouteItemDto[];
+  savedRouteCount!: number;
+  totalSavedSavingsWon!: number;
+  savedRoutes!: SavedRouteItemDto[];
 
   static from(rawList: SavedRouteRawData[]): SavedRouteListResponseDto {
     const dto = new SavedRouteListResponseDto();

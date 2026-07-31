@@ -81,16 +81,16 @@ export function buildRouteMetrics(stops: RouteStopWithPlace[]): RouteMetrics {
 }
 
 export class RouteStopResponseDto {
-  sequence: number;
-  dayNumber: number; // 일차 번호 (프론트엔드 지도 색상 분기용: 1일차, 2일차...)
-  placeName: string;
-  category: string;
-  openTime: string | null;
-  closeTime: string | null;
-  latitude: number | null;
-  longitude: number | null;
-  nextTransportType: TransitType | null;
-  nextTravelTimeMinutes: number | null;
+  sequence!: number;
+  dayNumber!: number; // 일차 번호 (프론트엔드 지도 색상 분기용: 1일차, 2일차...)
+  placeName!: string;
+  category!: string;
+  openTime!: string | null;
+  closeTime!: string | null;
+  latitude!: number | null;
+  longitude!: number | null;
+  nextTransportType!: TransitType | null;
+  nextTravelTimeMinutes!: number | null;
 
   static from(stop: RouteStopWithPlace): RouteStopResponseDto {
     const dto = new RouteStopResponseDto();
@@ -124,31 +124,31 @@ export class RouteStopResponseDto {
 }
 
 export class RecommendedRouteDetailResponseDto {
-  routeId: string;
-  routeName: string;
-  stopCount: number;
-  totalDistanceKm: number;
-  transportType: string;
-  congestionLevel: CongestionLevel;
-  savedCost: number;
-  recommendScore: number;
-  isRecommended: boolean;
-  isSaved: boolean;
+  routeId!: string;
+  routeName!: string;
+  stopCount!: number;
+  totalDistanceKm!: number;
+  transportType!: string;
+  congestionLevel!: CongestionLevel;
+  savedCost!: number;
+  recommendScore!: number;
+  isRecommended!: boolean;
+  isSaved!: boolean;
 
-  totalCost: number;
-  totalTimeMinutes: number;
-  totalTimeDisplay: string;
+  totalCost!: number;
+  totalTimeMinutes!: number;
+  totalTimeDisplay!: string;
 
-  metaCost: {
+  metaCost!: {
     transportCost: number;
     placeCost: number;
   };
-  metaTime: {
+  metaTime!: {
     pureTravelTime: number;
     stayTime: number;
   };
 
-  stops: RouteStopResponseDto[];
+  stops!: RouteStopResponseDto[];
 
   static from(route: RouteWithStops): RecommendedRouteDetailResponseDto {
     const dto = new RecommendedRouteDetailResponseDto();
