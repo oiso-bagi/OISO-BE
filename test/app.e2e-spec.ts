@@ -2,8 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types';
-import { AppModule } from './../src/app.module';
-import { PrismaService } from '../src/prisma/prisma.service';
+import { AppModule } from '@/app.module';
+import { PrismaService } from '@/prisma/prisma.service';
 
 type RecommendationOptionsBody = {
   travelStyles: { slug: string }[];
@@ -52,9 +52,9 @@ describe('AppController (e2e)', () => {
       .expect('Hello World!');
   });
 
-  it('returns recommendation options for GET /recommended-routes/recommend/options', async () => {
+  it('returns recommendation options for GET /api/v1/recommended-routes/recommend/options', async () => {
     const response = await request(app.getHttpServer())
-      .get('/recommended-routes/recommend/options')
+      .get('/api/v1/recommended-routes/recommend/options')
       .expect(200);
     const responseBody = response.body as RecommendationOptionsBody;
 
@@ -69,7 +69,7 @@ describe('AppController (e2e)', () => {
     });
   });
 
-  it('returns recommendations for POST /recommended-routes/recommend with valid input', async () => {
+  it('returns recommendations for POST /api/v1/recommended-routes/recommend with valid input', async () => {
     routeFindMany.mockResolvedValue([
       {
         id: 'route-1',
@@ -84,7 +84,7 @@ describe('AppController (e2e)', () => {
     ]);
 
     const response = await request(app.getHttpServer())
-      .post('/recommended-routes/recommend')
+      .post('/api/v1/recommended-routes/recommend')
       .send({
         travelStyleSlugs: ['local-food'],
         durationDays: 1,
@@ -103,9 +103,9 @@ describe('AppController (e2e)', () => {
     expect(routeFindMany).toHaveBeenCalledTimes(1);
   });
 
-  it('returns 400 for POST /recommended-routes/recommend with invalid budget', async () => {
+  it('returns 400 for POST /api/v1/recommended-routes/recommend with invalid budget', async () => {
     await request(app.getHttpServer())
-      .post('/recommended-routes/recommend')
+      .post('/api/v1/recommended-routes/recommend')
       .send({
         travelStyleSlugs: ['local-food'],
         durationDays: 1,

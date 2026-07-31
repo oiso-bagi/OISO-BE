@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { RouteController } from './route.controller';
-import { RouteService } from './route.service';
+import { RouteController } from '@/route/controllers/route.controller';
+import { RouteService } from '@/route/services/route.service';
 
 describe('RouteController', () => {
   let controller: RouteController;
@@ -21,8 +21,7 @@ describe('RouteController', () => {
     }).compile();
 
     controller = module.get<RouteController>(RouteController);
-    mockRouteService.getRecommendedRouteList.mockReset();
-    mockRouteService.getRecommendedRouteDetail.mockReset();
+    jest.clearAllMocks();
   });
 
   it('should be defined', () => {
@@ -33,7 +32,7 @@ describe('RouteController', () => {
     const payload = [
       {
         id: 'route-1',
-        name: '부산 힐링 루트',
+        name: '부산 야경 루트',
         stopCount: 2,
         totalDistanceMeters: 3200,
         transitTypes: ['BUS'],

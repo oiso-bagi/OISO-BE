@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
+import { PrismaService } from '@/prisma/prisma.service';
 
 const savedRouteListSelect = Prisma.validator<Prisma.SavedRouteSelect>()({
   savedAt: true,
@@ -83,11 +83,9 @@ const getSavedRouteDetailSelect = (userId: string) =>
 export class SavedRouteRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findListByUserId(userId?: string) {
-    const where: Prisma.SavedRouteWhereInput = userId ? { userId } : {};
-
+  async findListByUserId(userId: string) {
     return this.prisma.savedRoute.findMany({
-      where,
+      where: { userId },
       orderBy: {
         savedAt: 'desc',
       },

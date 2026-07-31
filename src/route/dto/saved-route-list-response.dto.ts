@@ -1,5 +1,5 @@
 import { Place, RouteStop, TransitType } from '@prisma/client';
-import { buildRouteMetrics } from './recommended-route-detail-response.dto';
+import { buildRouteMetrics } from '@/route/dto/recommended-route-detail-response.dto';
 
 export type RouteStopMinimal = Partial<RouteStop> & {
   orderIndex?: number | null;

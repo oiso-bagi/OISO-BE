@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { PrismaService } from '../prisma/prisma.service';
-import { RouteRepository } from './route.repository';
+import { CongestionLevel, RouteType } from '@prisma/client';
+import { PrismaService } from '@/prisma/prisma.service';
+import { RouteRepository } from '@/route/repositories/route.repository';
 
 describe('RouteRepository', () => {
   let repository: RouteRepository;
@@ -8,6 +9,7 @@ describe('RouteRepository', () => {
     route: {
       findUnique: jest.Mock;
       findMany: jest.Mock;
+      update: jest.Mock;
     };
   };
 
@@ -16,6 +18,7 @@ describe('RouteRepository', () => {
       route: {
         findUnique: jest.fn(),
         findMany: jest.fn(),
+        update: jest.fn(),
       },
     };
 
@@ -37,7 +40,7 @@ describe('RouteRepository', () => {
   });
 
   it('calls prisma.route.findListWithStops with RECOMMENDED routeType filter and returns result', async () => {
-    const mockList = [{ id: 'route-1', name: '부산 힐링 루트' }];
+    const mockList = [{ id: 'route-1', name: '부산 야경 루트' }];
     prismaService.route.findMany.mockResolvedValue(mockList);
 
     const result: unknown = await repository.findListWithStops();
@@ -45,13 +48,13 @@ describe('RouteRepository', () => {
     expect(result).toBe(mockList);
     expect(prismaService.route.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { routeType: 'RECOMMENDED', isPublished: true },
+        where: { routeType: RouteType.RECOMMENDED, isPublished: true },
       }),
     );
   });
 
   it('calls prisma.route.findDetailWithStopsAndPlace with id and returns result', async () => {
-    const mockDetail = { id: 'route-1', name: '부산 힐링 루트' };
+    const mockDetail = { id: 'route-1', name: '부산 야경 루트' };
     prismaService.route.findUnique.mockResolvedValue(mockDetail);
 
     const result: unknown =
@@ -65,21 +68,17 @@ describe('RouteRepository', () => {
     );
   });
 
-  it('calls prisma.route.findRecommendedCandidates with estimatedCostWon <= budget filter', async () => {
-    const mockCandidates = [{ id: 'route-1', estimatedCostWon: 10000 }];
-    prismaService.route.findMany.mockResolvedValue(mockCandidates);
+  it('updates route congestion level by id', async () => {
+    const updated = { id: 'route-1', congestionLevel: CongestionLevel.LOW };
+    prismaService.route.update.mockResolvedValue(updated);
 
-    const result = await repository.findRecommendedCandidates(15000);
+    await expect(
+      repository.updateRouteCongestionLevel('route-1', CongestionLevel.LOW),
+    ).resolves.toBe(updated);
 
-    expect(result).toBe(mockCandidates);
-    expect(prismaService.route.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: {
-          routeType: 'RECOMMENDED',
-          isPublished: true,
-          estimatedCostWon: { lte: 15000 },
-        },
-      }),
-    );
+    expect(prismaService.route.update).toHaveBeenCalledWith({
+      where: { id: 'route-1' },
+      data: { congestionLevel: CongestionLevel.LOW },
+    });
   });
 });

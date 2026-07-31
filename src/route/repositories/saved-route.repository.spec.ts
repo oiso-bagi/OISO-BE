@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { PrismaService } from '../prisma/prisma.service';
-import { SavedRouteRepository } from './saved-route.repository';
+import { PrismaService } from '@/prisma/prisma.service';
+import { SavedRouteRepository } from '@/route/repositories/saved-route.repository';
 
 describe('SavedRouteRepository', () => {
   let repository: SavedRouteRepository;
@@ -36,7 +36,7 @@ describe('SavedRouteRepository', () => {
     expect(repository).toBeDefined();
   });
 
-  it('calls prisma.savedRoute.findMany with userId filter if provided', async () => {
+  it('calls prisma.savedRoute.findMany with userId filter', async () => {
     const mockList = [{ savedAt: new Date() }];
     prismaService.savedRoute.findMany.mockResolvedValue(mockList);
 
@@ -46,21 +46,6 @@ describe('SavedRouteRepository', () => {
     expect(prismaService.savedRoute.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { userId: 'user-1' },
-        orderBy: { savedAt: 'desc' },
-      }),
-    );
-  });
-
-  it('calls prisma.savedRoute.findMany with empty where if userId is not provided', async () => {
-    const mockList = [{ savedAt: new Date() }];
-    prismaService.savedRoute.findMany.mockResolvedValue(mockList);
-
-    const result: unknown = await repository.findListByUserId();
-
-    expect(result).toBe(mockList);
-    expect(prismaService.savedRoute.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: {},
         orderBy: { savedAt: 'desc' },
       }),
     );

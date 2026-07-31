@@ -3,7 +3,7 @@ import {
   buildRouteMetrics,
   RouteStopWithPlace,
   RouteWithStops,
-} from './recommended-route-detail-response.dto';
+} from '@/route/dto/recommended-route-detail-response.dto';
 
 export type SavedRouteDetailRawData = {
   savedAt: Date;
@@ -13,15 +13,15 @@ export type SavedRouteDetailRawData = {
 };
 
 export class SavedRouteStopDetailDto {
-  sequence: number;
-  placeName: string;
-  category: string;
-  openTime: string | null;
-  closeTime: string | null;
-  nextTransportType: TransitType | null;
-  nextTravelTimeMinutes: number | null;
-  latitude: number | null;
-  longitude: number | null;
+  sequence = 0;
+  placeName = '';
+  category = '';
+  openTime: string | null = null;
+  closeTime: string | null = null;
+  nextTransportType: TransitType | null = null;
+  nextTravelTimeMinutes: number | null = null;
+  latitude: number | null = null;
+  longitude: number | null = null;
 
   static from(stop: RouteStopWithPlace): SavedRouteStopDetailDto {
     const dto = new SavedRouteStopDetailDto();
@@ -43,34 +43,40 @@ export class SavedRouteStopDetailDto {
 }
 
 export class SavedRouteDetailResponseDto {
-  routeId: string;
-  routeName: string;
-  savedAt: Date;
-  isCompleted: boolean;
-  stopCount: number;
-  totalDistanceKm: number;
-  transportType: string;
-  congestionLevel: CongestionLevel;
-  savedCost: number;
-  recommendScore: number;
-  isRecommended: boolean;
-  isSaved: boolean;
+  routeId = '';
+  routeName = '';
+  savedAt = new Date(0);
+  isCompleted = false;
+  stopCount = 0;
+  totalDistanceKm = 0;
+  transportType = '';
+  congestionLevel: CongestionLevel = CongestionLevel.MEDIUM;
+  savedCost = 0;
+  recommendScore = 0;
+  isRecommended = false;
+  isSaved = false;
 
-  totalCost: number;
-  totalTimeMinutes: number;
-  totalTimeDisplay: string;
+  totalCost = 0;
+  totalTimeMinutes = 0;
+  totalTimeDisplay = '';
 
   metaCost: {
     transportCost: number;
     placeCost: number;
+  } = {
+    transportCost: 0,
+    placeCost: 0,
   };
   metaTime: {
     pureTravelTime: number;
     stayTime: number;
+  } = {
+    pureTravelTime: 0,
+    stayTime: 0,
   };
 
-  estimatedSavingsWon: number;
-  stops: SavedRouteStopDetailDto[];
+  estimatedSavingsWon = 0;
+  stops: SavedRouteStopDetailDto[] = [];
 
   static from(rawData: SavedRouteDetailRawData): SavedRouteDetailResponseDto {
     const dto = new SavedRouteDetailResponseDto();
