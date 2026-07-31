@@ -10,7 +10,7 @@ import { SavingsDashboardResponseDto } from '@/dashboard/dto/savings-dashboard-r
 import { DashboardService } from '@/dashboard/services/dashboard.service';
 
 @ApiDashboardControllerDocs()
-@Controller('api/v1/dashboard')
+@Controller('dashboard')
 @UseGuards(AuthGuard)
 export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) {}

@@ -6,7 +6,7 @@ import { SavedRouteDetailResponseDto } from '@/route/dto/saved-route-detail-resp
 import { SavedRouteListResponseDto } from '@/route/dto/saved-route-list-response.dto';
 import { SavedRouteService } from '@/route/services/saved-route.service';
 
-@Controller('api/v1/saved-routes')
+@Controller('saved-routes')
 @UseGuards(AuthGuard)
 export class SavedRouteController {
   constructor(private readonly savedRouteService: SavedRouteService) {}

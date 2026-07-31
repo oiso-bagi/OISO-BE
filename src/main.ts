@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import { RequestMethod } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from '@/app.module';
@@ -9,6 +10,10 @@ process.env.PRISMA_CLIENT_ENGINE_TYPE =
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  app.setGlobalPrefix('api/v1', {
+    exclude: [{ path: '/', method: RequestMethod.GET }],
+  });
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle('OISO API')

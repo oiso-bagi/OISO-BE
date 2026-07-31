@@ -10,7 +10,7 @@ import { RecommendationService } from '@/recommendation/services/recommendation.
 import { RecommendedRouteListResponseDto } from '@/route/dto/recommended-route-list-response.dto';
 
 @ApiRecommendationControllerDocs()
-@Controller('api/v1/recommended-routes')
+@Controller('recommended-routes')
 export class RecommendationController {
   constructor(private readonly recommendationService: RecommendationService) {}
 

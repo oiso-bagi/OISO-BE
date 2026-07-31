@@ -5,7 +5,7 @@ import { AuthGuard } from '@/common/guards/auth.guard';
 import { HomeSummaryResponseDto } from '@/home/dto/home-summary-response.dto';
 import { HomeService } from '@/home/services/home.service';
 
-@Controller('api/v1/home')
+@Controller('home')
 @UseGuards(AuthGuard)
 export class HomeController {
   constructor(private readonly homeService: HomeService) {}

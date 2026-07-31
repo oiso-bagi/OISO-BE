@@ -40,7 +40,7 @@ import { CurrentUser } from '@/common/decorators/current-user.decorator';
 import { AuthGuard } from '@/common/guards/auth.guard';
 
 @ApiAuthControllerDocs()
-@Controller('api/v1')
+@Controller()
 export class AuthController {
   constructor(
     private readonly authService: AuthService,

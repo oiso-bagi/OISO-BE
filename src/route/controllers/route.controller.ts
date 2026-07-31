@@ -3,7 +3,7 @@ import { RecommendedRouteDetailResponseDto } from '@/route/dto/recommended-route
 import { RecommendedRouteListResponseDto } from '@/route/dto/recommended-route-list-response.dto';
 import { RouteService } from '@/route/services/route.service';
 
-@Controller('api/v1/recommended-routes')
+@Controller('recommended-routes')
 export class RouteController {
   constructor(private readonly routeService: RouteService) {}
 
