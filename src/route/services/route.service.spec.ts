@@ -7,6 +7,7 @@ describe('RouteService', () => {
   const mockRouteRepository = {
     findDetailWithStopsAndPlace: jest.fn(),
     findListWithStops: jest.fn(),
+    findRecommendedCandidates: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -92,4 +93,77 @@ describe('RouteService', () => {
     ]);
     expect(result[0]).not.toHaveProperty('stops');
   });
+
+  it('returns top 3 budget based recommendations ordered by calculated score', async () => {
+    mockRouteRepository.findRecommendedCandidates.mockResolvedValue([
+      createBudgetCandidate('route-low', 30),
+      createBudgetCandidate('route-high', 90),
+      createBudgetCandidate('route-mid', 60),
+      createBudgetCandidate('route-extra', 20),
+    ]);
+
+    const result = await service.getBudgetRecommendedRoutes({
+      budget: 100000,
+      ratios: {
+        foodRatio: 0.4,
+        experienceRatio: 0.4,
+        transportRatio: 0.2,
+      },
+      themeSlugs: [' local-food ', 'local-food'],
+    });
+
+    expect(mockRouteRepository.findRecommendedCandidates).toHaveBeenCalledWith(
+      100000,
+      ['local-food'],
+    );
+    expect(result.map((route) => route.id)).toEqual([
+      'route-high',
+      'route-mid',
+      'route-low',
+    ]);
+    expect(result[0].score).toBe(90);
+  });
+
+  it('throws BadRequestException when budget recommendation ratios do not sum to 1', async () => {
+    await expect(
+      service.getBudgetRecommendedRoutes({
+        budget: 100000,
+        ratios: {
+          foodRatio: 0.5,
+          experienceRatio: 0.4,
+          transportRatio: 0.2,
+        },
+      }),
+    ).rejects.toThrow('비용 분배 비율');
+
+    expect(
+      mockRouteRepository.findRecommendedCandidates,
+    ).not.toHaveBeenCalled();
+  });
+});
+
+const createBudgetCandidate = (id: string, score: number) => ({
+  id,
+  name: `추천 루트 ${id}`,
+  totalDistanceMeters: 3200,
+  estimatedSavingsWon: 1000,
+  score,
+  routeType: 'RECOMMENDED',
+  congestionLevel: 'MEDIUM',
+  estimatedCostWon: 100000,
+  foodCostWon: 40000,
+  experienceCostWon: 40000,
+  transportCostWon: 20000,
+  totalDifficultyScore: 0,
+  stops: [
+    {
+      orderIndex: 0,
+      transitType: 'BUS',
+      travelMinutesFromPrev: 20,
+      stayMinutes: 10,
+      fareWon: 1500,
+      estimatedPriceWon: 9000,
+      place: null,
+    },
+  ],
 });

@@ -7,6 +7,7 @@ describe('RouteController', () => {
   const mockRouteService = {
     getRecommendedRouteList: jest.fn(),
     getRecommendedRouteDetail: jest.fn(),
+    getBudgetRecommendedRoutes: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -48,5 +49,26 @@ describe('RouteController', () => {
 
     await expect(controller.getList()).resolves.toEqual(payload);
     expect(mockRouteService.getRecommendedRouteList).toHaveBeenCalledTimes(1);
+  });
+
+  it('delegates budget based recommendation retrieval to service', async () => {
+    const body = {
+      budget: 100000,
+      ratios: {
+        foodRatio: 0.4,
+        experienceRatio: 0.4,
+        transportRatio: 0.2,
+      },
+      themeSlugs: ['local-food'],
+    };
+    const payload = [{ id: 'route-1', name: '부산 예산 추천 루트' }];
+    mockRouteService.getBudgetRecommendedRoutes.mockResolvedValue(payload);
+
+    await expect(controller.getBudgetRecommendedRoutes(body)).resolves.toEqual(
+      payload,
+    );
+    expect(mockRouteService.getBudgetRecommendedRoutes).toHaveBeenCalledWith(
+      body,
+    );
   });
 });
