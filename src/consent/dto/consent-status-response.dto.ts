@@ -1,19 +1,54 @@
+import { ApiProperty } from '@nestjs/swagger';
 import { ConsentType, UserConsent } from '@prisma/client';
 
 const REQUIRED_CONSENT_TYPES: ConsentType[] = ['TERMS', 'PRIVACY', 'AGE'];
 
-export interface ConsentItemResponse {
-  type: ConsentType;
-  scope: UserConsent['scope'];
-  isAgreed: boolean;
-  version: string;
-  agreedAt: Date;
-  revokedAt: Date | null;
+export class ConsentItemResponse {
+  @ApiProperty({
+    description: '약관 유형',
+    enum: ConsentType,
+    example: ConsentType.TERMS,
+  })
+  type!: ConsentType;
+
+  @ApiProperty({
+    description: '필수/선택 약관 구분',
+    example: 'REQUIRED',
+  })
+  scope!: UserConsent['scope'];
+
+  @ApiProperty({ description: '해당 약관 동의 여부', example: true })
+  isAgreed!: boolean;
+
+  @ApiProperty({ description: '동의한 약관 문서 버전', example: 'v1.0.0' })
+  version!: string;
+
+  @ApiProperty({
+    description: '동의 일시',
+    example: '2026-08-01T00:00:00.000Z',
+  })
+  agreedAt!: Date;
+
+  @ApiProperty({
+    description: '철회 일시. 동의 상태이면 null입니다.',
+    example: null,
+    nullable: true,
+  })
+  revokedAt!: Date | null;
 }
 
 /// 약관 동의 현황 조회/제출 응답 형태입니다.
 export class ConsentStatusResponseDto {
+  @ApiProperty({
+    description: '필수 약관(이용약관/개인정보/만 14세) 동의 완료 여부',
+    example: true,
+  })
   hasCompletedRequiredConsents!: boolean; /// 필수 약관(이용약관/개인정보/만 14세) 동의 완료 여부
+
+  @ApiProperty({
+    description: '유저의 약관별 동의 이력 목록',
+    type: [ConsentItemResponse],
+  })
   consents!: ConsentItemResponse[]; /// 유저의 약관별 동의 이력 목록
 
   static from(consents: ConsentItemResponse[]): ConsentStatusResponseDto {
