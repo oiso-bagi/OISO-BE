@@ -36,7 +36,7 @@ export class BudgetRecommendRouteRequestDto {
     format: 'int32',
     minimum: 10000,
     maximum: 500000,
-    type: Number,
+    type: 'integer',
   })
   budget!: number;
 

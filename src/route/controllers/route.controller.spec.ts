@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { RouteController } from '@/route/controllers/route.controller';
 import { RouteService } from '@/route/services/route.service';
 
@@ -70,5 +71,38 @@ describe('RouteController', () => {
     expect(mockRouteService.getBudgetRecommendedRoutes).toHaveBeenCalledWith(
       body,
     );
+  });
+
+  it('documents budget recommendation budget as an int32 integer range', async () => {
+    const module = await Test.createTestingModule({
+      controllers: [RouteController],
+      providers: [
+        {
+          provide: RouteService,
+          useValue: mockRouteService,
+        },
+      ],
+    }).compile();
+    const app = module.createNestApplication();
+
+    const document = SwaggerModule.createDocument(
+      app,
+      new DocumentBuilder().build(),
+    );
+    const budgetSchema =
+      document.components?.schemas?.BudgetRecommendRouteRequestDto?.[
+        'properties'
+      ]?.['budget'];
+
+    expect(budgetSchema).toEqual(
+      expect.objectContaining({
+        type: 'integer',
+        format: 'int32',
+        minimum: 10000,
+        maximum: 500000,
+      }),
+    );
+
+    await app.close();
   });
 });
