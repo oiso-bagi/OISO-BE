@@ -145,7 +145,7 @@ export class RouteService {
       throw new BadRequestException('요청 바디는 객체여야 합니다.');
     }
 
-    return body;
+    return body as BudgetRecommendRouteRequestDto;
   }
 
   private validateBudget(value: unknown): number {

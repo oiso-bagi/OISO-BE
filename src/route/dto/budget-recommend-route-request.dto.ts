@@ -6,21 +6,21 @@ export class BudgetRatiosDto {
     example: 0.4,
     type: Number,
   })
-  foodRatio?: number;
+  foodRatio!: number;
 
   @ApiProperty({
     description: '체험/관광비 선호 비율. 0부터 1 사이 값입니다.',
     example: 0.4,
     type: Number,
   })
-  experienceRatio?: number;
+  experienceRatio!: number;
 
   @ApiProperty({
     description: '교통비 선호 비율. 0부터 1 사이 값입니다.',
     example: 0.2,
     type: Number,
   })
-  transportRatio?: number;
+  transportRatio!: number;
 }
 
 export class BudgetRecommendRouteRequestDto {
@@ -29,7 +29,7 @@ export class BudgetRecommendRouteRequestDto {
     example: 100000,
     type: Number,
   })
-  budget?: number;
+  budget!: number;
 
   @ApiProperty({
     description:
