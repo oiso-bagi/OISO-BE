@@ -89,10 +89,25 @@ describe('RouteController', () => {
       app,
       new DocumentBuilder().build(),
     );
-    const budgetSchema =
-      document.components?.schemas?.BudgetRecommendRouteRequestDto?.[
-        'properties'
-      ]?.['budget'];
+    const requestSchema = getRecordValue(
+      document.components?.schemas,
+      'BudgetRecommendRouteRequestDto',
+    );
+
+    if (!isRecord(requestSchema)) {
+      throw new Error(
+        'BudgetRecommendRouteRequestDto schema was not generated',
+      );
+    }
+
+    const budgetSchema = getRecordValue(
+      getRecordValue(requestSchema, 'properties'),
+      'budget',
+    );
+
+    if (!isRecord(budgetSchema)) {
+      throw new Error('budget schema was not generated');
+    }
 
     expect(budgetSchema).toEqual(
       expect.objectContaining({
@@ -106,3 +121,9 @@ describe('RouteController', () => {
     await app.close();
   });
 });
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const getRecordValue = (value: unknown, key: string): unknown =>
+  isRecord(value) ? value[key] : undefined;
