@@ -1,9 +1,34 @@
+import { ApiProperty } from '@nestjs/swagger';
+
 export class SavedRouteSummaryItemDto {
+  @ApiProperty({
+    description: '사용자 ID와 루트 ID를 조합한 저장 루트 요약 ID',
+    example: 'user-1_route-101',
+  })
   id!: string;
+
+  @ApiProperty({ description: '저장된 루트 ID', example: 'route-101' })
   routeId!: string;
+
+  @ApiProperty({
+    description: '저장된 루트 이름',
+    example: '부산 해안 산책 코스',
+  })
   name!: string;
+
+  @ApiProperty({
+    description: '루트 저장 일시',
+    example: '2026-07-30T10:00:00.000Z',
+  })
   savedAt!: Date;
+
+  @ApiProperty({
+    description: '해당 루트의 예상 절약 금액(원)',
+    example: 15000,
+  })
   savingsWon!: number;
+
+  @ApiProperty({ description: '총 이동 거리(km)', example: 8.5 })
   totalDistanceKm!: number;
 
   static from(savedRoute: {

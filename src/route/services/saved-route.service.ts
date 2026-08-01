@@ -3,16 +3,19 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { SavedRouteRepository } from './saved-route.repository';
-import { SavedRouteListResponseDto } from './dto/saved-route-list-response.dto';
-import { SavedRouteDetailResponseDto } from './dto/saved-route-detail-response.dto';
+import { SavedRouteDetailResponseDto } from '@/route/dto/saved-route-detail-response.dto';
+import { SavedRouteListResponseDto } from '@/route/dto/saved-route-list-response.dto';
+import { SavedRouteRepository } from '@/route/repositories/saved-route.repository';
 
 @Injectable()
 export class SavedRouteService {
   constructor(private readonly savedRouteRepository: SavedRouteRepository) {}
 
-  async getSavedRouteList(userId?: string): Promise<SavedRouteListResponseDto> {
-    const rawList = await this.savedRouteRepository.findListByUserId(userId);
+  async getSavedRouteList(userId: string): Promise<SavedRouteListResponseDto> {
+    const normalizedUserId = this.validateUserId(userId);
+    const rawList =
+      await this.savedRouteRepository.findListByUserId(normalizedUserId);
+
     return SavedRouteListResponseDto.from(rawList);
   }
 

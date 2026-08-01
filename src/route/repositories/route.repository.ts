@@ -1,8 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { Prisma } from '@prisma/client';
+import { CongestionLevel, Prisma, RouteType } from '@prisma/client';
+import { PrismaService } from '@/prisma/prisma.service';
 
-// Prisma validator Pattern for route detail
 const routeWithStopsAndPlaceSelect = Prisma.validator<Prisma.RouteSelect>()({
   id: true,
   name: true,
@@ -36,7 +35,6 @@ const routeWithStopsAndPlaceSelect = Prisma.validator<Prisma.RouteSelect>()({
   },
 });
 
-// Prisma validator Pattern for route list (excludes unused place fields like category, openTime, closeTime)
 const routeListSelect = Prisma.validator<Prisma.RouteSelect>()({
   id: true,
   name: true,
@@ -71,10 +69,6 @@ const routeListSelect = Prisma.validator<Prisma.RouteSelect>()({
 export class RouteRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  /**
-   * 추천 루트의 상세 내역과 함께 엮여있는 경유지 정보(Stops) 및 장소(Place) 정보까지
-   * N+1 문제를 방지하며 통째로 조인(include)하여 조회합니다.
-   */
   async findDetailWithStopsAndPlace(id: string) {
     return this.prisma.route.findUnique({
       where: { id },
@@ -85,19 +79,16 @@ export class RouteRepository {
   async findListWithStops() {
     return this.prisma.route.findMany({
       where: {
-        routeType: 'RECOMMENDED',
+        routeType: RouteType.RECOMMENDED,
         isPublished: true,
       },
       select: routeListSelect,
     });
   }
 
-  /**
-   * 1단계 Hard Filter: 사용자의 예산(budget) 및 선호 테마(themeSlugs) 조건에 부합하는 후보군을 Take 50으로 선별 조회합니다.
-   */
   async findRecommendedCandidates(budget: number, themeSlugs?: string[]) {
     const whereCondition: Prisma.RouteWhereInput = {
-      routeType: 'RECOMMENDED',
+      routeType: RouteType.RECOMMENDED,
       isPublished: true,
       estimatedCostWon: {
         lte: budget,
@@ -122,9 +113,6 @@ export class RouteRepository {
       select: {
         id: true,
         name: true,
-        summary: true,
-        region: true,
-        description: true,
         routeType: true,
         congestionLevel: true,
         score: true,
@@ -132,10 +120,7 @@ export class RouteRepository {
         foodCostWon: true,
         experienceCostWon: true,
         transportCostWon: true,
-        tpiIndex: true,
-        totalElevationGainMeters: true,
         totalDifficultyScore: true,
-        estimatedDurationMin: true,
         totalDistanceMeters: true,
         estimatedSavingsWon: true,
         stops: {
@@ -149,15 +134,9 @@ export class RouteRepository {
             stayMinutes: true,
             fareWon: true,
             estimatedPriceWon: true,
-            elevationGainMeters: true,
-            difficultyScore: true,
             place: {
               select: {
-                id: true,
                 name: true,
-                category: true,
-                openTime: true,
-                closeTime: true,
                 latitude: true,
                 longitude: true,
               },
@@ -165,6 +144,20 @@ export class RouteRepository {
           },
         },
       },
+    });
+  }
+
+  findPublishedRecommendedRouteCongestionTargets() {
+    return this.prisma.route.findMany({
+      where: { routeType: RouteType.RECOMMENDED, isPublished: true },
+      select: { id: true, region: true },
+    });
+  }
+
+  updateRouteCongestionLevel(id: string, congestionLevel: CongestionLevel) {
+    return this.prisma.route.update({
+      where: { id },
+      data: { congestionLevel },
     });
   }
 }

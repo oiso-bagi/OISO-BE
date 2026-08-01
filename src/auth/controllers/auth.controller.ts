@@ -17,6 +17,17 @@ import {
   OAUTH_STATE_COOKIE,
   REFRESH_TOKEN_COOKIE,
 } from '@/auth/auth.constants';
+import {
+  ApiAuthControllerDocs,
+  ApiGetCurrentUserDocs,
+  ApiGetSessionDocs,
+  ApiHandleGoogleCallbackDocs,
+  ApiHandleKakaoCallbackDocs,
+  ApiLogoutDocs,
+  ApiRedirectToGoogleDocs,
+  ApiRedirectToKakaoDocs,
+  ApiRefreshAccessTokenDocs,
+} from '@/auth/docs/auth-swagger.docs';
 import { AuthSessionResponseDto } from '@/auth/dto/auth-session-response.dto';
 import { AuthTokenResponseDto } from '@/auth/dto/auth-token-response.dto';
 import { CurrentUserResponseDto } from '@/auth/dto/current-user-response.dto';
@@ -28,7 +39,8 @@ import { OAuthFlowService } from '@/auth/services/oauth-flow.service';
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
 import { AuthGuard } from '@/common/guards/auth.guard';
 
-@Controller('api/v1')
+@ApiAuthControllerDocs()
+@Controller()
 export class AuthController {
   constructor(
     private readonly authService: AuthService,
@@ -39,6 +51,7 @@ export class AuthController {
   ) {}
 
   @Get('auth/kakao/login')
+  @ApiRedirectToKakaoDocs()
   redirectToKakao(
     @Query('returnUrl') returnUrl: unknown,
     @Res() response: Response,
@@ -49,6 +62,7 @@ export class AuthController {
   }
 
   @Get('auth/kakao/callback')
+  @ApiHandleKakaoCallbackDocs()
   async handleKakaoCallback(
     @Query('code') code: unknown,
     @Query('state') state: unknown,
@@ -70,6 +84,7 @@ export class AuthController {
   }
 
   @Get('auth/google/login')
+  @ApiRedirectToGoogleDocs()
   redirectToGoogle(
     @Query('returnUrl') returnUrl: unknown,
     @Res() response: Response,
@@ -80,6 +95,7 @@ export class AuthController {
   }
 
   @Get('auth/google/callback')
+  @ApiHandleGoogleCallbackDocs()
   async handleGoogleCallback(
     @Query('code') code: unknown,
     @Query('state') state: unknown,
@@ -102,12 +118,14 @@ export class AuthController {
 
   @Get('me')
   @UseGuards(AuthGuard)
+  @ApiGetCurrentUserDocs()
   getCurrentUser(@CurrentUser() user: User): CurrentUserResponseDto {
     return CurrentUserResponseDto.from(user);
   }
 
   @Post('auth/refresh')
   @HttpCode(200)
+  @ApiRefreshAccessTokenDocs()
   async refreshAccessToken(
     @Req() request: Request,
   ): Promise<AuthTokenResponseDto> {
@@ -120,6 +138,7 @@ export class AuthController {
   }
 
   @Get('auth/session')
+  @ApiGetSessionDocs()
   async getSession(@Req() request: Request): Promise<AuthSessionResponseDto> {
     const cookies = this.authCookieService.parseCookies(request);
     const authenticated = await this.authService.hasAuthenticatedSession(
@@ -131,6 +150,7 @@ export class AuthController {
 
   @Post('auth/logout')
   @HttpCode(204)
+  @ApiLogoutDocs()
   logout(@Res() response: Response): void {
     response.clearCookie(
       ACCESS_TOKEN_COOKIE,

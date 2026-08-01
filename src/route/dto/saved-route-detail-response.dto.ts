@@ -1,9 +1,15 @@
-import { CongestionLevel, RouteType, TransitType } from '@prisma/client';
+import { ApiProperty } from '@nestjs/swagger';
+import {
+  CongestionLevel,
+  PlaceCategory,
+  RouteType,
+  TransitType,
+} from '@prisma/client';
 import {
   buildRouteMetrics,
   RouteStopWithPlace,
   RouteWithStops,
-} from './recommended-route-detail-response.dto';
+} from '@/route/dto/recommended-route-detail-response.dto';
 
 export type SavedRouteDetailRawData = {
   savedAt: Date;
@@ -13,15 +19,53 @@ export type SavedRouteDetailRawData = {
 };
 
 export class SavedRouteStopDetailDto {
-  sequence: number;
-  placeName: string;
-  category: string;
-  openTime: string | null;
-  closeTime: string | null;
-  nextTransportType: TransitType | null;
-  nextTravelTimeMinutes: number | null;
-  latitude: number | null;
-  longitude: number | null;
+  @ApiProperty({ description: '경유지 순서', example: 1 })
+  sequence = 0;
+
+  @ApiProperty({ description: '장소 이름', example: '광안리해수욕장' })
+  placeName = '';
+
+  @ApiProperty({
+    description: '장소 카테고리',
+    enum: PlaceCategory,
+    example: PlaceCategory.NATURE,
+  })
+  category = '';
+
+  @ApiProperty({
+    description: '장소 영업 시작 시간',
+    example: '09:00',
+    nullable: true,
+  })
+  openTime: string | null = null;
+
+  @ApiProperty({
+    description: '장소 영업 종료 시간',
+    example: '21:00',
+    nullable: true,
+  })
+  closeTime: string | null = null;
+
+  @ApiProperty({
+    description: '다음 경유지까지 이동 수단',
+    enum: TransitType,
+    example: 'BUS',
+    nullable: true,
+  })
+  nextTransportType: TransitType | null = null;
+
+  @ApiProperty({
+    description: '다음 경유지까지 예상 이동 시간(분)',
+    example: 15,
+    nullable: true,
+  })
+  nextTravelTimeMinutes: number | null = null;
+
+  @ApiProperty({ description: '장소 위도', example: 35.1532, nullable: true })
+  latitude: number | null = null;
+
+  @ApiProperty({ description: '장소 경도', example: 129.1187, nullable: true })
+  longitude: number | null = null;
 
   static from(stop: RouteStopWithPlace): SavedRouteStopDetailDto {
     const dto = new SavedRouteStopDetailDto();
@@ -43,34 +87,93 @@ export class SavedRouteStopDetailDto {
 }
 
 export class SavedRouteDetailResponseDto {
-  routeId: string;
-  routeName: string;
-  savedAt: Date;
-  isCompleted: boolean;
-  stopCount: number;
-  totalDistanceKm: number;
-  transportType: string;
-  congestionLevel: CongestionLevel;
-  savedCost: number;
-  recommendScore: number;
-  isRecommended: boolean;
-  isSaved: boolean;
+  @ApiProperty({ description: '저장 루트 ID', example: 'route_001' })
+  routeId = '';
 
-  totalCost: number;
-  totalTimeMinutes: number;
-  totalTimeDisplay: string;
+  @ApiProperty({
+    description: '저장 루트 이름',
+    example: '부산 바다 감성 코스',
+  })
+  routeName = '';
 
+  @ApiProperty({
+    description: '저장 일시',
+    example: '2026-08-01T00:00:00.000Z',
+  })
+  savedAt = new Date(0);
+
+  @ApiProperty({ description: '여행 완료 여부', example: false })
+  isCompleted = false;
+
+  @ApiProperty({ description: '경유지 수', example: 4 })
+  stopCount = 0;
+
+  @ApiProperty({ description: '총 이동 거리(km)', example: 8.5 })
+  totalDistanceKm = 0;
+
+  @ApiProperty({ description: '대표 이동 수단', example: 'WALKING + BUS' })
+  transportType = '';
+
+  @ApiProperty({
+    description: '예상 혼잡도',
+    enum: CongestionLevel,
+    example: 'MEDIUM',
+  })
+  congestionLevel: CongestionLevel = CongestionLevel.MEDIUM;
+
+  @ApiProperty({ description: '예상 절약 금액(원)', example: 15000 })
+  savedCost = 0;
+
+  @ApiProperty({ description: '추천 점수', example: 87.5 })
+  recommendScore = 0;
+
+  @ApiProperty({ description: '추천 루트 여부', example: true })
+  isRecommended = false;
+
+  @ApiProperty({ description: '사용자 저장 여부', example: true })
+  isSaved = false;
+
+  @ApiProperty({ description: '예상 총 비용(원)', example: 42000 })
+  totalCost = 0;
+
+  @ApiProperty({ description: '예상 총 소요 시간(분)', example: 180 })
+  totalTimeMinutes = 0;
+
+  @ApiProperty({ description: '예상 총 소요 시간 표시값', example: '3h 0m' })
+  totalTimeDisplay = '';
+
+  @ApiProperty({
+    description: '비용 메타 정보',
+    example: { transportCost: 2500, placeCost: 39500 },
+  })
   metaCost: {
     transportCost: number;
     placeCost: number;
+  } = {
+    transportCost: 0,
+    placeCost: 0,
   };
+
+  @ApiProperty({
+    description: '시간 메타 정보',
+    example: { pureTravelTime: 45, stayTime: 135 },
+  })
   metaTime: {
     pureTravelTime: number;
     stayTime: number;
+  } = {
+    pureTravelTime: 0,
+    stayTime: 0,
   };
 
-  estimatedSavingsWon: number;
-  stops: SavedRouteStopDetailDto[];
+  @ApiProperty({ description: '예상 절약 금액(원)', example: 15000 })
+  estimatedSavingsWon = 0;
+
+  @ApiProperty({
+    description: '저장 루트 경유지 상세 목록',
+    type: [SavedRouteStopDetailDto],
+  })
+  stops: SavedRouteStopDetailDto[] = [];
 
   static from(rawData: SavedRouteDetailRawData): SavedRouteDetailResponseDto {
     const dto = new SavedRouteDetailResponseDto();

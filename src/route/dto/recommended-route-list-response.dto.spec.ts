@@ -1,6 +1,6 @@
 import { CongestionLevel, Prisma, TransitType } from '@prisma/client';
-import { RouteWithStops } from './recommended-route-detail-response.dto';
-import { RecommendedRouteListResponseDto } from './recommended-route-list-response.dto';
+import { RouteWithStops } from '@/route/dto/recommended-route-detail-response.dto';
+import { RecommendedRouteListResponseDto } from '@/route/dto/recommended-route-list-response.dto';
 
 describe('RecommendedRouteListResponseDto', () => {
   it('calculates summary metrics without exposing stops', () => {

@@ -2,6 +2,7 @@
 
 import {
   InternalServerErrorException,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -25,6 +26,7 @@ describe('AuthTokenService', () => {
 
   afterEach(() => {
     jest.useRealTimers();
+    jest.restoreAllMocks();
     process.env = originalEnv;
   });
 
@@ -94,9 +96,24 @@ describe('AuthTokenService', () => {
 
   it('requires access token secret config', () => {
     delete process.env.JWT_ACCESS_SECRET;
+    const loggerSpy = jest
+      .spyOn(Logger.prototype, 'error')
+      .mockImplementation();
+    let thrownError: unknown;
 
-    expect(() => service.issueAccessToken('user-id', 'kakao')).toThrow(
-      InternalServerErrorException,
+    try {
+      service.issueAccessToken('user-id', 'kakao');
+    } catch (error) {
+      thrownError = error;
+    }
+
+    expect(thrownError).toBeInstanceOf(InternalServerErrorException);
+    expect((thrownError as Error).message).toBe(
+      '서버 설정 오류가 발생했습니다.',
+    );
+    expect((thrownError as Error).message).not.toContain('JWT_ACCESS_SECRET');
+    expect(loggerSpy).toHaveBeenCalledWith(
+      'Required environment variable is missing: JWT_ACCESS_SECRET',
     );
   });
 });

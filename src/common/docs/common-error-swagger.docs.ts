@@ -1,0 +1,251 @@
+import type { OpenAPIObject } from '@nestjs/swagger';
+import { STATUS_CODES } from 'http';
+
+type OpenApiMediaTypeObject = {
+  schema?: Record<string, unknown>;
+  example?: Record<string, unknown>;
+  examples?: Record<string, unknown>;
+};
+
+type OpenApiResponseObject = {
+  description?: string;
+  content?: Record<string, OpenApiMediaTypeObject>;
+};
+
+type OpenApiReferenceObject = {
+  $ref: string;
+};
+
+type OpenApiOperationObject = {
+  responses?: Record<
+    string,
+    OpenApiReferenceObject | OpenApiResponseObject | undefined
+  >;
+};
+
+const ERROR_RESPONSE_SCHEMA_NAME = 'CommonErrorResponse';
+const ERROR_RESPONSE_SCHEMA_REF = `#/components/schemas/${ERROR_RESPONSE_SCHEMA_NAME}`;
+
+const commonErrorResponseSchema = {
+  type: 'object',
+  required: ['statusCode', 'timestamp', 'path', 'method', 'message', 'error'],
+  properties: {
+    statusCode: {
+      type: 'number',
+      example: 400,
+      description: 'HTTP status code',
+    },
+    timestamp: {
+      type: 'string',
+      format: 'date-time',
+      example: '2026-08-01T00:00:00.000Z',
+      description: 'Error response timestamp',
+    },
+    path: {
+      type: 'string',
+      example: '/api/v1/recommended-routes/%20',
+      description: 'Request path',
+    },
+    method: {
+      type: 'string',
+      example: 'GET',
+      description: 'HTTP method',
+    },
+    message: {
+      oneOf: [
+        {
+          type: 'string',
+          example: '추천 루트 ID는 비어 있을 수 없습니다.',
+        },
+        {
+          type: 'array',
+          items: {
+            type: 'string',
+          },
+          example: ['dailyBudgetWon은 안전한 양의 정수여야 합니다.'],
+        },
+      ],
+      description: 'Error message',
+    },
+    error: {
+      type: 'string',
+      example: 'Bad Request',
+      description: 'HTTP error name',
+    },
+  },
+};
+
+const commonInternalServerErrorResponse: OpenApiResponseObject = {
+  description:
+    'Unexpected server error. Internal details are not exposed in API responses.',
+  content: {
+    'application/json': {
+      schema: {
+        $ref: ERROR_RESPONSE_SCHEMA_REF,
+      },
+      examples: {
+        internalServerError: {
+          summary: '서버 내부 오류가 발생했습니다.',
+          value: {
+            statusCode: 500,
+            timestamp: '2026-08-01T00:00:00.000Z',
+            path: '/api/v1/example',
+            method: 'GET',
+            message: '서버 내부 오류가 발생했습니다.',
+            error: 'Internal Server Error',
+          },
+        },
+      },
+    },
+  },
+};
+
+export const applyCommonErrorResponsesToDocument = (
+  document: OpenAPIObject,
+): OpenAPIObject => {
+  document.components = document.components ?? {};
+  document.components.schemas = {
+    ...document.components.schemas,
+    [ERROR_RESPONSE_SCHEMA_NAME]: commonErrorResponseSchema,
+  };
+
+  for (const [path, pathItem] of Object.entries(document.paths)) {
+    if (!pathItem) {
+      continue;
+    }
+
+    for (const [method, operation] of Object.entries(pathItem)) {
+      if (!isOperationObject(operation)) {
+        continue;
+      }
+
+      operation.responses = operation.responses ?? {};
+
+      for (const [statusCode, response] of Object.entries(
+        operation.responses,
+      )) {
+        if (
+          response &&
+          isErrorStatusCode(statusCode) &&
+          isResponseObject(response)
+        ) {
+          attachCommonErrorSchema({
+            response,
+            statusCode: Number(statusCode),
+            path,
+            method,
+          });
+        }
+      }
+
+      if (!operation.responses['500']) {
+        operation.responses['500'] = createCommonInternalServerErrorResponse({
+          path,
+          method,
+        });
+      }
+    }
+  }
+
+  return document;
+};
+
+const isErrorStatusCode = (statusCode: string): boolean => {
+  const numericStatusCode = Number(statusCode);
+
+  return (
+    Number.isInteger(numericStatusCode) &&
+    numericStatusCode >= 400 &&
+    numericStatusCode < 600
+  );
+};
+
+const isOperationObject = (value: unknown): value is OpenApiOperationObject =>
+  Boolean(value && typeof value === 'object' && 'responses' in value);
+
+const isResponseObject = (
+  value: OpenApiReferenceObject | OpenApiResponseObject,
+): value is OpenApiResponseObject => 'description' in value;
+
+const attachCommonErrorSchema = ({
+  response,
+  statusCode,
+  path,
+  method,
+}: {
+  response: OpenApiResponseObject;
+  statusCode: number;
+  path: string;
+  method: string;
+}): void => {
+  response.content = response.content ?? {};
+  response.content['application/json'] =
+    response.content['application/json'] ?? {};
+  response.content['application/json'].schema = {
+    $ref: ERROR_RESPONSE_SCHEMA_REF,
+  };
+  if (
+    !response.content['application/json'].example &&
+    !response.content['application/json'].examples
+  ) {
+    response.content['application/json'].example = createErrorExample({
+      statusCode,
+      path,
+      method,
+    });
+  }
+};
+
+const createCommonInternalServerErrorResponse = ({
+  path,
+  method,
+}: {
+  path: string;
+  method: string;
+}): OpenApiResponseObject => ({
+  ...commonInternalServerErrorResponse,
+  content: {
+    'application/json': {
+      schema: {
+        $ref: ERROR_RESPONSE_SCHEMA_REF,
+      },
+      example: createErrorExample({
+        statusCode: 500,
+        path,
+        method,
+      }),
+    },
+  },
+});
+
+const createErrorExample = ({
+  statusCode,
+  path,
+  method,
+}: {
+  statusCode: number;
+  path: string;
+  method: string;
+}) => {
+  const errorName = getErrorName(statusCode);
+
+  return {
+    statusCode,
+    timestamp: '2026-08-01T00:00:00.000Z',
+    path,
+    method: method.toUpperCase(),
+    message:
+      statusCode === 500
+        ? '서버 내부 오류가 발생했습니다.'
+        : `${errorName} 오류가 발생했습니다.`,
+    error: errorName,
+  };
+};
+
+const getErrorName = (statusCode: number): string => {
+  const reasonPhrase = STATUS_CODES[statusCode];
+
+  return (
+    reasonPhrase ?? (statusCode >= 500 ? 'Internal Server Error' : 'Error')
+  );
+};

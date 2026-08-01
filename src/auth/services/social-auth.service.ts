@@ -67,9 +67,7 @@ export class SocialAuthService {
         return this.toSocialLoginResult(user, true);
       } catch (error: unknown) {
         if (this.isUniqueConstraintError(error, 'email')) {
-          throw new ConflictException(
-            'Email is already linked to another account.',
-          );
+          throw new ConflictException('이미 다른 계정에 연결된 이메일입니다.');
         }
 
         if (!this.isUniqueConstraintError(error)) {
@@ -93,7 +91,7 @@ export class SocialAuthService {
       }
     }
 
-    throw new ConflictException('Available nickname was not found.');
+    throw new ConflictException('사용 가능한 닉네임을 찾을 수 없습니다.');
   }
 
   private async updateSocialUserHandlingEmailConflict(
@@ -127,7 +125,7 @@ export class SocialAuthService {
     const baseNickname = nickname.trim();
 
     if (!baseNickname) {
-      throw new BadRequestException('Nickname is required.');
+      throw new BadRequestException('닉네임이 필요합니다.');
     }
 
     return baseNickname;
@@ -158,7 +156,7 @@ export class SocialAuthService {
       return error;
     }
 
-    return new Error(`Unexpected error occurred while ${action}.`);
+    return new Error(`${action} 중 예상하지 못한 오류가 발생했습니다.`);
   }
 
   private issueTokens(

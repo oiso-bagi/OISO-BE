@@ -1,9 +1,8 @@
 {
   "compilerOptions": {
     "tsBuildInfoFile": "./dist/tsconfig.tsbuildinfo",
-    "module": "commonjs",
-    "moduleResolution": "node",
-    "baseUrl": "./",
+    "module": "Node16",
+    "moduleResolution": "node16",
     "esModuleInterop": true,
     "isolatedModules": true,
     "declaration": true,

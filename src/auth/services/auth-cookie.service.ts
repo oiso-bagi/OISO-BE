@@ -72,7 +72,7 @@ export class AuthCookieService {
     storedState: string | undefined,
   ): void {
     if (!state || !storedState || !this.isEqual(state, storedState)) {
-      throw new BadRequestException('Invalid OAuth state.');
+      throw new BadRequestException('OAuth state 값이 유효하지 않습니다.');
     }
   }
 
@@ -155,27 +155,27 @@ export class AuthCookieService {
     if (error instanceof BadRequestException) {
       const message = this.getExceptionMessage(error);
 
-      if (message.includes('canceled')) {
-        if (message.includes('Kakao')) {
+      if (message.includes('취소')) {
+        if (message.includes('카카오')) {
           return 'kakao_canceled';
         }
 
-        if (message.includes('Google')) {
+        if (message.includes('구글')) {
           return 'google_canceled';
         }
 
         return 'oauth_canceled';
       }
 
-      if (message.includes('Failed to exchange')) {
+      if (message.includes('토큰으로 교환')) {
         return 'token_exchange_failed';
       }
 
-      if (message.includes('Failed to fetch')) {
+      if (message.includes('프로필 조회')) {
         return 'profile_fetch_failed';
       }
 
-      if (message.includes('authorization code')) {
+      if (message.includes('인증 코드')) {
         return 'missing_code';
       }
 
@@ -183,11 +183,11 @@ export class AuthCookieService {
         return 'invalid_state';
       }
 
-      if (message.includes('email')) {
+      if (message.includes('이메일')) {
         return 'email_required';
       }
 
-      if (message.includes('nickname')) {
+      if (message.includes('닉네임')) {
         return 'nickname_required';
       }
     }
@@ -195,7 +195,7 @@ export class AuthCookieService {
     if (error instanceof ConflictException) {
       const message = this.getExceptionMessage(error);
 
-      if (message.includes('Email') || message === 'email_conflict') {
+      if (message.includes('이메일') || message === 'email_conflict') {
         return 'email_conflict';
       }
     }

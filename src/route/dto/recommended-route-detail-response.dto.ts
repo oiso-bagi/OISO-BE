@@ -1,3 +1,4 @@
+import { ApiProperty } from '@nestjs/swagger';
 import {
   Route,
   RouteStop,
@@ -81,22 +82,57 @@ export function buildRouteMetrics(stops: RouteStopWithPlace[]): RouteMetrics {
 }
 
 export class RouteStopResponseDto {
-  sequence: number;
-  dayNumber: number; // 일차 번호 (프론트엔드 지도 색상 분기용: 1일차, 2일차...)
-  placeName: string;
-  category: string;
-  openTime: string | null;
-  closeTime: string | null;
-  latitude: number | null;
-  longitude: number | null;
-  nextTransportType: TransitType | null;
-  nextTravelTimeMinutes: number | null;
+  @ApiProperty({ description: '경유지 순서', example: 1 })
+  sequence!: number;
+
+  @ApiProperty({ description: '여행 일차 번호', example: 1 })
+  dayNumber!: number;
+
+  @ApiProperty({ description: '장소 이름', example: '광안리해수욕장' })
+  placeName!: string;
+
+  @ApiProperty({ description: '장소 카테고리', example: 'ATTRACTION' })
+  category!: string;
+
+  @ApiProperty({
+    description: '장소 영업 시작 시간',
+    example: '09:00',
+    nullable: true,
+  })
+  openTime!: string | null;
+
+  @ApiProperty({
+    description: '장소 영업 종료 시간',
+    example: '21:00',
+    nullable: true,
+  })
+  closeTime!: string | null;
+
+  @ApiProperty({ description: '장소 위도', example: 35.1532, nullable: true })
+  latitude!: number | null;
+
+  @ApiProperty({ description: '장소 경도', example: 129.1187, nullable: true })
+  longitude!: number | null;
+
+  @ApiProperty({
+    description: '다음 경유지까지 이동 수단',
+    enum: TransitType,
+    example: 'BUS',
+    nullable: true,
+  })
+  nextTransportType!: TransitType | null;
+
+  @ApiProperty({
+    description: '다음 경유지까지 예상 이동 시간(분)',
+    example: 15,
+    nullable: true,
+  })
+  nextTravelTimeMinutes!: number | null;
 
   static from(stop: RouteStopWithPlace): RouteStopResponseDto {
     const dto = new RouteStopResponseDto();
 
     dto.sequence = stop.orderIndex ?? 0;
-    // 저장된 양의 정수 dayNumber만 노출하며, 없을 경우 orderIndex 기반 추론 대신 기본 1일차 지정
     if (
       typeof stop.dayNumber === 'number' &&
       Number.isInteger(stop.dayNumber) &&
@@ -124,31 +160,75 @@ export class RouteStopResponseDto {
 }
 
 export class RecommendedRouteDetailResponseDto {
-  routeId: string;
-  routeName: string;
-  stopCount: number;
-  totalDistanceKm: number;
-  transportType: string;
-  congestionLevel: CongestionLevel;
-  savedCost: number;
-  recommendScore: number;
-  isRecommended: boolean;
-  isSaved: boolean;
+  @ApiProperty({ description: '추천 루트 ID', example: 'route_001' })
+  routeId!: string;
 
-  totalCost: number;
-  totalTimeMinutes: number;
-  totalTimeDisplay: string;
+  @ApiProperty({
+    description: '추천 루트 이름',
+    example: '부산 바다 감성 코스',
+  })
+  routeName!: string;
 
-  metaCost: {
+  @ApiProperty({ description: '경유지 수', example: 4 })
+  stopCount!: number;
+
+  @ApiProperty({ description: '총 이동 거리(km)', example: 8.5 })
+  totalDistanceKm!: number;
+
+  @ApiProperty({ description: '대표 이동 수단', example: 'WALKING + BUS' })
+  transportType!: string;
+
+  @ApiProperty({
+    description: '예상 혼잡도',
+    enum: CongestionLevel,
+    example: 'MEDIUM',
+  })
+  congestionLevel!: CongestionLevel;
+
+  @ApiProperty({ description: '예상 절약 금액(원)', example: 15000 })
+  savedCost!: number;
+
+  @ApiProperty({ description: '추천 점수', example: 87.5 })
+  recommendScore!: number;
+
+  @ApiProperty({ description: '추천 루트 여부', example: true })
+  isRecommended!: boolean;
+
+  @ApiProperty({ description: '사용자 저장 여부', example: false })
+  isSaved!: boolean;
+
+  @ApiProperty({ description: '예상 총 비용(원)', example: 42000 })
+  totalCost!: number;
+
+  @ApiProperty({ description: '예상 총 소요 시간(분)', example: 180 })
+  totalTimeMinutes!: number;
+
+  @ApiProperty({ description: '예상 총 소요 시간 표시값', example: '3h 0m' })
+  totalTimeDisplay!: string;
+
+  @ApiProperty({
+    description: '비용 메타 정보',
+    example: { transportCost: 2500, placeCost: 39500 },
+  })
+  metaCost!: {
     transportCost: number;
     placeCost: number;
   };
-  metaTime: {
+
+  @ApiProperty({
+    description: '시간 메타 정보',
+    example: { pureTravelTime: 45, stayTime: 135 },
+  })
+  metaTime!: {
     pureTravelTime: number;
     stayTime: number;
   };
 
-  stops: RouteStopResponseDto[];
+  @ApiProperty({
+    description: '경유지 상세 목록',
+    type: [RouteStopResponseDto],
+  })
+  stops!: RouteStopResponseDto[];
 
   static from(route: RouteWithStops): RecommendedRouteDetailResponseDto {
     const dto = new RecommendedRouteDetailResponseDto();

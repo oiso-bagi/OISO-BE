@@ -4,17 +4,15 @@ import { RecommendationRepository } from '@/recommendation/repositories/recommen
 
 describe('RecommendationRepository', () => {
   let repository: RecommendationRepository;
-  let findMany: jest.MockedFunction<PrismaService['route']['findMany']>;
+  let findMany: jest.Mock;
 
   beforeEach(() => {
-    findMany = jest.fn() as jest.MockedFunction<
-      PrismaService['route']['findMany']
-    >;
+    findMany = jest.fn();
     const prismaService = {
       route: {
         findMany,
       },
-    } as PrismaService;
+    } as unknown as PrismaService;
     repository = new RecommendationRepository(prismaService);
   });
 
@@ -32,33 +30,33 @@ describe('RecommendationRepository', () => {
     ).resolves.toBe(routes);
 
     expect(findMany).toHaveBeenCalledTimes(1);
-    const findManyArgs = findMany.mock.calls[0]?.[0];
-
-    expect(findManyArgs).toMatchObject({
-      where: {
-        routeType: 'RECOMMENDED',
-        isPublished: true,
-        estimatedCostWon: {
-          lte: 120000,
-        },
-        estimatedDurationMin: {
-          lte: 2880,
-        },
-        stops: {
-          some: {
-            place: {
-              category: {
-                in: [
-                  PlaceCategory.FOOD,
-                  PlaceCategory.MARKET,
-                  PlaceCategory.CAFE,
-                ],
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          routeType: 'RECOMMENDED',
+          isPublished: true,
+          estimatedCostWon: {
+            lte: 120000,
+          },
+          estimatedDurationMin: {
+            lte: 2880,
+          },
+          stops: {
+            some: {
+              place: {
+                category: {
+                  in: [
+                    PlaceCategory.FOOD,
+                    PlaceCategory.MARKET,
+                    PlaceCategory.CAFE,
+                  ],
+                },
               },
             },
           },
         },
-      },
-      take: 10,
-    });
+        take: 10,
+      }),
+    );
   });
 });

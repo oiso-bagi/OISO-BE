@@ -1,8 +1,8 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { SavedRouteService } from './saved-route.service';
-import { SavedRouteRepository } from './saved-route.repository';
-import { SavedRouteRawData } from './dto/saved-route-list-response.dto';
+import { SavedRouteRawData } from '@/route/dto/saved-route-list-response.dto';
+import { SavedRouteRepository } from '@/route/repositories/saved-route.repository';
+import { SavedRouteService } from '@/route/services/saved-route.service';
 
 describe('SavedRouteService', () => {
   let service: SavedRouteService;
@@ -101,6 +101,14 @@ describe('SavedRouteService', () => {
       estimatedSavingsWon: 3500,
     });
     expect(result.savedRoutes[1].isCompleted).toBe(false);
+  });
+
+  it('throws BadRequestException for invalid userId when listing saved routes', async () => {
+    await expect(service.getSavedRouteList('  ')).rejects.toThrow(
+      BadRequestException,
+    );
+
+    expect(mockSavedRouteRepository.findListByUserId).not.toHaveBeenCalled();
   });
 
   it('throws BadRequestException for invalid routeId', async () => {

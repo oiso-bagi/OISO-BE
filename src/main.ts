@@ -1,6 +1,13 @@
 import 'dotenv/config';
+import { RequestMethod } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { AppModule } from '@/app.module';
+import {
+  ACCESS_TOKEN_COOKIE,
+  REFRESH_TOKEN_COOKIE,
+} from '@/auth/auth.constants';
+import { applyCommonErrorResponsesToDocument } from '@/common/docs/common-error-swagger.docs';
 
 // Ensure Prisma uses the binary engine at runtime when running locally
 process.env.PRISMA_CLIENT_ENGINE_TYPE =
@@ -8,6 +15,28 @@ process.env.PRISMA_CLIENT_ENGINE_TYPE =
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  app.setGlobalPrefix('api/v1', {
+    exclude: [{ path: '/', method: RequestMethod.GET }],
+  });
+
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle('OISO API')
+    .setDescription('OISO backend API documentation')
+    .setVersion('1.0.0')
+    .addBearerAuth()
+    .addCookieAuth(ACCESS_TOKEN_COOKIE, undefined, ACCESS_TOKEN_COOKIE)
+    .addCookieAuth(REFRESH_TOKEN_COOKIE, undefined, REFRESH_TOKEN_COOKIE)
+    .build();
+  const documentFactory = () =>
+    applyCommonErrorResponsesToDocument(
+      SwaggerModule.createDocument(app, swaggerConfig),
+    );
+
+  SwaggerModule.setup('api-docs', app, documentFactory, {
+    jsonDocumentUrl: 'api-docs/json',
+  });
+
   await app.listen(process.env.PORT ?? 3000);
 }
 bootstrap().catch((err) => {

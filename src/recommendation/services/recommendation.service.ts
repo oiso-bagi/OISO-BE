@@ -92,7 +92,7 @@ export class RecommendationService {
   private validateTravelStyleSlugs(value: unknown): string[] {
     if (!Array.isArray(value)) {
       throw new BadRequestException(
-        'travelStyleSlugs must include at least one item.',
+        'travelStyleSlugs는 최소 1개 이상 포함해야 합니다.',
       );
     }
 
@@ -100,7 +100,7 @@ export class RecommendationService {
 
     if (!this.isNonEmptyStringArray(rawTravelStyleSlugs)) {
       throw new BadRequestException(
-        'travelStyleSlugs must contain only non-empty strings.',
+        'travelStyleSlugs는 비어 있지 않은 문자열만 포함해야 합니다.',
       );
     }
 
@@ -112,7 +112,7 @@ export class RecommendationService {
 
     if (travelStyleSlugs.length === 0) {
       throw new BadRequestException(
-        'travelStyleSlugs must include at least one item.',
+        'travelStyleSlugs는 최소 1개 이상 포함해야 합니다.',
       );
     }
 
@@ -125,7 +125,7 @@ export class RecommendationService {
 
     if (hasUnsupportedTravelStyle) {
       throw new BadRequestException(
-        'travelStyleSlugs contains an unsupported item.',
+        '지원하지 않는 travelStyleSlugs 항목이 포함되어 있습니다.',
       );
     }
 
@@ -144,7 +144,7 @@ export class RecommendationService {
     const durationDays = this.validatePositiveInteger(value, 'durationDays');
 
     if (!DURATION_DAY_OPTIONS.includes(durationDays)) {
-      throw new BadRequestException('durationDays must be between 1 and 5.');
+      throw new BadRequestException('durationDays는 1부터 5 사이여야 합니다.');
     }
 
     return durationDays;
@@ -156,7 +156,7 @@ export class RecommendationService {
   ): number {
     if (dailyBudgetWon > Math.floor(Number.MAX_SAFE_INTEGER / durationDays)) {
       throw new BadRequestException(
-        'totalBudgetWon must be a safe positive integer.',
+        'totalBudgetWon은 안전한 양의 정수여야 합니다.',
       );
     }
 
@@ -175,9 +175,7 @@ export class RecommendationService {
       !Number.isSafeInteger(parsedValue) ||
       parsedValue <= 0
     ) {
-      throw new BadRequestException(
-        `${label} must be a safe positive integer.`,
-      );
+      throw new BadRequestException(`${label}은 안전한 양의 정수여야 합니다.`);
     }
 
     return parsedValue;

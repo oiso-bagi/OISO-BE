@@ -1,15 +1,31 @@
 import { TransitType, CongestionLevel } from '@prisma/client';
-import {
-  buildRouteMetrics,
+import { ApiProperty } from '@nestjs/swagger';
+import { buildRouteMetrics } from '@/route/dto/recommended-route-detail-response.dto';
+import type {
   RouteStopWithPlace,
   RouteWithStops,
-} from './recommended-route-detail-response.dto';
+} from '@/route/dto/recommended-route-detail-response.dto';
 
 export class RouteStopLocationDto {
-  sequence: number;
-  placeName: string;
-  latitude: number | null;
-  longitude: number | null;
+  @ApiProperty({ description: '경유지 순서', example: 1 })
+  sequence!: number;
+
+  @ApiProperty({ description: '장소 이름', example: '광안리해수욕장' })
+  placeName!: string;
+
+  @ApiProperty({
+    description: '장소 위도',
+    example: 35.1532,
+    nullable: true,
+  })
+  latitude!: number | null;
+
+  @ApiProperty({
+    description: '장소 경도',
+    example: 129.1187,
+    nullable: true,
+  })
+  longitude!: number | null;
 
   static from(stop: RouteStopWithPlace): RouteStopLocationDto {
     const dto = new RouteStopLocationDto();
@@ -24,19 +40,59 @@ export class RouteStopLocationDto {
 }
 
 export class RecommendedRouteListResponseDto {
-  id: string;
-  name: string;
-  stopCount: number;
-  totalDistanceMeters: number;
-  totalDistanceKm: number;
-  transitTypes: TransitType[];
-  totalCost: number;
-  totalTimeMinutes: number;
-  congestionLevel: CongestionLevel;
-  estimatedSavingsWon: number;
-  score: number;
-  isRecommended: boolean;
-  stopLocations: RouteStopLocationDto[];
+  @ApiProperty({ description: '추천 루트 ID', example: 'route_001' })
+  id!: string;
+
+  @ApiProperty({
+    description: '추천 루트 이름',
+    example: '부산 바다 감성 코스',
+  })
+  name!: string;
+
+  @ApiProperty({ description: '경유지 수', example: 4 })
+  stopCount!: number;
+
+  @ApiProperty({ description: '총 이동 거리(m)', example: 8500 })
+  totalDistanceMeters!: number;
+
+  @ApiProperty({ description: '총 이동 거리(km)', example: 8.5 })
+  totalDistanceKm!: number;
+
+  @ApiProperty({
+    description: '루트에서 사용하는 이동 수단 목록',
+    enum: TransitType,
+    isArray: true,
+    example: ['WALKING', 'BUS'],
+  })
+  transitTypes!: TransitType[];
+
+  @ApiProperty({ description: '예상 총 비용(원)', example: 42000 })
+  totalCost!: number;
+
+  @ApiProperty({ description: '예상 총 소요 시간(분)', example: 180 })
+  totalTimeMinutes!: number;
+
+  @ApiProperty({
+    description: '예상 혼잡도',
+    enum: CongestionLevel,
+    example: 'MEDIUM',
+  })
+  congestionLevel!: CongestionLevel;
+
+  @ApiProperty({ description: '예상 절약 금액(원)', example: 15000 })
+  estimatedSavingsWon!: number;
+
+  @ApiProperty({ description: '추천 점수', example: 87.5 })
+  score!: number;
+
+  @ApiProperty({ description: '추천 루트 여부', example: true })
+  isRecommended!: boolean;
+
+  @ApiProperty({
+    description: '루트 경유지 위치 목록',
+    type: [RouteStopLocationDto],
+  })
+  stopLocations!: RouteStopLocationDto[];
 
   static from(route: RouteWithStops): RecommendedRouteListResponseDto {
     const dto = new RecommendedRouteListResponseDto();

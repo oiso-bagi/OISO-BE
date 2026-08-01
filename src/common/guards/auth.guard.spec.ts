@@ -70,7 +70,7 @@ describe('AuthGuard', () => {
     mockAuthCookieService.parseCookies.mockReturnValue({});
     mockAuthCookieService.getBearerToken.mockReturnValue(undefined);
     mockAuthService.getCurrentUser.mockRejectedValue(
-      new UnauthorizedException('Access token is required.'),
+      new UnauthorizedException('액세스 토큰이 필요합니다.'),
     );
 
     await expect(guard.canActivate(createContext(request))).rejects.toThrow(

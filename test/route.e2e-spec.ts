@@ -1,8 +1,8 @@
 import { INestApplication } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
-import { RouteController } from '../src/route/route.controller';
-import { RouteService } from '../src/route/route.service';
+import { RouteController } from '@/route/controllers/route.controller';
+import { RouteService } from '@/route/services/route.service';
 
 type App = Parameters<typeof request>[0];
 
@@ -20,6 +20,7 @@ describe('RouteController (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
+    app.setGlobalPrefix('api/v1');
     await app.init();
   });
 
@@ -36,7 +37,7 @@ describe('RouteController (e2e)', () => {
 
   it('returns 400 for an empty route id', async () => {
     await request(app.getHttpServer() as App)
-      .get('/recommended-routes/%20')
+      .get('/api/v1/recommended-routes/%20')
       .expect(400);
     expect(routeService.getRecommendedRouteDetail).not.toHaveBeenCalled();
   });
@@ -63,7 +64,7 @@ describe('RouteController (e2e)', () => {
     routeService.getRecommendedRouteList.mockResolvedValue(payload);
 
     await request(app.getHttpServer() as App)
-      .get('/recommended-routes')
+      .get('/api/v1/recommended-routes')
       .expect(200)
       .expect(payload);
 
@@ -93,7 +94,7 @@ describe('RouteController (e2e)', () => {
     routeService.getRecommendedRouteDetail.mockResolvedValue(payload);
 
     await request(app.getHttpServer() as App)
-      .get('/recommended-routes/route-1')
+      .get('/api/v1/recommended-routes/route-1')
       .expect(200)
       .expect(payload);
 

@@ -1,4 +1,4 @@
-import { INestApplication } from '@nestjs/common';
+import { ExecutionContext, INestApplication } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import {
   CongestionLevel,
@@ -7,11 +7,17 @@ import {
   TransitType,
 } from '@prisma/client';
 import request from 'supertest';
-import { SavedRouteController } from '../src/route/saved-route.controller';
-import { SavedRouteRepository } from '../src/route/saved-route.repository';
-import { SavedRouteService } from '../src/route/saved-route.service';
+import { AuthGuard } from '@/common/guards/auth.guard';
+import { SavedRouteController } from '@/route/controllers/saved-route.controller';
+import { SavedRouteRepository } from '@/route/repositories/saved-route.repository';
+import { SavedRouteService } from '@/route/services/saved-route.service';
 
 type App = Parameters<typeof request>[0];
+type TestAuthenticatedRequest = {
+  user: {
+    id: string;
+  };
+};
 
 describe('SavedRouteController (e2e)', () => {
   let app: INestApplication;
@@ -27,9 +33,22 @@ describe('SavedRouteController (e2e)', () => {
         SavedRouteService,
         { provide: SavedRouteRepository, useValue: savedRouteRepository },
       ],
-    }).compile();
+    })
+      .overrideGuard(AuthGuard)
+      .useValue({
+        canActivate: (context: ExecutionContext) => {
+          const request = context
+            .switchToHttp()
+            .getRequest<TestAuthenticatedRequest>();
+          request.user = { id: 'user-1' };
+
+          return true;
+        },
+      })
+      .compile();
 
     app = moduleFixture.createNestApplication();
+    app.setGlobalPrefix('api/v1');
     await app.init();
   });
 
@@ -46,7 +65,7 @@ describe('SavedRouteController (e2e)', () => {
 
   it('returns 400 for empty routeId in GET /saved-routes/:routeId', async () => {
     await request(app.getHttpServer() as App)
-      .get('/saved-routes/%20?userId=user-1')
+      .get('/api/v1/saved-routes/%20')
       .expect(400);
 
     expect(savedRouteRepository.findDetailByRouteId).not.toHaveBeenCalled();
@@ -85,7 +104,7 @@ describe('SavedRouteController (e2e)', () => {
     ]);
 
     await request(app.getHttpServer() as App)
-      .get('/saved-routes?userId=user-1')
+      .get('/api/v1/saved-routes')
       .expect(200)
       .expect({
         savedRouteCount: 1,
@@ -145,7 +164,7 @@ describe('SavedRouteController (e2e)', () => {
     });
 
     await request(app.getHttpServer() as App)
-      .get('/saved-routes/route-1?userId=user-1')
+      .get('/api/v1/saved-routes/route-1')
       .expect(200)
       .expect({
         routeId: 'route-1',
