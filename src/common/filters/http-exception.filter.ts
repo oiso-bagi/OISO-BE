@@ -7,6 +7,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import { STATUS_CODES } from 'http';
 
 type HttpExceptionResponse = {
   statusCode?: number;
@@ -64,7 +65,9 @@ export class HttpExceptionFilter implements ExceptionFilter {
     request: Request;
   }): ErrorResponseBody {
     const fallbackError =
-      HttpStatus[statusCode] ?? HttpStatus[HttpStatus.INTERNAL_SERVER_ERROR];
+      STATUS_CODES[statusCode] ??
+      STATUS_CODES[HttpStatus.INTERNAL_SERVER_ERROR] ??
+      'Internal Server Error';
 
     if (typeof exceptionResponse === 'string') {
       return {

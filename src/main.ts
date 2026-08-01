@@ -3,6 +3,10 @@ import { RequestMethod } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from '@/app.module';
+import {
+  ACCESS_TOKEN_COOKIE,
+  REFRESH_TOKEN_COOKIE,
+} from '@/auth/auth.constants';
 import { applyCommonErrorResponsesToDocument } from '@/common/docs/common-error-swagger.docs';
 
 // Ensure Prisma uses the binary engine at runtime when running locally
@@ -21,8 +25,8 @@ async function bootstrap() {
     .setDescription('OISO backend API documentation')
     .setVersion('1.0.0')
     .addBearerAuth()
-    .addCookieAuth('oiso_access_token')
-    .addCookieAuth('oiso_refresh_token')
+    .addCookieAuth(ACCESS_TOKEN_COOKIE, undefined, ACCESS_TOKEN_COOKIE)
+    .addCookieAuth(REFRESH_TOKEN_COOKIE, undefined, REFRESH_TOKEN_COOKIE)
     .build();
   const documentFactory = () =>
     applyCommonErrorResponsesToDocument(

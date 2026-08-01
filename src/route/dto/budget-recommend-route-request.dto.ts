@@ -4,28 +4,32 @@ export class BudgetRatiosDto {
   @ApiProperty({
     description: '식비 선호 비율. 0부터 1 사이 값입니다.',
     example: 0.4,
+    type: Number,
   })
-  foodRatio?: unknown;
+  foodRatio?: number;
 
   @ApiProperty({
     description: '체험/관광비 선호 비율. 0부터 1 사이 값입니다.',
     example: 0.4,
+    type: Number,
   })
-  experienceRatio?: unknown;
+  experienceRatio?: number;
 
   @ApiProperty({
     description: '교통비 선호 비율. 0부터 1 사이 값입니다.',
     example: 0.2,
+    type: Number,
   })
-  transportRatio?: unknown;
+  transportRatio?: number;
 }
 
 export class BudgetRecommendRouteRequestDto {
   @ApiProperty({
     description: '사용자 입력 총 예산(원). 10,000원 이상 500,000원 이하입니다.',
     example: 100000,
+    type: Number,
   })
-  budget?: unknown;
+  budget?: number;
 
   @ApiProperty({
     description:
@@ -41,5 +45,5 @@ export class BudgetRecommendRouteRequestDto {
     type: [String],
     required: false,
   })
-  themeSlugs?: unknown;
+  themeSlugs?: string[];
 }

@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { NotFoundException } from '@nestjs/common';
 import { RouteRepository } from '@/route/repositories/route.repository';
 import { RouteService } from '@/route/services/route.service';
 
@@ -94,6 +95,18 @@ describe('RouteService', () => {
     expect(result[0]).not.toHaveProperty('stops');
   });
 
+  it('throws NotFoundException when recommended route detail is not found', async () => {
+    mockRouteRepository.findDetailWithStopsAndPlace.mockResolvedValue(null);
+
+    await expect(
+      service.getRecommendedRouteDetail(' route-missing '),
+    ).rejects.toThrow(NotFoundException);
+
+    expect(
+      mockRouteRepository.findDetailWithStopsAndPlace,
+    ).toHaveBeenCalledWith('route-missing');
+  });
+
   it('returns top 3 budget based recommendations ordered by calculated score', async () => {
     mockRouteRepository.findRecommendedCandidates.mockResolvedValue([
       createBudgetCandidate('route-low', 30),
@@ -135,6 +148,31 @@ describe('RouteService', () => {
         },
       }),
     ).rejects.toThrow('비용 분배 비율');
+
+    expect(
+      mockRouteRepository.findRecommendedCandidates,
+    ).not.toHaveBeenCalled();
+  });
+
+  it('throws BadRequestException when budget is out of range', async () => {
+    await expect(
+      service.getBudgetRecommendedRoutes({
+        budget: 9999,
+      }),
+    ).rejects.toThrow('예산(budget)');
+
+    expect(
+      mockRouteRepository.findRecommendedCandidates,
+    ).not.toHaveBeenCalled();
+  });
+
+  it('throws BadRequestException when themeSlugs is not an array', async () => {
+    await expect(
+      service.getBudgetRecommendedRoutes({
+        budget: 100000,
+        themeSlugs: 'local-food',
+      }),
+    ).rejects.toThrow('themeSlugs');
 
     expect(
       mockRouteRepository.findRecommendedCandidates,

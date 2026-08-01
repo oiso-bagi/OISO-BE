@@ -1,5 +1,10 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { CongestionLevel, RouteType, TransitType } from '@prisma/client';
+import {
+  CongestionLevel,
+  PlaceCategory,
+  RouteType,
+  TransitType,
+} from '@prisma/client';
 import {
   buildRouteMetrics,
   RouteStopWithPlace,
@@ -20,7 +25,11 @@ export class SavedRouteStopDetailDto {
   @ApiProperty({ description: '장소 이름', example: '광안리해수욕장' })
   placeName = '';
 
-  @ApiProperty({ description: '장소 카테고리', example: 'ATTRACTION' })
+  @ApiProperty({
+    description: '장소 카테고리',
+    enum: PlaceCategory,
+    example: PlaceCategory.NATURE,
+  })
   category = '';
 
   @ApiProperty({

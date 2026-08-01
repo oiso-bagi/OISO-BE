@@ -150,7 +150,7 @@ export class RouteRepository {
   findPublishedRecommendedRouteCongestionTargets() {
     return this.prisma.route.findMany({
       where: { routeType: RouteType.RECOMMENDED, isPublished: true },
-      select: { id: true, name: true, region: true },
+      select: { id: true, region: true },
     });
   }
 

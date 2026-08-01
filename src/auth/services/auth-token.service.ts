@@ -1,6 +1,7 @@
 import {
   Injectable,
   InternalServerErrorException,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -15,6 +16,8 @@ export interface TokenPayload {
 
 @Injectable()
 export class AuthTokenService {
+  private readonly logger = new Logger(AuthTokenService.name);
+
   constructor(private readonly jwtService: JwtService) {}
 
   issueAccessToken(userId: string, provider: string): string {
@@ -91,7 +94,8 @@ export class AuthTokenService {
     const value = process.env[name];
 
     if (!value) {
-      throw new InternalServerErrorException(`${name} 설정이 누락되었습니다.`);
+      this.logger.error(`Required environment variable is missing: ${name}`);
+      throw new InternalServerErrorException('서버 설정 오류가 발생했습니다.');
     }
 
     return value;

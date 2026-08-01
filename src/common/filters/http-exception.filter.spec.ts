@@ -1,6 +1,7 @@
 import {
   ArgumentsHost,
   BadRequestException,
+  HttpException,
   HttpStatus,
   Logger,
 } from '@nestjs/common';
@@ -72,6 +73,26 @@ describe('HttpExceptionFilter', () => {
         method: 'GET',
         message: '서버 내부 오류가 발생했습니다.',
         error: 'Internal Server Error',
+      }),
+    );
+  });
+
+  it('formats fallback error from HttpExceptionFilter.catch when response has no error field', () => {
+    const filter = new HttpExceptionFilter();
+
+    filter.catch(
+      new HttpException('fallback validation failed', HttpStatus.BAD_REQUEST),
+      host,
+    );
+
+    expect(status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        statusCode: HttpStatus.BAD_REQUEST,
+        path: '/api/v1/recommended-routes/%20',
+        method: 'GET',
+        message: 'fallback validation failed',
+        error: 'Bad Request',
       }),
     );
   });

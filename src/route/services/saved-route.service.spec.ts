@@ -103,6 +103,14 @@ describe('SavedRouteService', () => {
     expect(result.savedRoutes[1].isCompleted).toBe(false);
   });
 
+  it('throws BadRequestException for invalid userId when listing saved routes', async () => {
+    await expect(service.getSavedRouteList('  ')).rejects.toThrow(
+      BadRequestException,
+    );
+
+    expect(mockSavedRouteRepository.findListByUserId).not.toHaveBeenCalled();
+  });
+
   it('throws BadRequestException for invalid routeId', async () => {
     await expect(service.getSavedRouteDetail('  ', 'user-1')).rejects.toThrow(
       BadRequestException,

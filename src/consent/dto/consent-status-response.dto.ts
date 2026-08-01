@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { ConsentType, UserConsent } from '@prisma/client';
+import { ConsentScope, ConsentType, UserConsent } from '@prisma/client';
 
 const REQUIRED_CONSENT_TYPES: ConsentType[] = ['TERMS', 'PRIVACY', 'AGE'];
 
@@ -13,6 +13,7 @@ export class ConsentItemResponse {
 
   @ApiProperty({
     description: '필수/선택 약관 구분',
+    enum: ConsentScope,
     example: 'REQUIRED',
   })
   scope!: UserConsent['scope'];

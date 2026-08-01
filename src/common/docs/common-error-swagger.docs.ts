@@ -1,4 +1,5 @@
 import type { OpenAPIObject } from '@nestjs/swagger';
+import { STATUS_CODES } from 'http';
 
 type OpenApiMediaTypeObject = {
   schema?: Record<string, unknown>;
@@ -242,29 +243,9 @@ const createErrorExample = ({
 };
 
 const getErrorName = (statusCode: number): string => {
-  if (statusCode === 400) {
-    return 'Bad Request';
-  }
+  const reasonPhrase = STATUS_CODES[statusCode];
 
-  if (statusCode === 401) {
-    return 'Unauthorized';
-  }
-
-  if (statusCode === 403) {
-    return 'Forbidden';
-  }
-
-  if (statusCode === 404) {
-    return 'Not Found';
-  }
-
-  if (statusCode === 409) {
-    return 'Conflict';
-  }
-
-  if (statusCode === 504) {
-    return 'Gateway Timeout';
-  }
-
-  return statusCode >= 500 ? 'Internal Server Error' : 'Error';
+  return (
+    reasonPhrase ?? (statusCode >= 500 ? 'Internal Server Error' : 'Error')
+  );
 };

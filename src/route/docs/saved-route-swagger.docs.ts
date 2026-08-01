@@ -3,7 +3,6 @@ import {
   ApiBadRequestResponse,
   ApiBearerAuth,
   ApiCookieAuth,
-  ApiInternalServerErrorResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
@@ -36,7 +35,7 @@ const savedRouteBadRequestExamples = {
       statusCode: 400,
       path: '/api/v1/saved-routes/%20',
       method: 'GET',
-      message: '저장 루트 ID는 비어 있을 수 없습니다.',
+      message: '저장된 루트 ID는 비어 있을 수 없습니다.',
       error: 'Bad Request',
     }),
   },
@@ -146,8 +145,7 @@ export const ApiGetSavedRouteDetailDocs = () =>
         },
       },
     }),
-    ApiInternalServerErrorResponse({
-      description:
-        '저장 루트 상세 조회 중 예상하지 못한 서버 오류가 발생하면 500 응답을 반환할 수 있습니다.',
-    }),
+    ApiJwtAccessTokenInternalServerErrorResponseDocs(
+      'JWT 액세스 토큰 설정이 누락되었거나 저장 루트 상세 조회 중 예상하지 못한 오류가 발생하면 500 응답을 반환할 수 있습니다.',
+    ),
   );
