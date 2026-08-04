@@ -34,7 +34,9 @@ export class RouteStopLocationDto {
     const dto = new RouteStopLocationDto();
     dto.sequence = stop.orderIndex ?? 0;
     dto.dayNumber =
-      typeof stop.dayNumber === 'number' && stop.dayNumber > 0
+      typeof stop.dayNumber === 'number' &&
+      Number.isInteger(stop.dayNumber) &&
+      stop.dayNumber > 0
         ? stop.dayNumber
         : 1;
     dto.placeName = stop.place?.name ?? '';

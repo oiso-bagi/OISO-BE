@@ -84,4 +84,28 @@ describe('RecommendedRouteListResponseDto', () => {
     expect(dto.score).toBe(0);
     expect(dto.isRecommended).toBe(false);
   });
+
+  it('falls back to dayNumber 1 for fractional or non-finite values', () => {
+    const routeFixture: RouteWithStops = {
+      id: 'route-3',
+      name: '비정수 dayNumber 테스트',
+      stops: [
+        {
+          orderIndex: 0,
+          dayNumber: 1.5,
+          place: { name: '스팟 1' },
+        },
+        {
+          orderIndex: 1,
+          dayNumber: Infinity,
+          place: { name: '스팟 2' },
+        },
+      ],
+    };
+
+    const dto = RecommendedRouteListResponseDto.from(routeFixture);
+
+    expect(dto.stopLocations[0].dayNumber).toBe(1);
+    expect(dto.stopLocations[1].dayNumber).toBe(1);
+  });
 });

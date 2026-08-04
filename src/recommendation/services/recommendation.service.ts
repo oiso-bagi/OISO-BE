@@ -300,15 +300,23 @@ export class RecommendationService {
     targetDurationDays: number,
     packageIdx: number,
   ): GenericRoute {
-    const combinedStops: any[] = [];
+    const combinedStops: GenericStop[] = [];
     let totalDistanceMeters = 0;
     let estimatedSavingsWon = 0;
+    let estimatedCostWon = 0;
+    let foodCostWon = 0;
+    let experienceCostWon = 0;
+    let transportCostWon = 0;
     let cumulativeSequence = 0;
 
     routes.forEach((route, idx) => {
       const dayNum = idx + 1;
       totalDistanceMeters += Number(route.totalDistanceMeters || 0);
       estimatedSavingsWon += Number(route.estimatedSavingsWon || 0);
+      estimatedCostWon += Number(route.estimatedCostWon || 0);
+      foodCostWon += Number(route.foodCostWon || 0);
+      experienceCostWon += Number(route.experienceCostWon || 0);
+      transportCostWon += Number(route.transportCostWon || 0);
 
       const stops = route.stops || [];
       stops.forEach((stop) => {
@@ -328,6 +336,10 @@ export class RecommendationService {
       name: `[${durationText}] ${leadRouteName} 패키지 ${packageIdx}호`,
       totalDistanceMeters,
       estimatedSavingsWon,
+      estimatedCostWon,
+      foodCostWon,
+      experienceCostWon,
+      transportCostWon,
       score: Number(routes[0]?.score || 90),
       routeType: routes[0]?.routeType || 'RECOMMENDED',
       congestionLevel: routes[0]?.congestionLevel || 'MEDIUM',
@@ -371,14 +383,20 @@ export class RecommendationService {
     }
 
     const raw = value as Record<string, unknown>;
-    const foodRatio = this.validateRatioField(raw.foodRatio, 'foodRatio');
+    const foodRatio = this.validateRatioField(
+      raw.foodRatio,
+      'foodRatio',
+      DEFAULT_RATIOS.foodRatio,
+    );
     const experienceRatio = this.validateRatioField(
       raw.experienceRatio,
       'experienceRatio',
+      DEFAULT_RATIOS.experienceRatio,
     );
     const transportRatio = this.validateRatioField(
       raw.transportRatio,
       'transportRatio',
+      DEFAULT_RATIOS.transportRatio,
     );
 
     const sum = foodRatio + experienceRatio + transportRatio;
@@ -391,7 +409,15 @@ export class RecommendationService {
     return { foodRatio, experienceRatio, transportRatio };
   }
 
-  private validateRatioField(value: unknown, label: string): number {
+  private validateRatioField(
+    value: unknown,
+    label: string,
+    defaultValue: number,
+  ): number {
+    if (value == null) {
+      return defaultValue;
+    }
+
     const parsed =
       typeof value === 'string' && value.trim().length > 0
         ? Number(value)

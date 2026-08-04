@@ -166,4 +166,42 @@ describe('RecommendationService', () => {
       mockRecommendationRepository.findRecommendedRoutes,
     ).not.toHaveBeenCalled();
   });
+
+  it('supports fully provided, partially provided, and wholly missing ratios', async () => {
+    mockRecommendationRepository.findRecommendedRoutes.mockResolvedValue([]);
+
+    // 1) wholly missing ratios
+    await service.recommendRoutes({
+      travelStyleSlugs: ['local-food'],
+      durationDays: 1,
+      dailyBudgetWon: 60000,
+    });
+
+    // 2) fully provided ratios
+    await service.recommendRoutes({
+      travelStyleSlugs: ['local-food'],
+      durationDays: 1,
+      dailyBudgetWon: 60000,
+      ratios: {
+        foodRatio: 0.4,
+        experienceRatio: 0.3,
+        transportRatio: 0.3,
+      },
+    });
+
+    // 3) partially provided ratios (missing transportRatio defaults to 0.40)
+    await service.recommendRoutes({
+      travelStyleSlugs: ['local-food'],
+      durationDays: 1,
+      dailyBudgetWon: 60000,
+      ratios: {
+        foodRatio: 0.35,
+        experienceRatio: 0.25,
+      },
+    });
+
+    expect(
+      mockRecommendationRepository.findRecommendedRoutes,
+    ).toHaveBeenCalledTimes(3);
+  });
 });
