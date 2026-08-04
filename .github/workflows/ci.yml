@@ -21,6 +21,8 @@ jobs:
 
     env:
       PRISMA_CLIENT_ENGINE_TYPE: binary
+      DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/oiso"
+      DIRECT_URL: "postgresql://dummy:dummy@localhost:5432/oiso"
 
     steps:
       - name: Checkout
