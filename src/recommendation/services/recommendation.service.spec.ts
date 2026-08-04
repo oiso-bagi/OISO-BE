@@ -203,5 +203,18 @@ describe('RecommendationService', () => {
     expect(
       mockRecommendationRepository.findRecommendedRoutes,
     ).toHaveBeenCalledTimes(3);
+    expect(
+      mockRecommendationRepository.findRecommendedRoutes,
+    ).toHaveBeenNthCalledWith(3, {
+      travelStyleSlugs: ['local-food'],
+      durationDays: 1,
+      dailyBudgetWon: 60000,
+      totalBudgetWon: 60000,
+      ratios: {
+        foodRatio: 0.35,
+        experienceRatio: 0.25,
+        transportRatio: 0.4,
+      },
+    });
   });
 });

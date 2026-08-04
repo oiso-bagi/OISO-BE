@@ -21,7 +21,7 @@ flowchart TD
     end
 
     subgraph Production["[Backend Production Cloud] Railway Infrastructure"]
-        RailwayServer["Railway Web Service (Node.js 24 / NestJS)<br/>Port: 3000 | Always-On 24/7<br/>Release Step: npx prisma migrate deploy<br/>Start: pnpm start:prod"]
+        RailwayServer["Railway Web Service (Node.js 24 / NestJS)<br/>Port: 3000 | Always-On 24/7<br/>Release Step: pnpm exec prisma migrate deploy (prisma@5.22.0)<br/>Start: pnpm start:prod"]
         NeonDB[("Neon Serverless PostgreSQL<br/>sslmode=verify-full | Auto Scaling")]
     end
 
@@ -61,8 +61,8 @@ flowchart TD
 
 ### 3.2 빌드 및 실행 명령어
 
-- **Build Command**: `pnpm install --frozen-lockfile && pnpm run prisma:generate && pnpm run build`
-- **Release / Pre-deploy Command**: `npx prisma migrate deploy` (독립 마이그레이션 잡 또는 Release/Pre-deploy 스텝에서 선행 완료)
+- **Build Command**: `pnpm install --frozen-lockfile && pnpm run build` *(단독 실행 시 package.json의 `pnpm run build`가 `prisma:generate` 후 `build:raw`를 수행하며, CI 파이프라인에서는 `prisma:generate` 독립 스텝 후 `build:raw`를 실행하여 중복 생성을 회피)*
+- **Release / Pre-deploy Command**: `pnpm exec prisma migrate deploy` *(lockfile에 고정된 `prisma@5.22.0` 버전으로 독립 마이그레이션 잡 또는 Release 스텝에서 선행 완료)*
 - **Start Command**: `pnpm start:prod` (마이그레이션 정상 통과 후 백엔드 런타임 독립 론칭)
 
 ---
@@ -85,7 +85,7 @@ flowchart TD
 1. **Checkout & Node Setup**: Node.js 24 LTS 및 pnpm 설치 (pnpm store 캐시 적용)
 2. **Prisma Client Generation**: `pnpm run prisma:generate`
 3. **Lint Verification**: `pnpm run lint` 코드 스타일 및 아키텍처 규칙 검증
-4. **Production Build**: `pnpm run build` 빌드 유효성 체크
+4. **Production Build**: `pnpm run build:raw` 빌드 유효성 체크 (Prisma Client 선행 생성 후 중복 방지)
 5. **Automated Unit Testing**: `pnpm run test` (Prisma Service Mocking 기반 순수 유닛 테스트만 수행)
 
 ---

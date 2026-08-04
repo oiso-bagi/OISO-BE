@@ -248,14 +248,23 @@ export class RecommendationService {
             visitedPlaceIds.has(id),
           );
 
-          let distance = 0;
+          let distance = 10000;
           if (currentLastStop?.place && firstStop?.place) {
             const lat1 = Number(currentLastStop.place.latitude);
             const lng1 = Number(currentLastStop.place.longitude);
             const lat2 = Number(firstStop.place.latitude);
             const lng2 = Number(firstStop.place.longitude);
 
-            if (!isNaN(lat1) && !isNaN(lng1) && !isNaN(lat2) && !isNaN(lng2)) {
+            const isValidLat1 =
+              currentLastStop.place.latitude != null && Number.isFinite(lat1);
+            const isValidLng1 =
+              currentLastStop.place.longitude != null && Number.isFinite(lng1);
+            const isValidLat2 =
+              firstStop.place.latitude != null && Number.isFinite(lat2);
+            const isValidLng2 =
+              firstStop.place.longitude != null && Number.isFinite(lng2);
+
+            if (isValidLat1 && isValidLng1 && isValidLat2 && isValidLng2) {
               distance = calculateDistanceMeters(lat1, lng1, lat2, lng2);
             }
           }
