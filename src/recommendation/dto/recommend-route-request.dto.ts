@@ -1,5 +1,28 @@
 import { ApiProperty } from '@nestjs/swagger';
 
+export class BudgetRatiosDto {
+  @ApiProperty({
+    description: '식비 비율 (0 ~ 1). 미입력 시 기본값 0.35 적용',
+    example: 0.35,
+    required: false,
+  })
+  foodRatio?: unknown;
+
+  @ApiProperty({
+    description: '체험/입장료 비율 (0 ~ 1). 미입력 시 기본값 0.25 적용',
+    example: 0.25,
+    required: false,
+  })
+  experienceRatio?: unknown;
+
+  @ApiProperty({
+    description: '교통비 비율 (0 ~ 1). 미입력 시 기본값 0.40 적용',
+    example: 0.4,
+    required: false,
+  })
+  transportRatio?: unknown;
+}
+
 export class RecommendRouteRequestDto {
   @ApiProperty({
     description: '추천에 사용할 여행 스타일 slug 목록',
@@ -19,4 +42,17 @@ export class RecommendRouteRequestDto {
     example: 60000,
   })
   dailyBudgetWon?: unknown;
+
+  @ApiProperty({
+    description:
+      '예산 비율 배분 (선택). foodRatio + experienceRatio + transportRatio 합계가 1.0이어야 합니다. 미입력 시 기본값 { food: 0.35, experience: 0.25, transport: 0.40 } 적용.',
+    type: BudgetRatiosDto,
+    required: false,
+    example: {
+      foodRatio: 0.35,
+      experienceRatio: 0.25,
+      transportRatio: 0.4,
+    },
+  })
+  ratios?: unknown;
 }
