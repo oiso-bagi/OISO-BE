@@ -11,12 +11,6 @@ const recommendedRouteSelect = Prisma.validator<Prisma.RouteSelect>()({
   score: true,
   routeType: true,
   congestionLevel: true,
-  estimatedCostWon: true,
-  estimatedDurationMin: true,
-  foodCostWon: true,
-  experienceCostWon: true,
-  transportCostWon: true,
-  totalDifficultyScore: true,
   stops: {
     orderBy: {
       orderIndex: 'asc',
@@ -30,9 +24,7 @@ const recommendedRouteSelect = Prisma.validator<Prisma.RouteSelect>()({
       estimatedPriceWon: true,
       place: {
         select: {
-          id: true,
           name: true,
-          category: true,
           latitude: true,
           longitude: true,
         },
@@ -92,7 +84,7 @@ export class RecommendationRepository {
           estimatedSavingsWon: 'desc',
         },
       ],
-      take: 50,
+      take: 10,
       select: recommendedRouteSelect,
     });
   }

@@ -90,9 +90,9 @@ function calculateHaversineDistance(
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos((lat1 * Math.PI) / 180) *
-    Math.cos((lat2 * Math.PI) / 180) *
-    Math.sin(dLon / 2) *
-    Math.sin(dLon / 2);
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return Math.round(R * c);
 }
@@ -120,7 +120,7 @@ function calculateDifficultyScore(
 }
 
 async function seedRecommendRoutes() {
-  console.log('🚀 [120개 마스터 추천 코스 SEED] 6대 테마 × 20개 코스 동적 적재를 시작합니다...');
+  console.log('🚀 [30개 마스터 추천 코스 SEED] 6대 테마 × 5개 코스 동적 적재를 시작합니다...');
 
   // 1. TourAPI 연관 관광지 API 수집
   await fetchRelatedTourPlaces();
@@ -152,11 +152,11 @@ async function seedRecommendRoutes() {
     return;
   }
 
-  console.log(`📌 DB 마스터 장소 ${allDbPlaces.length}건 기반으로 6대 테마 × 20개 코스 = 총 120개 코스 적재를 시작합니다.`);
+  console.log(`📌 DB 마스터 장소 ${allDbPlaces.length}건 기반으로 6대 테마 × 5개 코스 = 총 30개 코스 적재를 시작합니다.`);
 
   let totalRouteCount = 0;
 
-  // 4. 6대 테마 각각 마다 20개 코스씩 총 120개 마스터 코스 100% 동적 생성
+  // 4. 6대 테마 각각 마다 5개 코스씩 총 30개 마스터 코스 100% 동적 생성
   for (const theme of masterThemes) {
     // 테마 성격에 부합하는 장소들 필터링
     let themeCategoryFilters: PlaceCategory[] = [];
@@ -168,7 +168,7 @@ async function seedRecommendRoutes() {
     else themeCategoryFilters = [PlaceCategory.NATURE, PlaceCategory.CULTURE];
 
     const targetPlaces = allDbPlaces.filter((p) => themeCategoryFilters.includes(p.category));
-    const themeAnchors = (targetPlaces.length >= 20 ? targetPlaces : allDbPlaces).slice(0, 20);
+    const themeAnchors = (targetPlaces.length >= 5 ? targetPlaces : allDbPlaces).slice(0, 5);
 
     for (let courseIdx = 0; courseIdx < themeAnchors.length; courseIdx++) {
       const anchor = themeAnchors[courseIdx];
@@ -335,7 +335,7 @@ async function seedRecommendRoutes() {
       });
 
       console.log(
-        `✅ [코스 #${totalRouteCount}/120] "${route.name}" (테마: ${theme.slug}, 경유지: ${uniqueStops.length}개, 비용: ${estimatedCostWon}원, 고도상승: ${totalElevationGainMeters}m)`,
+        `✅ [코스 #${totalRouteCount}/30] "${route.name}" (테마: ${theme.slug}, 경유지: ${uniqueStops.length}개, 비용: ${estimatedCostWon}원, 고도상승: ${totalElevationGainMeters}m)`,
       );
     }
   }

@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { RouteRepository } from '@/route/repositories/route.repository';
 import { RouteService } from '@/route/services/route.service';
 
@@ -8,6 +8,7 @@ describe('RouteService', () => {
   const mockRouteRepository = {
     findDetailWithStopsAndPlace: jest.fn(),
     findListWithStops: jest.fn(),
+    findRecommendedCandidates: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -78,14 +79,12 @@ describe('RouteService', () => {
         stopLocations: [
           {
             sequence: 0,
-            dayNumber: 1,
             placeName: '',
             latitude: null,
             longitude: null,
           },
           {
             sequence: 1,
-            dayNumber: 1,
             placeName: '',
             latitude: null,
             longitude: null,
@@ -107,4 +106,104 @@ describe('RouteService', () => {
       mockRouteRepository.findDetailWithStopsAndPlace,
     ).toHaveBeenCalledWith('route-missing');
   });
+
+  it('returns top 3 budget based recommendations ordered by calculated score', async () => {
+    mockRouteRepository.findRecommendedCandidates.mockResolvedValue([
+      createBudgetCandidate('route-low', 30),
+      createBudgetCandidate('route-high', 90),
+      createBudgetCandidate('route-mid', 60),
+      createBudgetCandidate('route-extra', 20),
+    ]);
+
+    const result = await service.getBudgetRecommendedRoutes({
+      budget: 100000,
+      ratios: {
+        foodRatio: 0.4,
+        experienceRatio: 0.4,
+        transportRatio: 0.2,
+      },
+      themeSlugs: [' local-food ', 'local-food'],
+    });
+
+    expect(mockRouteRepository.findRecommendedCandidates).toHaveBeenCalledWith(
+      100000,
+      ['local-food'],
+    );
+    expect(result.map((route) => route.id)).toEqual([
+      'route-high',
+      'route-mid',
+      'route-low',
+    ]);
+    expect(result[0].score).toBe(90);
+  });
+
+  it('throws BadRequestException when budget recommendation ratios do not sum to 1', async () => {
+    await expect(
+      service.getBudgetRecommendedRoutes({
+        budget: 100000,
+        ratios: {
+          foodRatio: 0.5,
+          experienceRatio: 0.4,
+          transportRatio: 0.2,
+        },
+      }),
+    ).rejects.toThrow('비용 분배 비율');
+
+    expect(
+      mockRouteRepository.findRecommendedCandidates,
+    ).not.toHaveBeenCalled();
+  });
+
+  it('throws BadRequestException when budget is out of range', async () => {
+    const result = service.getBudgetRecommendedRoutes({
+      budget: 9999,
+    });
+
+    await expect(result).rejects.toThrow(BadRequestException);
+    await expect(result).rejects.toThrow('예산(budget)');
+
+    expect(
+      mockRouteRepository.findRecommendedCandidates,
+    ).not.toHaveBeenCalled();
+  });
+
+  it('throws BadRequestException when themeSlugs is not an array', async () => {
+    const result = service.getBudgetRecommendedRoutes({
+      budget: 100000,
+      themeSlugs: 'local-food',
+    });
+
+    await expect(result).rejects.toThrow(BadRequestException);
+    await expect(result).rejects.toThrow('themeSlugs');
+
+    expect(
+      mockRouteRepository.findRecommendedCandidates,
+    ).not.toHaveBeenCalled();
+  });
+});
+
+const createBudgetCandidate = (id: string, score: number) => ({
+  id,
+  name: `추천 루트 ${id}`,
+  totalDistanceMeters: 3200,
+  estimatedSavingsWon: 1000,
+  score,
+  routeType: 'RECOMMENDED',
+  congestionLevel: 'MEDIUM',
+  estimatedCostWon: 100000,
+  foodCostWon: 40000,
+  experienceCostWon: 40000,
+  transportCostWon: 20000,
+  totalDifficultyScore: 0,
+  stops: [
+    {
+      orderIndex: 0,
+      transitType: 'BUS',
+      travelMinutesFromPrev: 20,
+      stayMinutes: 10,
+      fareWon: 1500,
+      estimatedPriceWon: 9000,
+      place: null,
+    },
+  ],
 });
