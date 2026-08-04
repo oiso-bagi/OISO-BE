@@ -1,13 +1,5 @@
+import { BadRequestException, Controller, Get, Param } from '@nestjs/common';
 import {
-  BadRequestException,
-  Body,
-  Controller,
-  Get,
-  Param,
-  Post,
-} from '@nestjs/common';
-import {
-  ApiGetBudgetRecommendedRoutesDocs,
   ApiGetRecommendedRouteDetailDocs,
   ApiGetRecommendedRouteListDocs,
   ApiRouteControllerDocs,
@@ -25,17 +17,6 @@ export class RouteController {
   @ApiGetRecommendedRouteListDocs()
   async getList(): Promise<RecommendedRouteListResponseDto[]> {
     return this.routeService.getRecommendedRouteList();
-  }
-
-  @Post('budget-recommend')
-  @ApiGetBudgetRecommendedRoutesDocs()
-  async getBudgetRecommendedRoutes(
-    @Body() body: unknown,
-  ): Promise<RecommendedRouteListResponseDto[]> {
-    const routes: RecommendedRouteListResponseDto[] =
-      await this.routeService.getBudgetRecommendedRoutes(body);
-
-    return routes;
   }
 
   @Get(':id')

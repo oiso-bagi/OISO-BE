@@ -10,6 +10,9 @@ export class RouteStopLocationDto {
   @ApiProperty({ description: '경유지 순서', example: 1 })
   sequence!: number;
 
+  @ApiProperty({ description: '일차 번호 (1일차, 2일차...)', example: 1 })
+  dayNumber!: number;
+
   @ApiProperty({ description: '장소 이름', example: '광안리해수욕장' })
   placeName!: string;
 
@@ -30,6 +33,10 @@ export class RouteStopLocationDto {
   static from(stop: RouteStopWithPlace): RouteStopLocationDto {
     const dto = new RouteStopLocationDto();
     dto.sequence = stop.orderIndex ?? 0;
+    dto.dayNumber =
+      typeof stop.dayNumber === 'number' && stop.dayNumber > 0
+        ? stop.dayNumber
+        : 1;
     dto.placeName = stop.place?.name ?? '';
     dto.latitude =
       stop.place?.latitude != null ? Number(stop.place.latitude) : null;
