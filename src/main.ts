@@ -12,6 +12,7 @@ import { applyCommonErrorResponsesToDocument } from '@/common/docs/common-error-
 // Ensure Prisma uses the binary engine at runtime when running locally
 process.env.PRISMA_CLIENT_ENGINE_TYPE =
   process.env.PRISMA_CLIENT_ENGINE_TYPE ?? 'binary';
+const port = process.env.PORT || 3000;
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -37,7 +38,7 @@ async function bootstrap() {
     jsonDocumentUrl: 'api-docs/json',
   });
 
-  await app.listen(process.env.PORT ?? 3000);
+  await app.listen(port, '0.0.0.0'); // 3000번 포트 및 '0.0.0.0' 바인딩
 }
 bootstrap().catch((err) => {
   console.error('NestJS 서버 실행 중 에러', err);
