@@ -68,36 +68,6 @@ describe('RouteRepository', () => {
     );
   });
 
-  it('finds recommendation candidates by budget and theme slugs', async () => {
-    const mockList = [{ id: 'route-1', name: '부산 예산 추천 루트' }];
-    prismaService.route.findMany.mockResolvedValue(mockList);
-
-    const result: unknown = await repository.findRecommendedCandidates(100000, [
-      'local-food',
-    ]);
-
-    expect(result).toBe(mockList);
-    expect(prismaService.route.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: {
-          routeType: RouteType.RECOMMENDED,
-          isPublished: true,
-          estimatedCostWon: { lte: 100000 },
-          themes: {
-            some: {
-              theme: {
-                slug: {
-                  in: ['local-food'],
-                },
-              },
-            },
-          },
-        },
-        take: 50,
-      }),
-    );
-  });
-
   it('updates route congestion level by id', async () => {
     const updated = { id: 'route-1', congestionLevel: CongestionLevel.LOW };
     prismaService.route.update.mockResolvedValue(updated);

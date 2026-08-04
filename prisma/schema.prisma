@@ -12,8 +12,9 @@ generator erd {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 /// 시스템 내 사용자 권한을 정의하는 열거형입니다.

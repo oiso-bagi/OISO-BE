@@ -166,4 +166,143 @@ describe('RecommendationService', () => {
       mockRecommendationRepository.findRecommendedRoutes,
     ).not.toHaveBeenCalled();
   });
+
+  it('supports fully provided, partially provided, and wholly missing ratios', async () => {
+    mockRecommendationRepository.findRecommendedRoutes.mockResolvedValue([]);
+
+    // 1) wholly missing ratios
+    await service.recommendRoutes({
+      travelStyleSlugs: ['local-food'],
+      durationDays: 1,
+      dailyBudgetWon: 60000,
+    });
+
+    // 2) fully provided ratios
+    await service.recommendRoutes({
+      travelStyleSlugs: ['local-food'],
+      durationDays: 1,
+      dailyBudgetWon: 60000,
+      ratios: {
+        foodRatio: 0.4,
+        experienceRatio: 0.3,
+        transportRatio: 0.3,
+      },
+    });
+
+    // 3) partially provided ratios (missing transportRatio defaults to 0.40)
+    await service.recommendRoutes({
+      travelStyleSlugs: ['local-food'],
+      durationDays: 1,
+      dailyBudgetWon: 60000,
+      ratios: {
+        foodRatio: 0.35,
+        experienceRatio: 0.25,
+      },
+    });
+
+    expect(
+      mockRecommendationRepository.findRecommendedRoutes,
+    ).toHaveBeenCalledTimes(3);
+    expect(
+      mockRecommendationRepository.findRecommendedRoutes,
+    ).toHaveBeenNthCalledWith(3, {
+      travelStyleSlugs: ['local-food'],
+      durationDays: 1,
+      dailyBudgetWon: 60000,
+      totalBudgetWon: 60000,
+      ratios: {
+        foodRatio: 0.35,
+        experienceRatio: 0.25,
+        transportRatio: 0.4,
+      },
+    });
+  });
+
+  it('uses 10000m fallback distance for out-of-range coordinates, selecting fallback candidate over farther candidate and preferring closer valid candidate', async () => {
+    mockRecommendationRepository.findRecommendedRoutes.mockResolvedValue([
+      {
+        id: 'route-day1',
+        name: 'Day 1 Route',
+        score: 95,
+        stops: [
+          {
+            orderIndex: 0,
+            place: {
+              id: 'p1',
+              name: '출발 장소',
+              latitude: 35.15,
+              longitude: 129.11,
+            },
+          },
+        ],
+      },
+      {
+        id: 'route-invalid-coord',
+        name: 'Invalid Coord Route',
+        score: 90,
+        stops: [
+          {
+            orderIndex: 0,
+            place: {
+              id: 'p2',
+              name: '범주 초과 장소',
+              latitude: 95,
+              longitude: 129.11,
+            }, // lat 95 (out of range -> 10000m fallback)
+          },
+        ],
+      },
+      {
+        id: 'route-valid-far',
+        name: 'Valid Far Route',
+        score: 85,
+        stops: [
+          {
+            orderIndex: 0,
+            place: {
+              id: 'p3',
+              name: '유효하지만 먼 장소',
+              latitude: 35.5,
+              longitude: 129.5,
+            }, // ~48km distance (>10000m)
+          },
+        ],
+      },
+      {
+        id: 'route-valid-near',
+        name: 'Valid Near Route',
+        score: 80,
+        stops: [
+          {
+            orderIndex: 0,
+            place: {
+              id: 'p4',
+              name: '유효하고 가까운 장소',
+              latitude: 35.16,
+              longitude: 129.12,
+            }, // ~1.4km distance (<10000m)
+          },
+        ],
+      },
+    ]);
+
+    const results = await service.recommendRoutes({
+      travelStyleSlugs: ['local-food'],
+      durationDays: 2,
+      dailyBudgetWon: 60000,
+    });
+
+    expect(results.length).toBeGreaterThan(0);
+    // Package 0 starts with route-day1. Day 2 picks route-valid-near (~1.4km < 10000m fallback).
+    expect(results[0].stopLocations[1].placeName).toBe('유효하고 가까운 장소');
+
+    // Package 2 starts with route-valid-far (~48km). Day 2 picks route-invalid-coord (10000m fallback < 48km Haversine distance).
+    const packageStartingFar = results.find(
+      (r) => r.stopLocations[0].placeName === '유효하지만 먼 장소',
+    );
+    expect(packageStartingFar).toBeDefined();
+    expect(packageStartingFar!.stopLocations[1].placeName).toBe(
+      '범주 초과 장소',
+    );
+  });
 });

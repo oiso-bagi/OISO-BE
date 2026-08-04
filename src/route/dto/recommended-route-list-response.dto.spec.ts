@@ -54,6 +54,7 @@ describe('RecommendedRouteListResponseDto', () => {
     expect(dto.isRecommended).toBe(true);
     expect(dto.stopLocations[0]).toEqual({
       sequence: 0,
+      dayNumber: 1,
       placeName: '해운대 해수욕장',
       latitude: 35.1587,
       longitude: 129.1604,
@@ -82,5 +83,29 @@ describe('RecommendedRouteListResponseDto', () => {
     expect(dto.estimatedSavingsWon).toBe(0);
     expect(dto.score).toBe(0);
     expect(dto.isRecommended).toBe(false);
+  });
+
+  it('falls back to dayNumber 1 for fractional or non-finite values', () => {
+    const routeFixture: RouteWithStops = {
+      id: 'route-3',
+      name: '비정수 dayNumber 테스트',
+      stops: [
+        {
+          orderIndex: 0,
+          dayNumber: 1.5,
+          place: { name: '스팟 1' },
+        },
+        {
+          orderIndex: 1,
+          dayNumber: Infinity,
+          place: { name: '스팟 2' },
+        },
+      ],
+    };
+
+    const dto = RecommendedRouteListResponseDto.from(routeFixture);
+
+    expect(dto.stopLocations[0].dayNumber).toBe(1);
+    expect(dto.stopLocations[1].dayNumber).toBe(1);
   });
 });
