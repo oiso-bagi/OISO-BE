@@ -7,7 +7,7 @@
 
 ## 1. Infrastructure Topology Overview (전체 인프라 토폴로지 개요)
 
-본 시스템은 **높은 DB 가용성 확보**, **24/7 상시 서비스 유지를 통한 새벽 04:00 혼잡도 Cron 배치(`RouteCongestionCronService`) 실행 보장**, 및 **코드 푸시 시 100% 자동화된 빌드/테스트/배포 파이프라인**을 목표로 구축되었습니다.
+본 시스템은 **높은 DB 가용성 확보**, **24/7 상시 서비스 유지를 통한 새벽 04:00 혼잡도 Cron 배치(`RouteCongestionCronService`) 실행 지원 (멱등성 실행, 자동 재시도, 미실행 건 복구 및 실패 알림 적용)**, 및 **코드 푸시 시 100% 자동화된 빌드/테스트/배포 파이프라인**을 목표로 구축되었습니다.
 
 ```mermaid
 flowchart TD
@@ -21,8 +21,8 @@ flowchart TD
     end
 
     subgraph Production["[Backend Production Cloud] Railway Infrastructure"]
-        RailwayServer["Railway Web Service (Node.js 20 / NestJS)<br/>Port: 3000 | Always-On 24/7<br/>Start: npx prisma migrate deploy && pnpm start:prod"]
-        NeonDB[("Neon Serverless PostgreSQL<br/>sslmode=require | Auto Scaling")]
+        RailwayServer["Railway Web Service (Node.js 24 / NestJS)<br/>Port: 3000 | Always-On 24/7<br/>Release Step: npx prisma migrate deploy<br/>Start: pnpm start:prod"]
+        NeonDB[("Neon Serverless PostgreSQL<br/>sslmode=verify-full | Auto Scaling")]
     end
 
     VercelApp <-->|"REST API & Auth Cookie (CORS / SameSite=None)"| RailwayServer
@@ -41,42 +41,48 @@ flowchart TD
   - `DATABASE_URL`: Transaction Connection Pooling 주소 (pgBouncer 기반 런타임 쿼리용)
   - `DIRECT_URL`: Direct Connection 주소 (`npx prisma migrate deploy` DDL 마이그레이션 전용)
   - `schema.prisma` 설정: `url = env("DATABASE_URL")`, `directUrl = env("DIRECT_URL")`
-- **보안 설정**: TLS/SSL 필수 연결 (`sslmode=require`)
+- **보안 설정**: TLS/SSL 필수 검증 연결 (`sslmode=verify-full`, 신뢰할 수 있는 CA 인증서 및 호스트네임 검증 설정)
 - **백업 및 복구**: Neon Point-in-time Restore (PITR) 자동 활성화
 
 ### 2.2 Prisma Schema & Migration 관리
+
 - 개발 환경 스키마 변경 시 `npx prisma migrate dev`로 마이그레이션 SQL 파일 생성
-- CI/CD 자동화 배포 시 `npx prisma migrate deploy`를 통해 데이터 손실 없는(Zero Data Loss) 마이그레이션 수행 (`DIRECT_URL` 경유)
+- CI/CD 배포 파이프라인에서 사전 마이그레이션 SQL 리뷰, 스테이징 검증, PITR 복구 대책, Expand-Contract 모델 호환성 조건이 충족되었을 때 `npx prisma migrate deploy`를 통해 데이터 손실 없는 마이그레이션을 안전하게 전개 (`DIRECT_URL` 경유)
 
 ---
 
 ## 3. Application Server Architecture (Railway Web Service)
 
 ### 3.1 워커 배포 및 24/7 상시 가동 (Always-On)
+
 - **Provider**: Railway Web Service
-- **Runtime**: Node.js 20 LTS (pnpm package manager)
-- **운영 정책**: 15분 비활성 시 잠드는 무료 서버의 한계를 극복하고, **24시간 스핀다운 없이 켜두는(Always-on) 정책**을 채택하여 매일 새벽 04:00 혼잡도 자동 갱신 Cron 배치(`RouteCongestionCronService`)가 정시에 100% 실행되도록 보장합니다.
+- **Runtime**: Node.js 24 LTS (pnpm package manager)
+- **운영 정책**: 15분 비활성 시 잠드는 무료 서버의 한계를 극복하고, **24시간 스핀다운 없이 켜두는(Always-on) 정책**을 채택하여 매일 새벽 04:00 혼잡도 자동 갱신 Cron 배치(`RouteCongestionCronService`) 정시 실행을 지원합니다.
 
 ### 3.2 빌드 및 실행 명령어
+
 - **Build Command**: `pnpm install --frozen-lockfile && pnpm run prisma:generate && pnpm run build`
-- **Start Command**: `npx prisma migrate deploy && pnpm start:prod`
-  *(Railway 환경 내부에서 서버 스타트 직전 DIRECT_URL을 경유한 마이그레이션을 안전하게 선행 실행한 후 백엔드 론칭)*
+- **Release / Pre-deploy Command**: `npx prisma migrate deploy` (독립 마이그레이션 잡 또는 Release/Pre-deploy 스텝에서 선행 완료)
+- **Start Command**: `pnpm start:prod` (마이그레이션 정상 통과 후 백엔드 런타임 독립 론칭)
 
 ---
 
 ## 4. CI/CD Automation Pipeline (GitHub Actions & Railway Integration)
 
 ### 4.1 워크플로우 이벤트 트리거 (`.github/workflows/ci.yml`)
+
 - `develop`, `main` 브랜치 대상 **Push** 또는 **Pull Request** 생성 시 자동 실행
 
 ### 4.2 역할 분담 및 브랜치 배포 수명주기 (Separation of Concerns & Branch Lifecycle)
+
 - **GitHub Actions (CI)**: DB 접속 정보 없이 `develop`, `main` 대상 Push/PR 시 코드 품질 검증(`lint`), 빌드(`build`), 유닛 테스트(`test`)를 100% 초고속 수행
 - **Railway Native Integration (CD)**:
-  - **개발 & 프론트 연동 단계 (Development Phase)**: Railway 대시보드의 **`Branch connected to production` (Automatic Deploys Branch)**을 **`develop`**으로 지정하여, 백엔드가 `develop`에 코드 머지 시 즉시 라이브 서버로 자동 배포. 프론트엔드 팀원은 실시간 **Swagger UI (`/api-docs`)**를 통해 API 연동을 진행하고 백엔드는 QA를 동시 수행.
-  - **최종 출시 & 제출 단계 (Production Release Phase)**: 프론트 연동 및 QA가 완료되면 `develop` ➡️ `main`으로 PR/Merge를 진행하고, Railway 배포 브랜치를 `main`으로 전환/승격하여 검증된 최종 서비스를 배포.
+  - **스테이징 개발 환경 (Staging Environment)**: `develop` 브랜치에 머지 시 독립된 Staging 서비스(독립 Staging DB 및 Secrets 적용)로 자동 배포되어, 프론트엔드 팀원의 실시간 **Swagger UI (`/api-docs`)** API 연동 및 QA 동시 수행.
+  - **운영 상용 환경 (Production Environment)**: 프론트 연동 및 QA가 완료되면 `develop` ➡️ `main`으로 PR/Merge를 진행하여, 보호된 `main` 브랜치 기반의 Production 전용 서비스에 안전 배포.
 
 ### 4.3 CI 단계별 파이프라인
-1. **Checkout & Node Setup**: Node.js 20 LTS 및 pnpm 설치 (pnpm store 캐시 적용)
+
+1. **Checkout & Node Setup**: Node.js 24 LTS 및 pnpm 설치 (pnpm store 캐시 적용)
 2. **Prisma Client Generation**: `pnpm run prisma:generate`
 3. **Lint Verification**: `pnpm run lint` 코드 스타일 및 아키텍처 규칙 검증
 4. **Production Build**: `pnpm run build` 빌드 유효성 체크
@@ -104,8 +110,8 @@ flowchart TD
 |---|---|---|
 | `NODE_ENV` | 실행 환경 (`production` / `development`) | 배포 시 `production` 고정 |
 | `PORT` | NestJS 서버 웹 포트 | 기본값 `3000` (Railway 주입) |
-| `DATABASE_URL` | Neon Postgres Pooled DB 연결 문자열 | `postgresql://...sslmode=require` (pgBouncer 쿼리용) |
-| `DIRECT_URL` | Neon Postgres Direct DB 연결 문자열 | `postgresql://...sslmode=require` (DDL 마이그레이션 전용) |
+| `DATABASE_URL` | Neon Postgres Pooled DB 연결 문자열 | `postgresql://...sslmode=verify-full` (pgBouncer 쿼리용) |
+| `DIRECT_URL` | Neon Postgres Direct DB 연결 문자열 | `postgresql://...sslmode=verify-full` (DDL 마이그레이션 전용) |
 | `FRONTEND_URL` | 프론트엔드 Vercel 배포 URL | `https://oiso-fe.vercel.app` (CORS 및 OAuth Redirect) |
 | `JWT_ACCESS_SECRET` | AccessToken 서명 암호화 키 | 32자 이상 무작위 문자열 |
 | `JWT_REFRESH_SECRET` | RefreshToken 서명 암호화 키 | 32자 이상 무작위 문자열 |
@@ -125,5 +131,5 @@ flowchart TD
 
 1. **서버 헬스체크**: 배포 후 `GET /` 엔드포인트에 200 OK 응답 확인
 2. **소셜 로그인 리다이렉트**: `GET /api/v1/auth/kakao/login` 정상 리다이렉트 동작
-3. **추천 루트 런타임 API**: `POST /recommended-routes/recommend` 응답속도 < 100ms 검증
+3. **추천 루트 런타임 API**: `POST /api/v1/recommended-routes/recommend` 응답속도 < 100ms 검증
 4. **배치 서비스 로깅**: 새벽 04:00 Cron 갱신 성공 로그 수집 확인

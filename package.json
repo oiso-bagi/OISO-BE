@@ -5,8 +5,12 @@
   "author": "",
   "private": true,
   "license": "UNLICENSED",
+  "engines": {
+    "node": ">=24.0.0"
+  },
   "scripts": {
-    "build": "pnpm run prisma:generate && nest build && tsc-alias -p tsconfig.build.json",
+    "build": "pnpm run prisma:generate && pnpm run build:raw",
+    "build:raw": "nest build && tsc-alias -p tsconfig.build.json",
     "prisma:erd": "prisma generate",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "prisma:generate": "prisma generate --generator client",
