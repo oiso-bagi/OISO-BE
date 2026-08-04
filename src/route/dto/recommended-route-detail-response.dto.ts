@@ -132,7 +132,8 @@ export class RouteStopResponseDto {
   static from(stop: RouteStopWithPlace): RouteStopResponseDto {
     const dto = new RouteStopResponseDto();
 
-    dto.sequence = stop.orderIndex ?? 0;
+    const seq = stop.orderIndex ?? 0;
+    dto.sequence = seq;
     if (
       typeof stop.dayNumber === 'number' &&
       Number.isInteger(stop.dayNumber) &&
