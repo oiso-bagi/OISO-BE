@@ -5,63 +5,12 @@ import { RecommendationRepository } from '@/recommendation/repositories/recommen
 import type {
   BudgetAllocationRule,
   BudgetPreset,
-  BudgetRatios,
   RecommendationFilter,
   TravelStyleOption,
 } from '@/recommendation/types/recommendation.types';
 import { RecommendedRouteListResponseDto } from '@/route/dto/recommended-route-list-response.dto';
-import type { RouteWithStops } from '@/route/dto/recommended-route-detail-response.dto';
-
-import {
-  PlaceCategory,
-  TransitType,
-  RouteType,
-  CongestionLevel,
-  Prisma,
-} from '@prisma/client';
-
-export interface GenericPlace {
-  id: string;
-  name: string;
-  category?: PlaceCategory | null;
-  latitude?: Prisma.Decimal | number | null;
-  longitude?: Prisma.Decimal | number | null;
-}
-
-export interface GenericStop {
-  orderIndex: number;
-  dayNumber?: number;
-  transitType?: TransitType | null;
-  travelMinutesFromPrev?: number | null;
-  stayMinutes?: number | null;
-  fareWon?: number | null;
-  estimatedPriceWon?: number | null;
-  place?: GenericPlace | null;
-}
-
-export interface GenericRoute {
-  id: string;
-  name: string;
-  totalDistanceMeters: number;
-  estimatedSavingsWon: number;
-  score: number;
-  routeType: RouteType;
-  congestionLevel: CongestionLevel;
-  estimatedCostWon?: number;
-  foodCostWon?: number;
-  experienceCostWon?: number;
-  transportCostWon?: number;
-  totalDifficultyScore?: Prisma.Decimal | number | null;
-  stops?: GenericStop[];
-}
 
 const DEFAULT_DAILY_BUDGET_WON = 60000;
-
-const DEFAULT_RATIOS: BudgetRatios = {
-  foodRatio: 0.35,
-  experienceRatio: 0.25,
-  transportRatio: 0.4,
-};
 
 const TRAVEL_STYLE_OPTIONS: TravelStyleOption[] = [
   { slug: 'local-food', label: '부산 로컬 맛집' },
@@ -86,25 +35,6 @@ const BUDGET_ALLOCATION_RULES: BudgetAllocationRule[] = [
   { type: 'activity', label: '체험/입장료', percentage: 25 },
 ];
 
-function calculateDistanceMeters(
-  lat1: number,
-  lon1: number,
-  lat2: number,
-  lon2: number,
-): number {
-  const R = 6371e3;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLon = ((lon2 - lon1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return Math.round(R * c);
-}
-
 @Injectable()
 export class RecommendationService {
   constructor(
@@ -127,212 +57,12 @@ export class RecommendationService {
     body: RecommendRouteRequestDto,
   ): Promise<RecommendedRouteListResponseDto[]> {
     const validatedInput = this.validateRecommendationInput(body);
-    const rawCandidates =
-      (await this.recommendationRepository.findRecommendedRoutes(
-        validatedInput,
-      )) as unknown as GenericRoute[];
+    const recommendedRoutes =
+      await this.recommendationRepository.findRecommendedRoutes(validatedInput);
 
-    if (rawCandidates.length === 0) {
-      return [];
-    }
-
-    // 4단계 세부 가중치(Final Score: 난이도 감점, 비율 오차 패널티, 혼잡도 가산점) 연산 적용
-    const ratios = validatedInput.ratios ?? DEFAULT_RATIOS;
-    const candidateRoutes = rawCandidates
-      .map((route) => ({
-        ...route,
-        score: this.calculateFinalScore(route, ratios),
-      }))
-      .sort((a, b) => b.score - a.score);
-
-    // 1일 여행 요청 시 Final Score 기준 Top 3 반환
-    if (validatedInput.durationDays === 1) {
-      return candidateRoutes
-        .slice(0, 3)
-        .map((route) =>
-          RecommendedRouteListResponseDto.from(
-            route as unknown as RouteWithStops,
-          ),
-        );
-    }
-
-    // N일 여행(2일, 3일...) 요청 시 최적 하버사인 거리 및 중복 제거 체이닝 조립
-    const stitchedRoutes = this.stitchMultiDayRoutes(
-      candidateRoutes,
-      validatedInput.durationDays,
+    return recommendedRoutes.map((route) =>
+      RecommendedRouteListResponseDto.from(route),
     );
-
-    return stitchedRoutes.map((route) =>
-      RecommendedRouteListResponseDto.from(route as unknown as RouteWithStops),
-    );
-  }
-
-  private calculateFinalScore(
-    route: GenericRoute,
-    ratios: BudgetRatios,
-  ): number {
-    const totalCost = route.estimatedCostWon || 1;
-    const actualFoodRatio = (route.foodCostWon || 0) / totalCost;
-    const actualExperienceRatio = (route.experienceCostWon || 0) / totalCost;
-    const actualTransportRatio = (route.transportCostWon || 0) / totalCost;
-
-    const foodDiff = Math.pow(ratios.foodRatio - actualFoodRatio, 2);
-    const experienceDiff = Math.pow(
-      ratios.experienceRatio - actualExperienceRatio,
-      2,
-    );
-    const transportDiff = Math.pow(
-      ratios.transportRatio - actualTransportRatio,
-      2,
-    );
-    const variancePenalty = (foodDiff + experienceDiff + transportDiff) * 100;
-
-    const difficultyScore = Number(route.totalDifficultyScore ?? 0);
-    const initialRating = route.score != null ? Number(route.score) : 50;
-    const baseScore = Math.max(0, initialRating - 0.05 * difficultyScore);
-
-    const congestionAdjustment = this.getCongestionAdjustment(
-      route.congestionLevel,
-    );
-
-    return Math.max(0, baseScore - variancePenalty + congestionAdjustment);
-  }
-
-  private getCongestionAdjustment(congestionLevel: CongestionLevel): number {
-    switch (congestionLevel) {
-      case CongestionLevel.LOW:
-        return 3;
-      case CongestionLevel.HIGH:
-        return -5;
-      default:
-        return 0;
-    }
-  }
-
-  private stitchMultiDayRoutes(
-    candidateRoutes: GenericRoute[],
-    targetDurationDays: number,
-  ): GenericRoute[] {
-    const results: GenericRoute[] = [];
-    const maxCombinations = Math.min(candidateRoutes.length, 5);
-
-    for (let i = 0; i < maxCombinations; i++) {
-      const day1Route = candidateRoutes[i];
-      const selectedRoutes: GenericRoute[] = [day1Route];
-      const visitedPlaceIds = new Set<string>();
-
-      const day1Stops = day1Route.stops || [];
-      day1Stops.forEach((s) => {
-        if (s.place?.id) visitedPlaceIds.add(s.place.id);
-      });
-
-      let currentLastStop =
-        day1Stops.length > 0 ? day1Stops[day1Stops.length - 1] : null;
-
-      for (let day = 2; day <= targetDurationDays; day++) {
-        let bestNextRoute: GenericRoute | null = null;
-        let minDistance = Infinity;
-
-        for (const candidate of candidateRoutes) {
-          if (selectedRoutes.includes(candidate)) continue;
-
-          const candidateStops = candidate.stops || [];
-          const firstStop =
-            candidateStops.length > 0 ? candidateStops[0] : null;
-
-          const candidatePlaceIds = candidateStops
-            .map((s) => s.place?.id)
-            .filter((id): id is string => typeof id === 'string');
-
-          const hasOverlap = candidatePlaceIds.some((id) =>
-            visitedPlaceIds.has(id),
-          );
-
-          let distance = 0;
-          if (currentLastStop?.place && firstStop?.place) {
-            const lat1 = Number(currentLastStop.place.latitude);
-            const lng1 = Number(currentLastStop.place.longitude);
-            const lat2 = Number(firstStop.place.latitude);
-            const lng2 = Number(firstStop.place.longitude);
-
-            if (!isNaN(lat1) && !isNaN(lng1) && !isNaN(lat2) && !isNaN(lng2)) {
-              distance = calculateDistanceMeters(lat1, lng1, lat2, lng2);
-            }
-          }
-
-          const scorePenalty = hasOverlap ? 50000 : 0;
-          const finalScore = distance + scorePenalty;
-
-          if (finalScore < minDistance) {
-            minDistance = finalScore;
-            bestNextRoute = candidate;
-          }
-        }
-
-        if (bestNextRoute) {
-          selectedRoutes.push(bestNextRoute);
-          const nextStops = bestNextRoute.stops || [];
-          nextStops.forEach((s) => {
-            if (s.place?.id) visitedPlaceIds.add(s.place.id);
-          });
-          currentLastStop =
-            nextStops.length > 0
-              ? nextStops[nextStops.length - 1]
-              : currentLastStop;
-        } else {
-          selectedRoutes.push(day1Route);
-        }
-      }
-
-      const stitchedRoute = this.combineChainedRoutes(
-        selectedRoutes,
-        targetDurationDays,
-        i + 1,
-      );
-      results.push(stitchedRoute);
-    }
-
-    return results;
-  }
-
-  private combineChainedRoutes(
-    routes: GenericRoute[],
-    targetDurationDays: number,
-    packageIdx: number,
-  ): GenericRoute {
-    const combinedStops: any[] = [];
-    let totalDistanceMeters = 0;
-    let estimatedSavingsWon = 0;
-    let cumulativeSequence = 0;
-
-    routes.forEach((route, idx) => {
-      const dayNum = idx + 1;
-      totalDistanceMeters += Number(route.totalDistanceMeters || 0);
-      estimatedSavingsWon += Number(route.estimatedSavingsWon || 0);
-
-      const stops = route.stops || [];
-      stops.forEach((stop) => {
-        combinedStops.push({
-          ...stop,
-          orderIndex: cumulativeSequence++,
-          dayNumber: dayNum,
-        });
-      });
-    });
-
-    const leadRouteName = String(routes[0]?.name || '부산 여행');
-    const durationText = `${targetDurationDays - 1}박 ${targetDurationDays}일`;
-
-    return {
-      id: `stitched-${String(routes[0]?.id || 'multi')}-${packageIdx}`,
-      name: `[${durationText}] ${leadRouteName} 패키지 ${packageIdx}호`,
-      totalDistanceMeters,
-      estimatedSavingsWon,
-      score: Number(routes[0]?.score || 90),
-      routeType: routes[0]?.routeType || 'RECOMMENDED',
-      congestionLevel: routes[0]?.congestionLevel || 'MEDIUM',
-      stops: combinedStops,
-    };
   }
 
   private validateRecommendationInput(
@@ -350,65 +80,13 @@ export class RecommendationService {
       durationDays,
       dailyBudgetWon,
     );
-    const ratios = this.validateBudgetRatios(body?.ratios);
 
     return {
       travelStyleSlugs,
       durationDays,
       dailyBudgetWon,
       totalBudgetWon,
-      ratios,
     };
-  }
-
-  private validateBudgetRatios(value: unknown): BudgetRatios | undefined {
-    if (value == null) {
-      return undefined;
-    }
-
-    if (typeof value !== 'object' || Array.isArray(value)) {
-      throw new BadRequestException('ratios는 객체 형식이어야 합니다.');
-    }
-
-    const raw = value as Record<string, unknown>;
-    const foodRatio = this.validateRatioField(raw.foodRatio, 'foodRatio');
-    const experienceRatio = this.validateRatioField(
-      raw.experienceRatio,
-      'experienceRatio',
-    );
-    const transportRatio = this.validateRatioField(
-      raw.transportRatio,
-      'transportRatio',
-    );
-
-    const sum = foodRatio + experienceRatio + transportRatio;
-    if (Math.abs(sum - 1.0) >= 0.001) {
-      throw new BadRequestException(
-        'ratios의 합계(foodRatio + experienceRatio + transportRatio)는 1.0이어야 합니다.',
-      );
-    }
-
-    return { foodRatio, experienceRatio, transportRatio };
-  }
-
-  private validateRatioField(value: unknown, label: string): number {
-    const parsed =
-      typeof value === 'string' && value.trim().length > 0
-        ? Number(value)
-        : value;
-
-    if (
-      typeof parsed !== 'number' ||
-      !Number.isFinite(parsed) ||
-      parsed < 0 ||
-      parsed > 1
-    ) {
-      throw new BadRequestException(
-        `ratios.${label}은 0 이상 1 이하의 숫자여야 합니다.`,
-      );
-    }
-
-    return parsed;
   }
 
   private validateTravelStyleSlugs(value: unknown): string[] {

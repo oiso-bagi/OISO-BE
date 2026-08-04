@@ -36,7 +36,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with:
-          node-version: 20
+          node-version: 24
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
 
@@ -45,18 +45,20 @@ jobs:
 
       - name: Validate Prisma schema
         run: pnpm run prisma:validate
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/oiso_ci' }}
 
       - name: Generate Prisma client
         run: pnpm run prisma:generate
+
+      - name: Build
+        run: pnpm run build
 
       - name: Lint
         run: pnpm run lint
 
       - name: Ensure lint did not modify files
         run: git diff --exit-code
-
-      - name: Build
-        run: pnpm run build
 
       - name: Run unit tests
         run: pnpm run test

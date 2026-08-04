@@ -54,7 +54,6 @@ describe('RecommendedRouteListResponseDto', () => {
     expect(dto.isRecommended).toBe(true);
     expect(dto.stopLocations[0]).toEqual({
       sequence: 0,
-      dayNumber: 1,
       placeName: '해운대 해수욕장',
       latitude: 35.1587,
       longitude: 129.1604,

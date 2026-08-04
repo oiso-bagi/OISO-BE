@@ -55,7 +55,7 @@ describe('RecommendationRepository', () => {
             },
           },
         },
-        take: 50,
+        take: 10,
       }),
     );
   });

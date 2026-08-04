@@ -86,6 +86,67 @@ export class RouteRepository {
     });
   }
 
+  async findRecommendedCandidates(budget: number, themeSlugs?: string[]) {
+    const whereCondition: Prisma.RouteWhereInput = {
+      routeType: RouteType.RECOMMENDED,
+      isPublished: true,
+      estimatedCostWon: {
+        lte: budget,
+      },
+    };
+
+    if (themeSlugs && themeSlugs.length > 0) {
+      whereCondition.themes = {
+        some: {
+          theme: {
+            slug: {
+              in: themeSlugs,
+            },
+          },
+        },
+      };
+    }
+
+    return this.prisma.route.findMany({
+      where: whereCondition,
+      take: 50,
+      select: {
+        id: true,
+        name: true,
+        routeType: true,
+        congestionLevel: true,
+        score: true,
+        estimatedCostWon: true,
+        foodCostWon: true,
+        experienceCostWon: true,
+        transportCostWon: true,
+        totalDifficultyScore: true,
+        totalDistanceMeters: true,
+        estimatedSavingsWon: true,
+        stops: {
+          orderBy: {
+            orderIndex: 'asc',
+          },
+          select: {
+            orderIndex: true,
+            transitType: true,
+            travelMinutesFromPrev: true,
+            stayMinutes: true,
+            fareWon: true,
+            estimatedPriceWon: true,
+            place: {
+              select: {
+                name: true,
+                latitude: true,
+                longitude: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
   findPublishedRecommendedRouteCongestionTargets() {
     return this.prisma.route.findMany({
       where: { routeType: RouteType.RECOMMENDED, isPublished: true },

@@ -79,17 +79,6 @@ const recommendationBadRequestExamples = {
       error: 'Bad Request',
     }),
   },
-  invalidRatiosSum: {
-    summary: '예산 비율 합계 오류 (1.0 불일치)',
-    value: createCommonErrorExample({
-      statusCode: 400,
-      path: RECOMMENDATION_ROUTE_PATH,
-      method: RECOMMENDATION_ROUTE_METHOD,
-      message:
-        'ratios의 합계(foodRatio + experienceRatio + transportRatio)는 1.0이어야 합니다.',
-      error: 'Bad Request',
-    }),
-  },
 };
 
 export const ApiRecommendationControllerDocs = () => ApiTags('Recommendation');
@@ -141,14 +130,13 @@ export const ApiRecommendRoutesDocs = () =>
     ApiOperation({
       summary: '추천 루트 목록 조회',
       description: [
-        '사용자가 선택한 여행 스타일, 여행 기간, 1일 예산 및 선호 비용 비율을 기준으로 추천 루트 목록을 조회합니다.',
+        '사용자가 선택한 여행 스타일, 여행 기간, 1일 예산을 기준으로 추천 루트 목록을 조회합니다.',
         '',
         '요청 파라미터: 없음',
         '요청 바디: 필요',
         '- travelStyleSlugs: string[] 필수, 지원하는 여행 스타일 slug 목록',
         '- durationDays: number 필수, 1~5 사이의 여행 기간',
         '- dailyBudgetWon: number 필수, 안전한 양의 정수인 1일 예산(원)',
-        '- ratios: object 선택, { foodRatio, experienceRatio, transportRatio } 합계 1.0 (미입력 시 기본 0.35/0.25/0.40 적용)',
         '',
         '인증: 필요 없음',
       ].join('\n'),
@@ -157,20 +145,7 @@ export const ApiRecommendRoutesDocs = () =>
       type: RecommendRouteRequestDto,
       examples: {
         default: {
-          summary: '추천 요청 예시 (비율 지정)',
-          value: {
-            travelStyleSlugs: ['local-food', 'cafe'],
-            durationDays: 2,
-            dailyBudgetWon: 60000,
-            ratios: {
-              foodRatio: 0.35,
-              experienceRatio: 0.25,
-              transportRatio: 0.4,
-            },
-          },
-        },
-        withoutRatios: {
-          summary: '추천 요청 예시 (기본 비율 적용)',
+          summary: '추천 요청 예시',
           value: {
             travelStyleSlugs: ['local-food', 'cafe'],
             durationDays: 2,

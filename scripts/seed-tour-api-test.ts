@@ -94,7 +94,7 @@ async function seedTourApiTest() {
       axios.get(endpoint, {
         params: {
           serviceKey,
-          numOfRows: 1000,
+          numOfRows: 30,
           pageNo: 1,
           MobileOS: 'ETC',
           MobileApp: 'AppTest',
@@ -105,7 +105,7 @@ async function seedTourApiTest() {
           'User-Agent': 'Mozilla/5.0',
           Accept: 'application/json, text/plain, */*',
         },
-        timeout: 15000,
+        timeout: 10000,
       }),
     );
 
@@ -152,38 +152,34 @@ async function seedTourApiTest() {
       });
     }
 
-    // Google Elevation API 청크(100개씩) 일괄 파이프(|) 획득
+    // Google Elevation API 일괄 파이프(|) 획득
     const googleKey = process.env.GOOGLE_MAPS_API_KEY;
     const elevationsMap: Record<string, number> = {};
 
     if (googleKey && validItems.length > 0) {
-      const chunkSize = 100;
-      for (let i = 0; i < validItems.length; i += chunkSize) {
-        const chunk = validItems.slice(i, i + chunkSize);
-        try {
-          const locationsStr = chunk
-            .map((v) => `${v.lat},${v.lng}`)
-            .join('|');
-          const elevUrl = `https://maps.googleapis.com/maps/api/elevation/json?locations=${encodeURIComponent(
-            locationsStr,
-          )}&key=${googleKey}`;
-          const elevRes = await axios.get(elevUrl, { timeout: 10000 });
+      try {
+        const locationsStr = validItems
+          .map((v) => `${v.lat},${v.lng}`)
+          .join('|');
+        const elevUrl = `https://maps.googleapis.com/maps/api/elevation/json?locations=${encodeURIComponent(
+          locationsStr,
+        )}&key=${googleKey}`;
+        const elevRes = await axios.get(elevUrl, { timeout: 5000 });
 
-          if (Array.isArray(elevRes.data?.results)) {
-            elevRes.data.results.forEach((res: any, idx: number) => {
-              if (res?.elevation != null && chunk[idx]) {
-                const contentId = String(chunk[idx].item.contentid);
-                elevationsMap[contentId] = Math.round(res.elevation);
-              }
-            });
-          }
-        } catch (err: any) {
-          console.warn(`⚠️ Google Elevation API 청크 수집 지연: ${err?.message}`);
+        if (Array.isArray(elevRes.data?.results)) {
+          elevRes.data.results.forEach((res: any, idx: number) => {
+            if (res?.elevation != null && validItems[idx]) {
+              const contentId = String(validItems[idx].item.contentid);
+              elevationsMap[contentId] = Math.round(res.elevation);
+            }
+          });
+          console.log(
+            `🏔️ Google Elevation API 1회 일괄 수집 완료 (${Object.keys(elevationsMap).length}개 고도 획득)`,
+          );
         }
+      } catch (err: any) {
+        console.warn(`⚠️ Google Elevation API 일괄 수집 실패: ${err?.message}`);
       }
-      console.log(
-        `🏔️ Google Elevation API 일괄 수집 완료 (${Object.keys(elevationsMap).length}개 고도 획득)`,
-      );
     }
 
     let successCount = 0;
