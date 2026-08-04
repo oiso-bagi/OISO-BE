@@ -83,10 +83,11 @@ flowchart TD
 ### 4.3 CI 단계별 파이프라인
 
 1. **Checkout & Node Setup**: Node.js 24 LTS 및 pnpm 설치 (pnpm store 캐시 적용)
-2. **Prisma Client Generation**: `pnpm run prisma:generate`
-3. **Lint Verification**: `pnpm run lint` 코드 스타일 및 아키텍처 규칙 검증
-4. **Production Build**: `pnpm run build:raw` 빌드 유효성 체크 (Prisma Client 선행 생성 후 중복 방지)
-5. **Automated Unit Testing**: `pnpm run test` (Prisma Service Mocking 기반 순수 유닛 테스트만 수행)
+2. **Prisma Schema Validation**: `pnpm run prisma:validate`
+3. **Prisma Client Generation**: `pnpm run prisma:generate`
+4. **Lint Verification**: `pnpm run lint` 코드 스타일 및 아키텍처 규칙 검증
+5. **Production Build**: `pnpm run build:raw` 빌드 유효성 체크 (Prisma Client 선행 생성 후 중복 방지)
+6. **Automated Unit Testing**: `pnpm run test` (Prisma Service Mocking 기반 순수 유닛 테스트만 수행)
 
 ---
 

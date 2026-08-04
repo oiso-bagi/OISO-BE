@@ -256,13 +256,25 @@ export class RecommendationService {
             const lng2 = Number(firstStop.place.longitude);
 
             const isValidLat1 =
-              currentLastStop.place.latitude != null && Number.isFinite(lat1);
+              currentLastStop.place.latitude != null &&
+              Number.isFinite(lat1) &&
+              lat1 >= -90 &&
+              lat1 <= 90;
             const isValidLng1 =
-              currentLastStop.place.longitude != null && Number.isFinite(lng1);
+              currentLastStop.place.longitude != null &&
+              Number.isFinite(lng1) &&
+              lng1 >= -180 &&
+              lng1 <= 180;
             const isValidLat2 =
-              firstStop.place.latitude != null && Number.isFinite(lat2);
+              firstStop.place.latitude != null &&
+              Number.isFinite(lat2) &&
+              lat2 >= -90 &&
+              lat2 <= 90;
             const isValidLng2 =
-              firstStop.place.longitude != null && Number.isFinite(lng2);
+              firstStop.place.longitude != null &&
+              Number.isFinite(lng2) &&
+              lng2 >= -180 &&
+              lng2 <= 180;
 
             if (isValidLat1 && isValidLng1 && isValidLat2 && isValidLng2) {
               distance = calculateDistanceMeters(lat1, lng1, lat2, lng2);

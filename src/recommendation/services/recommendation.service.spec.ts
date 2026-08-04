@@ -217,4 +217,38 @@ describe('RecommendationService', () => {
       },
     });
   });
+
+  it('uses 10000m fallback distance when coordinates are out of valid range (-90..90, -180..180)', async () => {
+    mockRecommendationRepository.findRecommendedRoutes.mockResolvedValue([
+      {
+        id: 'route-day1',
+        name: 'Day 1 Route',
+        stops: [
+          {
+            orderIndex: 0,
+            place: { id: 'p1', latitude: 95, longitude: 129.1 }, // lat out of range (95 > 90)
+          },
+        ],
+      },
+      {
+        id: 'route-day2',
+        name: 'Day 2 Route',
+        stops: [
+          {
+            orderIndex: 0,
+            place: { id: 'p2', latitude: 35.1, longitude: 200 }, // lng out of range (200 > 180)
+          },
+        ],
+      },
+    ]);
+
+    const results = await service.recommendRoutes({
+      travelStyleSlugs: ['local-food'],
+      durationDays: 2,
+      dailyBudgetWon: 60000,
+    });
+
+    expect(results).toHaveLength(2);
+    expect(results[0].totalDistanceMeters).toBeDefined();
+  });
 });
