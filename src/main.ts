@@ -7,19 +7,22 @@ import {
   ACCESS_TOKEN_COOKIE,
   REFRESH_TOKEN_COOKIE,
 } from '@/auth/auth.constants';
+import { resolveFrontendOrigins } from '@/common/config/frontend-origin.config';
 import { applyCommonErrorResponsesToDocument } from '@/common/docs/common-error-swagger.docs';
 
 // Ensure Prisma uses the binary engine at runtime when running locally
 process.env.PRISMA_CLIENT_ENGINE_TYPE =
   process.env.PRISMA_CLIENT_ENGINE_TYPE ?? 'binary';
 const port = process.env.PORT || 3000;
-const localFrontendOrigin = 'http://localhost:5173';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   app.enableCors({
-    origin: getAllowedCorsOrigins(),
+    origin: resolveFrontendOrigins(
+      process.env.FRONTEND_ORIGIN,
+      process.env.NODE_ENV,
+    ),
     credentials: true,
   });
 
@@ -50,20 +53,3 @@ bootstrap().catch((err) => {
   console.error('NestJS 서버 실행 중 에러', err);
   process.exit(1);
 });
-
-function getAllowedCorsOrigins(): string[] {
-  const configuredOrigins = process.env.FRONTEND_ORIGIN;
-
-  if (!configuredOrigins) {
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error('FRONTEND_ORIGIN environment variable is required.');
-    }
-
-    return [localFrontendOrigin];
-  }
-
-  return configuredOrigins
-    .split(',')
-    .map((origin) => origin.trim())
-    .filter((origin) => origin.length > 0);
-}

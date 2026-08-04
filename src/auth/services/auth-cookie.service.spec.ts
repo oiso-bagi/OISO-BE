@@ -38,6 +38,18 @@ describe('AuthCookieService', () => {
       ).toBeUndefined();
     });
 
+    it('accepts absolute returnUrl values from any configured frontend origin', () => {
+      process.env.FRONTEND_ORIGIN =
+        'https://app.example.com, https://admin.example.com/path';
+
+      expect(
+        service.getSafeOAuthReturnUrl('https://admin.example.com/routes/1'),
+      ).toBe('https://admin.example.com/routes/1');
+      expect(service.getSuccessRedirectUrl('/routes/1')).toBe(
+        'https://app.example.com/routes/1?login=success',
+      );
+    });
+
     it('rejects backslash returnUrl values parsed as external origins', () => {
       expect(
         service.getSafeOAuthReturnUrl('/\\attacker.example.com/phish'),

@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { timingSafeEqual } from 'node:crypto';
 import type { CookieOptions, Request } from 'express';
+import { resolveFrontendOrigins } from '@/common/config/frontend-origin.config';
 
 @Injectable()
 export class AuthCookieService {
@@ -98,10 +99,11 @@ export class AuthCookieService {
     }
 
     try {
-      const frontendOrigin = this.getFrontendOrigin();
+      const frontendOrigins = this.getFrontendOrigins();
+      const frontendOrigin = frontendOrigins[0];
       const url = new URL(returnUrl, frontendOrigin);
 
-      if (url.origin !== frontendOrigin) {
+      if (!frontendOrigins.includes(url.origin)) {
         return undefined;
       }
 
@@ -234,12 +236,18 @@ export class AuthCookieService {
   }
 
   private getFrontendOrigin(): string {
-    const configuredOrigin = process.env.FRONTEND_ORIGIN;
+    return this.getFrontendOrigins()[0];
+  }
 
-    if (configuredOrigin) {
-      return new URL(configuredOrigin).origin;
-    }
+  private getFrontendOrigins(): string[] {
+    return resolveFrontendOrigins(
+      process.env.FRONTEND_ORIGIN,
+      process.env.NODE_ENV,
+      this.getDefaultFrontendOrigin(),
+    );
+  }
 
+  private getDefaultFrontendOrigin(): string {
     const successUrl =
       process.env.FRONTEND_AUTH_SUCCESS_REDIRECT ??
       'http://localhost:5173/auth/kakao/success';
