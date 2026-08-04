@@ -75,7 +75,7 @@ flowchart TD
 
 ### 4.2 역할 분담 및 브랜치 배포 수명주기 (Separation of Concerns & Branch Lifecycle)
 
-- **GitHub Actions (CI)**: DB 접속 정보 없이 `develop`, `main` 대상 Push/PR 시 코드 품질 검증(`lint`), 빌드(`build`), 유닛 테스트(`test`)를 100% 초고속 수행
+- **GitHub Actions (CI)**: 실제 DB에 접속하지 않고 검증용 더미 URL(`DATABASE_URL`, `DIRECT_URL`)을 주입하여 `develop`, `main` 대상 Push/PR 시 코드 품질 검증(`lint`), 빌드(`build`), 유닛 테스트(`test`)를 100% 초고속 수행하며, 운영 DB Secrets는 CI 파이프라인에서 일체 사용하지 않음.
 - **Railway Native Integration (CD)**:
   - **스테이징 개발 환경 (Staging Environment)**: `develop` 브랜치에 머지 시 독립된 Staging 서비스(독립 Staging DB 및 Secrets 적용)로 자동 배포되어, 프론트엔드 팀원의 실시간 **Swagger UI (`/api-docs`)** API 연동 및 QA 동시 수행.
   - **운영 상용 환경 (Production Environment)**: 프론트 연동 및 QA가 완료되면 `develop` ➡️ `main`으로 PR/Merge를 진행하여, 보호된 `main` 브랜치 기반의 Production 전용 서비스에 안전 배포.
@@ -94,10 +94,12 @@ flowchart TD
 ## 5. Cross-Domain Interoperability & Security (Vercel ↔ Railway 연동 명세)
 
 ### 5.1 CORS (Cross-Origin Resource Sharing) 설정
+
 - **허용 오리진 (Origin)**: 프론트엔드 Vercel 도메인 (`https://oiso-fe.vercel.app`) 및 로컬 개발 주소 (`http://localhost:3000`, `http://localhost:5173`)
 - **Credentials**: `credentials: true`로 설정하여 인증 쿠키 전송 허용
 
 ### 5.2 Cross-Site Auth Cookie 정책
+
 - 서로 다른 클라우드 도메인(`vercel.app` ↔ `railway.app`) 간 인증 세션 전송을 위해 **`SameSite=None`**, **`Secure=true` (HTTPS 필수)** 옵션 적용
 - `AuthCookieService`를 통해 AccessToken / RefreshToken 쿠키 발급 시 크로스 도메인 보안 규격 준수
 
@@ -122,7 +124,6 @@ flowchart TD
 | `KAKAO_CLIENT_SECRET` | 카카오 Client Secret | Kakao Developers |
 | `KAKAO_REDIRECT_URI` | 카카오 OAuth 리다이렉트 URL | Railway 배포 도메인 + `/api/v1/auth/kakao/callback` |
 | `GOOGLE_CLIENT_ID` | 구글 OAuth Client ID | Google Cloud Console |
-| `GOOGLE_CLIENT_SECRET` | 구글 OAuth Client Secret | Google Cloud Console |
 | `GOOGLE_REDIRECT_URI` | 구글 OAuth 리다이렉트 URL | Railway 배포 도메인 + `/api/v1/auth/google/callback` |
 | `VK_KORSERVICE2_API_KEY` | 한국관광공사 TourAPI 4.0 인코딩 키 | 공공데이터포털 |
 
@@ -133,4 +134,4 @@ flowchart TD
 1. **서버 헬스체크**: 배포 후 `GET /` 엔드포인트에 200 OK 응답 확인
 2. **소셜 로그인 리다이렉트**: `GET /api/v1/auth/kakao/login` 정상 리다이렉트 동작
 3. **추천 루트 런타임 API**: `POST /api/v1/recommended-routes/recommend` 응답속도 < 100ms 검증
-4. **배치 서비스 로깅**: 새벽 04:00 Cron 갱신 성공 로그 수집 확인
+4. **배치 서비스 로깅 & 장애 복구 검증**: 새벽 04:00 Cron 갱신 성공 로그 수집 확인 및 **스테이징 환경 전용(Staging Only, 운영 데이터 무영향)**으로 강제 실패 시나리오, 재시도(Retry) 동작, 미실행 건 복구(Recovery), 실패 알림(Alert) 발송 수명주기 수동 검증 수행

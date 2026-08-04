@@ -218,25 +218,69 @@ describe('RecommendationService', () => {
     });
   });
 
-  it('uses 10000m fallback distance when coordinates are out of valid range (-90..90, -180..180)', async () => {
+  it('uses 10000m fallback distance for out-of-range coordinates, selecting fallback candidate over farther candidate and preferring closer valid candidate', async () => {
     mockRecommendationRepository.findRecommendedRoutes.mockResolvedValue([
       {
         id: 'route-day1',
         name: 'Day 1 Route',
+        score: 95,
         stops: [
           {
             orderIndex: 0,
-            place: { id: 'p1', latitude: 95, longitude: 129.1 }, // lat out of range (95 > 90)
+            place: {
+              id: 'p1',
+              name: '출발 장소',
+              latitude: 35.15,
+              longitude: 129.11,
+            },
           },
         ],
       },
       {
-        id: 'route-day2',
-        name: 'Day 2 Route',
+        id: 'route-invalid-coord',
+        name: 'Invalid Coord Route',
+        score: 90,
         stops: [
           {
             orderIndex: 0,
-            place: { id: 'p2', latitude: 35.1, longitude: 200 }, // lng out of range (200 > 180)
+            place: {
+              id: 'p2',
+              name: '범주 초과 장소',
+              latitude: 95,
+              longitude: 129.11,
+            }, // lat 95 (out of range -> 10000m fallback)
+          },
+        ],
+      },
+      {
+        id: 'route-valid-far',
+        name: 'Valid Far Route',
+        score: 85,
+        stops: [
+          {
+            orderIndex: 0,
+            place: {
+              id: 'p3',
+              name: '유효하지만 먼 장소',
+              latitude: 35.5,
+              longitude: 129.5,
+            }, // ~48km distance (>10000m)
+          },
+        ],
+      },
+      {
+        id: 'route-valid-near',
+        name: 'Valid Near Route',
+        score: 80,
+        stops: [
+          {
+            orderIndex: 0,
+            place: {
+              id: 'p4',
+              name: '유효하고 가까운 장소',
+              latitude: 35.16,
+              longitude: 129.12,
+            }, // ~1.4km distance (<10000m)
           },
         ],
       },
@@ -248,7 +292,17 @@ describe('RecommendationService', () => {
       dailyBudgetWon: 60000,
     });
 
-    expect(results).toHaveLength(2);
-    expect(results[0].totalDistanceMeters).toBeDefined();
+    expect(results.length).toBeGreaterThan(0);
+    // Package 0 starts with route-day1. Day 2 picks route-valid-near (~1.4km < 10000m fallback).
+    expect(results[0].stopLocations[1].placeName).toBe('유효하고 가까운 장소');
+
+    // Package 2 starts with route-valid-far (~48km). Day 2 picks route-invalid-coord (10000m fallback < 48km Haversine distance).
+    const packageStartingFar = results.find(
+      (r) => r.stopLocations[0].placeName === '유효하지만 먼 장소',
+    );
+    expect(packageStartingFar).toBeDefined();
+    expect(packageStartingFar!.stopLocations[1].placeName).toBe(
+      '범주 초과 장소',
+    );
   });
 });
