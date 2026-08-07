@@ -177,9 +177,9 @@ sequenceDiagram
 
 #### 📐 추천도 점수 4단계 통합 계산 수식 (Final Recommendation Score Formula)
 
-1. **1단계: 코스 기본 점수 및 피로도 감점 ($\text{Base Score}$)**
-   $$\text{Base Score} = \text{Initial Rating} - (\alpha \times D) \quad (\alpha = 0.05)$$
-   *(코스 원본 평가점수에서 산복도로 계단 보행 난이도 점수 $D$를 감점 연동)*
+1. **1단계: 코스 기본 점수 ($\text{Base Score}$)**
+   $$\text{Base Score} = \text{Route.score}$$
+   *(SEED 시점에 이미 $\max(50.0, 95.0 - 0.05 \times D)$가 사전 연산되어 DB `Route.score`에 적재되어 있으므로 런타임 이중 감점을 차단하고 정적 기본점수 사용)*
 
 2. **2단계: 사용자 예산 비율 오차 제곱 패널티 ($\text{Variance Penalty}$)**
    $$\text{Variance Penalty} = \left( (R_{\text{food, user}} - R_{\text{food, actual}})^2 + (R_{\text{exp, user}} - R_{\text{exp, actual}})^2 + (R_{\text{trans, user}} - R_{\text{trans, actual}})^2 \right) \times W \quad (W = 100)$$

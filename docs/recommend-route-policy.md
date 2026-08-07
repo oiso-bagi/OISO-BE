@@ -54,7 +54,7 @@
 |---|---|---|
 | 🍱 **`local-food`** | **Slot 1**: FOOD ➡️ **Slot 2**: CAFE ➡️ **Slot 3**: FOOD/MARKET ➡️ **Slot 4(선택)**: VIEWPOINT/NATURE | 대표 맛집/노포 ➡️ 디저트 카페 ➡️ 시장 먹거리/맛집 ➡️ 산책/전망 |
 | ☕ **`emotion-cafe`** | **Slot 1**: CAFE ➡️ **Slot 2**: CULTURE/VIEWPOINT ➡️ **Slot 3**: FOOD ➡️ **Slot 4(선택)**: CAFE | 감성/뷰 카페 ➡️ 전시/포토존 ➡️ 대표 식당 ➡️ 디저트/로스터리 카페 |
-| 🌊 **`beach-tour`** | **Slot 1**: BEACH ➡️ **Slot 2**: FOOD ➡️ **Slot 3**: BEACH/CAFE ➡️ **Slot 4(선택)**: VIEWPOINT | 해수욕장/해양 ➡️ 해산물/식당 ➡️ 오션뷰 카페/해양레포츠 ➡️ 해안 전망대/야경 |
+| 🌊 **`beach-tour`** | **Slot 1**: BEACH (NATURE/EXPERIENCE/VIEWPOINT) ➡️ **Slot 2**: FOOD ➡️ **Slot 3**: BEACH/CAFE ➡️ **Slot 4(선택)**: VIEWPOINT | 해수욕장/해양 ➡️ 해산물/식당 ➡️ 오션뷰 카페/해양레포츠 ➡️ 해안 전망대/야경 |
 | 📸 **`photo-spot`** | **Slot 1**: CULTURE ➡️ **Slot 2**: CAFE ➡️ **Slot 3**: VIEWPOINT ➡️ **Slot 4(선택)**: FOOD/MARKET | 전시/갤러리/문화재 ➡️ 감성 카페 ➡️ 포토존/전망대/야경 ➡️ 대표 먹거리 |
 | 🛍️ **`traditional-market`** | **Slot 1**: MARKET ➡️ **Slot 2**: CAFE ➡️ **Slot 3**: FOOD ➡️ **Slot 4(선택)**: CULTURE/VIEWPOINT | 대표 전통시장 ➡️ 시장 근처 카페 ➡️ 노포 맛집 ➡️ 문화/전망 |
 | 🌲 **`nature-walk`** | **Slot 1**: NATURE ➡️ **Slot 2**: FOOD/CAFE ➡️ **Slot 3**: NATURE ➡️ **Slot 4(선택)**: VIEWPOINT | 공원/해안산책로 ➡️ 힐링 식당/카페 ➡️ 숲길/자연/섬 ➡️ 전망대 |

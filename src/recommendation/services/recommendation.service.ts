@@ -51,6 +51,7 @@ export interface GenericRoute {
   foodCostWon?: number;
   experienceCostWon?: number;
   transportCostWon?: number;
+  estimatedDurationMin?: number;
   totalDifficultyScore?: Prisma.Decimal | number | null;
   stops?: GenericStop[];
   themes?: Array<{ theme?: { slug?: string } | null }> | null;
@@ -137,7 +138,7 @@ export class RecommendationService {
       return [];
     }
 
-    // 4단계 세부 가중치(Final Score: 난이도 감점, 비율 오차 패널티, 혼잡도 가산점) 연산 적용
+    // Step 2: Soft Filter (Final Score: 비율 오차 패널티, 혼잡도 가산점 연산)
     const ratios = validatedInput.ratios ?? DEFAULT_RATIOS;
     const candidateRoutes = rawCandidates
       .map((route) => ({
@@ -157,13 +158,14 @@ export class RecommendationService {
         );
     }
 
-    // N일 여행(2일, 3일...) 요청 시 최적 하버사인 거리 및 테마 순환 체이닝 조립
+    // Step 3: Multi-Day Stitching & Soft Penalty (N일차 체이닝 엔진)
     const stitchedRoutes = this.stitchMultiDayRoutes(
       candidateRoutes,
       validatedInput.durationDays,
       validatedInput.travelStyleSlugs,
     );
 
+    // Final Top 3 Selection
     return stitchedRoutes
       .slice(0, 3)
       .map((route) =>
@@ -193,9 +195,8 @@ export class RecommendationService {
     );
     const variancePenalty = (foodDiff + experienceDiff + transportDiff) * 100;
 
-    const difficultyScore = Number(route.totalDifficultyScore ?? 0);
-    const initialRating = route.score != null ? Number(route.score) : 50;
-    const baseScore = Math.max(0, initialRating - 0.05 * difficultyScore);
+    // SEED 시점에 이미 난이도 감점(0.05 * D)이 반영된 Route.score를 그대로 사용하여 이중 차감 방지
+    const baseScore = route.score != null ? Number(route.score) : 50;
 
     const congestionAdjustment = this.getCongestionAdjustment(
       route.congestionLevel,
@@ -228,6 +229,9 @@ export class RecommendationService {
       const day1Route = candidateRoutes[i];
       const selectedRoutes: GenericRoute[] = [day1Route];
       const visitedPlaceIds = new Set<string>();
+
+      // 1일차 코스를 사용된 루트 목록에 등록하여 후속 패키지 재사용 시 UsedRoutePenalty 부여
+      previouslyStitchedRouteIds.add(day1Route.id);
 
       const day1Stops = day1Route.stops || [];
       day1Stops.forEach((s) => {
@@ -340,7 +344,8 @@ export class RecommendationService {
       results.push(stitchedRoute);
     }
 
-    return results;
+    // 패키지 종합 점수 기준 내림차순 정렬
+    return results.sort((a, b) => b.score - a.score);
   }
 
   private combineChainedRoutes(
@@ -355,6 +360,8 @@ export class RecommendationService {
     let foodCostWon = 0;
     let experienceCostWon = 0;
     let transportCostWon = 0;
+    let estimatedDurationMin = 0;
+    let totalScoreSum = 0;
     let cumulativeSequence = 0;
 
     routes.forEach((route, idx) => {
@@ -365,6 +372,8 @@ export class RecommendationService {
       foodCostWon += Number(route.foodCostWon || 0);
       experienceCostWon += Number(route.experienceCostWon || 0);
       transportCostWon += Number(route.transportCostWon || 0);
+      estimatedDurationMin += Number(route.estimatedDurationMin || 0);
+      totalScoreSum += Number(route.score || 85);
 
       const stops = route.stops || [];
       stops.forEach((stop) => {
@@ -378,6 +387,7 @@ export class RecommendationService {
 
     const leadRouteName = String(routes[0]?.name || '부산 여행');
     const durationText = `${targetDurationDays - 1}박 ${targetDurationDays}일`;
+    const avgScore = Number((totalScoreSum / routes.length).toFixed(2));
 
     return {
       id: `stitched-${String(routes[0]?.id || 'multi')}-${packageIdx}`,
@@ -388,7 +398,8 @@ export class RecommendationService {
       foodCostWon,
       experienceCostWon,
       transportCostWon,
-      score: Number(routes[0]?.score || 90),
+      estimatedDurationMin,
+      score: avgScore,
       routeType: routes[0]?.routeType || 'RECOMMENDED',
       congestionLevel: routes[0]?.congestionLevel || 'MEDIUM',
       stops: combinedStops,

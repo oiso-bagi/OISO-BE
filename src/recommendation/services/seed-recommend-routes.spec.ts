@@ -1,50 +1,9 @@
 import { TransitType } from '@prisma/client';
-
-/**
- * seed-recommend-routes.ts 수치 연산 검증 테스트
- */
-function calculateHaversineDistance(
-  lat1: number,
-  lon1: number,
-  lat2: number,
-  lon2: number,
-): number {
-  const R = 6371e3;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLon = ((lon2 - lon1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return Math.round(R * c);
-}
-
-function calculateDifficultyScore(
-  distanceMeters: number,
-  elevationGainMeters: number,
-  fareWon: number,
-  transitType: TransitType,
-): number {
-  let elevationWeight = 1.0;
-  if (transitType === TransitType.WALKING && elevationGainMeters > 0) {
-    elevationWeight = 2.0;
-  }
-
-  const score =
-    distanceMeters * 0.01 +
-    elevationGainMeters * elevationWeight +
-    fareWon * 0.001;
-
-  return Number(score.toFixed(2));
-}
-
-function calculateBaseScore(totalDifficultyScore: number): number {
-  const calculated = 95.0 - 0.05 * totalDifficultyScore;
-  return Number(Math.max(50.0, calculated).toFixed(2));
-}
+import {
+  calculateHaversineDistance,
+  calculateDifficultyScore,
+  calculateBaseScore,
+} from '../../../scripts/seed-recommend-routes';
 
 describe('SEED Script Numerical Calculations', () => {
   describe('calculateHaversineDistance', () => {

@@ -305,4 +305,47 @@ describe('RecommendationService', () => {
       '범주 초과 장소',
     );
   });
+
+  it('aggregates totalTimeMinutes across multi-day routes correctly in returned DTO', async () => {
+    mockRecommendationRepository.findRecommendedRoutes.mockResolvedValue([
+      {
+        id: 'r1',
+        name: 'Route 1',
+        score: 90,
+        estimatedDurationMin: 180,
+        stops: [
+          {
+            orderIndex: 0,
+            travelMinutesFromPrev: 30,
+            stayMinutes: 150,
+            place: { id: 'p1', latitude: 35.1, longitude: 129.1 },
+          },
+        ],
+      },
+      {
+        id: 'r2',
+        name: 'Route 2',
+        score: 85,
+        estimatedDurationMin: 240,
+        stops: [
+          {
+            orderIndex: 0,
+            travelMinutesFromPrev: 60,
+            stayMinutes: 180,
+            place: { id: 'p2', latitude: 35.11, longitude: 129.11 },
+          },
+        ],
+      },
+    ]);
+
+    const results = await service.recommendRoutes({
+      travelStyleSlugs: ['local-food'],
+      durationDays: 2,
+      dailyBudgetWon: 60000,
+    });
+
+    expect(results).toHaveLength(2);
+    // Day 1: (30+150=180) + Day 2: (60+180=240) = 420 minutes total
+    expect(results[0].totalTimeMinutes).toBe(420);
+  });
 });

@@ -78,7 +78,7 @@ async function fetchRelatedTourPlaces(): Promise<any[]> {
 /**
  * 두 위경도 좌표 간 하버스인(Haversine) 직선 거리(m) 연산
  */
-function calculateHaversineDistance(
+export function calculateHaversineDistance(
   lat1: number,
   lon1: number,
   lat2: number,
@@ -90,9 +90,9 @@ function calculateHaversineDistance(
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos((lat1 * Math.PI) / 180) *
-    Math.cos((lat2 * Math.PI) / 180) *
-    Math.sin(dLon / 2) *
-    Math.sin(dLon / 2);
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return Math.round(R * c);
 }
@@ -101,7 +101,7 @@ function calculateHaversineDistance(
  * 구간 체감 이동 난이도 비용 함수 (D) 연산
  * D = (0.01 * distanceMeters) + (2.0 * elevationGainMeters) + (0.001 * fareWon)
  */
-function calculateDifficultyScore(
+export function calculateDifficultyScore(
   distanceMeters: number,
   elevationGainMeters: number,
   fareWon: number,
@@ -124,7 +124,7 @@ function calculateDifficultyScore(
  * 코스 기본 점수 (Base Score) 연산 수식
  * BaseScore = max(50.0, 95.0 - (0.05 * D))
  */
-function calculateBaseScore(totalDifficultyScore: number): number {
+export function calculateBaseScore(totalDifficultyScore: number): number {
   const calculated = 95.0 - 0.05 * totalDifficultyScore;
   return Number(Math.max(50.0, calculated).toFixed(2));
 }
@@ -132,7 +132,7 @@ function calculateBaseScore(totalDifficultyScore: number): number {
 /**
  * 해변/바다 관련 장소 핀포인트 검증 헬퍼 함수 (키워드 및 소분류 필터)
  */
-function isBeachPlace(place: any): boolean {
+export function isBeachPlace(place: any): boolean {
   const name = String(place?.name ?? '').trim();
   const beachKeywords = [
     '해수욕장',
