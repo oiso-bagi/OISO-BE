@@ -23,8 +23,8 @@ describe('RecommendationService', () => {
     expect(result.budgetAllocation.defaultDailyBudgetWon).toBe(60000);
     expect(result.travelStyles.map((travelStyle) => travelStyle.slug)).toEqual([
       'local-food',
-      'cafe',
-      'beach',
+      'emotion-cafe',
+      'beach-tour',
       'photo-spot',
       'traditional-market',
       'nature-walk',
@@ -46,7 +46,7 @@ describe('RecommendationService', () => {
     ]);
 
     const result = await service.recommendRoutes({
-      travelStyleSlugs: ['local-food', 'cafe', 'local-food'],
+      travelStyleSlugs: ['local-food', 'emotion-cafe', 'local-food'],
       durationDays: 1,
       dailyBudgetWon: 60000,
     });
@@ -54,7 +54,7 @@ describe('RecommendationService', () => {
     expect(
       mockRecommendationRepository.findRecommendedRoutes,
     ).toHaveBeenCalledWith({
-      travelStyleSlugs: ['local-food', 'cafe'],
+      travelStyleSlugs: ['local-food', 'emotion-cafe'],
       durationDays: 1,
       dailyBudgetWon: 60000,
       totalBudgetWon: 60000,

@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { RecommendRouteRequestDto } from '@/recommendation/dto/recommend-route-request.dto';
 import { RecommendationOptionsResponseDto } from '@/recommendation/dto/recommendation-options-response.dto';
 import { RecommendationRepository } from '@/recommendation/repositories/recommendation.repository';
@@ -53,6 +57,7 @@ export interface GenericRoute {
   transportCostWon?: number;
   totalDifficultyScore?: Prisma.Decimal | number | null;
   stops?: GenericStop[];
+  themes?: Array<{ theme?: { slug?: string } | null }> | null;
 }
 
 const DEFAULT_DAILY_BUDGET_WON = 60000;
@@ -65,8 +70,8 @@ const DEFAULT_RATIOS: BudgetRatios = {
 
 const TRAVEL_STYLE_OPTIONS: TravelStyleOption[] = [
   { slug: 'local-food', label: '부산 로컬 맛집' },
-  { slug: 'cafe', label: '감성 카페' },
-  { slug: 'beach', label: '바다 관광' },
+  { slug: 'emotion-cafe', label: '감성 카페' },
+  { slug: 'beach-tour', label: '바다 관광' },
   { slug: 'photo-spot', label: '포토 스팟' },
   { slug: 'traditional-market', label: '전통시장' },
   { slug: 'nature-walk', label: '자연 / 산책' },
@@ -156,15 +161,20 @@ export class RecommendationService {
         );
     }
 
-    // N일 여행(2일, 3일...) 요청 시 최적 하버사인 거리 및 중복 제거 체이닝 조립
+    // N일 여행(2일, 3일...) 요청 시 최적 하버사인 거리 및 테마 순환 체이닝 조립
     const stitchedRoutes = this.stitchMultiDayRoutes(
       candidateRoutes,
       validatedInput.durationDays,
+      validatedInput.travelStyleSlugs,
     );
 
-    return stitchedRoutes.map((route) =>
-      RecommendedRouteListResponseDto.from(route as unknown as RouteWithStops),
-    );
+    return stitchedRoutes
+      .slice(0, 3)
+      .map((route) =>
+        RecommendedRouteListResponseDto.from(
+          route as unknown as RouteWithStops,
+        ),
+      );
   }
 
   private calculateFinalScore(
@@ -212,9 +222,11 @@ export class RecommendationService {
   private stitchMultiDayRoutes(
     candidateRoutes: GenericRoute[],
     targetDurationDays: number,
+    requestedThemeSlugs?: string[],
   ): GenericRoute[] {
     const results: GenericRoute[] = [];
     const maxCombinations = Math.min(candidateRoutes.length, 5);
+    const previouslyStitchedRouteIds = new Set<string>();
 
     for (let i = 0; i < maxCombinations; i++) {
       const day1Route = candidateRoutes[i];
@@ -232,6 +244,12 @@ export class RecommendationService {
       for (let day = 2; day <= targetDurationDays; day++) {
         let bestNextRoute: GenericRoute | null = null;
         let minDistance = Infinity;
+
+        // N일차 목표 테마 롤테이션 (다중 선택 시 2일차=2번째 테마, 3일차=3번째 테마...)
+        const targetThemeSlug =
+          requestedThemeSlugs && requestedThemeSlugs.length > 0
+            ? requestedThemeSlugs[(day - 1) % requestedThemeSlugs.length]
+            : null;
 
         for (const candidate of candidateRoutes) {
           if (selectedRoutes.includes(candidate)) continue;
@@ -281,8 +299,20 @@ export class RecommendationService {
             }
           }
 
-          const scorePenalty = hasOverlap ? 50000 : 0;
-          const finalScore = distance + scorePenalty;
+          const overlapPenalty = hasOverlap ? 50000 : 0;
+          const usedRoutePenalty = previouslyStitchedRouteIds.has(candidate.id)
+            ? 20000
+            : 0;
+
+          // 요청한 N일차 테마에 부합할 경우 가산점 (-15,000m 거리 할인 효과)
+          const candidateThemes = candidate.themes ?? [];
+          const matchesTargetTheme =
+            targetThemeSlug &&
+            candidateThemes.some((t) => t?.theme?.slug === targetThemeSlug);
+          const themeBonus = matchesTargetTheme ? -15000 : 0;
+
+          const finalScore =
+            distance + overlapPenalty + usedRoutePenalty + themeBonus;
 
           if (finalScore < minDistance) {
             minDistance = finalScore;
@@ -292,6 +322,7 @@ export class RecommendationService {
 
         if (bestNextRoute) {
           selectedRoutes.push(bestNextRoute);
+          previouslyStitchedRouteIds.add(bestNextRoute.id);
           const nextStops = bestNextRoute.stops || [];
           nextStops.forEach((s) => {
             if (s.place?.id) visitedPlaceIds.add(s.place.id);
