@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { RecommendRouteRequestDto } from '@/recommendation/dto/recommend-route-request.dto';
 import { RecommendationOptionsResponseDto } from '@/recommendation/dto/recommendation-options-response.dto';
 import { RecommendationRepository } from '@/recommendation/repositories/recommendation.repository';
