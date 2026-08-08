@@ -15,9 +15,9 @@ export function calculateHaversineDistance(
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
+    Math.cos((lat2 * Math.PI) / 180) *
+    Math.sin(dLon / 2) *
+    Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return Math.round(R * c);
 }
@@ -77,7 +77,8 @@ export function isBeachPlace(place?: { name?: string } | null): boolean {
     '서핑',
     '해안',
     '포구',
-    '항',
+    '항구',
+    '항만',
     '비치',
     '바다',
     '광안리',

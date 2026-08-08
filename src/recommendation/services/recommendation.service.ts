@@ -222,7 +222,6 @@ export class RecommendationService {
     requestedThemeSlugs?: string[],
   ): GenericRoute[] {
     const results: GenericRoute[] = [];
-    const maxCombinations = Math.min(candidateRoutes.length, 5);
     const previouslyStitchedRouteIds = new Set<string>();
 
     // 1일차 지정 테마가 있을 경우 해당 테마 후보군 우선 필터링
@@ -240,8 +239,10 @@ export class RecommendationService {
     const primaryDay1Pool =
       day1Candidates.length > 0 ? day1Candidates : candidateRoutes;
 
+    const maxCombinations = Math.min(primaryDay1Pool.length, 5);
+
     for (let i = 0; i < maxCombinations; i++) {
-      const day1Route = primaryDay1Pool[i % primaryDay1Pool.length];
+      const day1Route = primaryDay1Pool[i];
       const selectedRoutes: GenericRoute[] = [day1Route];
       const visitedPlaceIds = new Set<string>();
       let totalChainingCostPenalty = 0;
@@ -339,7 +340,7 @@ export class RecommendationService {
         if (bestNextRoute) {
           selectedRoutes.push(bestNextRoute);
           previouslyStitchedRouteIds.add(bestNextRoute.id);
-          totalChainingCostPenalty += minDistance > 0 ? minDistance / 1000 : 0;
+          totalChainingCostPenalty += minDistance / 1000;
           const nextStops = bestNextRoute.stops || [];
           nextStops.forEach((s) => {
             if (s.place?.id) visitedPlaceIds.add(s.place.id);
@@ -348,18 +349,19 @@ export class RecommendationService {
             nextStops.length > 0
               ? nextStops[nextStops.length - 1]
               : currentLastStop;
-        } else {
-          selectedRoutes.push(day1Route);
         }
       }
 
-      const stitchedRoute = this.combineChainedRoutes(
-        selectedRoutes,
-        targetDurationDays,
-        i + 1,
-        totalChainingCostPenalty,
-      );
-      results.push(stitchedRoute);
+      // N일 패키지의 목표 일수를 완전히 채운 경우만 결합 패키지로 수용
+      if (selectedRoutes.length === targetDurationDays) {
+        const stitchedRoute = this.combineChainedRoutes(
+          selectedRoutes,
+          targetDurationDays,
+          results.length + 1,
+          totalChainingCostPenalty,
+        );
+        results.push(stitchedRoute);
+      }
     }
 
     // 명시적 다일 패키지 종합 점수 기준 내림차순 정렬

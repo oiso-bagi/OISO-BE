@@ -4,9 +4,21 @@ import {
   calculateDifficultyScore,
   calculateBaseScore,
   calculateElevationGainMeters,
+  isBeachPlace,
 } from '@/recommendation/utils/recommendation-calculator.util';
 
 describe('SEED Script Numerical Calculations', () => {
+  describe('isBeachPlace', () => {
+    it('항아리수제비 등 무관한 식당 상호명을 해변으로 오탐하지 않아야 한다', () => {
+      expect(isBeachPlace({ name: '항아리수제비' })).toBe(false);
+      expect(isBeachPlace({ name: '항정살구이 전문점' })).toBe(false);
+    });
+
+    it('해운대해수욕장, 부산항구 등 바다 관련 장소를 정상 분류해야 한다', () => {
+      expect(isBeachPlace({ name: '해운대해수욕장' })).toBe(true);
+      expect(isBeachPlace({ name: '부산항구 국제여객터미널' })).toBe(true);
+    });
+  });
   describe('calculateHaversineDistance', () => {
     it('광안리 해수욕장 ~ 민락수변공원 간 거리를 정확히 미터 단위로 연산해야 한다', () => {
       // 광안리: 35.1461, 129.1168
