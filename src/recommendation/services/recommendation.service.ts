@@ -100,9 +100,9 @@ function calculateDistanceMeters(
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
+    Math.cos((lat2 * Math.PI) / 180) *
+    Math.sin(dLon / 2) *
+    Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return Math.round(R * c);
 }
@@ -111,7 +111,7 @@ function calculateDistanceMeters(
 export class RecommendationService {
   constructor(
     private readonly recommendationRepository: RecommendationRepository,
-  ) {}
+  ) { }
 
   getOptions(): RecommendationOptionsResponseDto {
     return RecommendationOptionsResponseDto.of({
@@ -232,8 +232,8 @@ export class RecommendationService {
 
     const day1Candidates = day1ThemeSlug
       ? candidateRoutes.filter((c) =>
-          (c.themes ?? []).some((t) => t?.theme?.slug === day1ThemeSlug),
-        )
+        (c.themes ?? []).some((t) => t?.theme?.slug === day1ThemeSlug),
+      )
       : candidateRoutes;
 
     const primaryDay1Pool =
@@ -268,8 +268,13 @@ export class RecommendationService {
             ? requestedThemeSlugs[(day - 1) % requestedThemeSlugs.length]
             : null;
 
-        for (const candidate of candidateRoutes) {
-          if (selectedRoutes.includes(candidate)) continue;
+        const evaluateCandidate = (
+          candidate: GenericRoute,
+          allowSelectedReuse: boolean,
+        ) => {
+          if (!allowSelectedReuse && selectedRoutes.includes(candidate)) {
+            return;
+          }
 
           const candidateStops = candidate.stops || [];
           const firstStop =
@@ -334,6 +339,18 @@ export class RecommendationService {
           if (finalScore < minDistance) {
             minDistance = finalScore;
             bestNextRoute = candidate;
+          }
+        };
+
+        // 1차 탐색: 아직 선택되지 않은 고유 코스 검색
+        for (const candidate of candidateRoutes) {
+          evaluateCandidate(candidate, false);
+        }
+
+        // 2차 탐색: 후보군이 부족하여 1차 탐색 실패 시 Soft Penalty 기반 재사용 코스 검색
+        if (!bestNextRoute) {
+          for (const candidate of candidateRoutes) {
+            evaluateCandidate(candidate, true);
           }
         }
 

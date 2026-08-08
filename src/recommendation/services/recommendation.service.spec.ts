@@ -354,4 +354,33 @@ describe('RecommendationService', () => {
     // Day 1: (30+150=180) + Day 2: (60+180=240) = 420 minutes total
     expect(results[0].totalTimeMinutes).toBe(420);
   });
+
+  it('assembles multi-day package successfully using soft penalty route reuse when candidates are fewer than requested duration', async () => {
+    // Only 1 candidate available for a 3-day request
+    mockRecommendationRepository.findRecommendedRoutes.mockResolvedValue([
+      {
+        id: 'single-route',
+        name: 'Single Available Route',
+        score: 90,
+        stops: [
+          {
+            orderIndex: 0,
+            place: { id: 'p-single', latitude: 35.15, longitude: 129.11 },
+          },
+        ],
+      },
+    ]);
+
+    const results = await service.recommendRoutes({
+      travelStyleSlugs: ['local-food'],
+      durationDays: 3,
+      dailyBudgetWon: 60000,
+    });
+
+    expect(results).toHaveLength(1);
+    expect(results[0].stopLocations).toHaveLength(3);
+    expect(results[0].stopLocations[0].dayNumber).toBe(1);
+    expect(results[0].stopLocations[1].dayNumber).toBe(2);
+    expect(results[0].stopLocations[2].dayNumber).toBe(3);
+  });
 });
