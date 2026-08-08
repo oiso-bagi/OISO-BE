@@ -75,48 +75,124 @@ async function fetchRelatedTourPlaces(): Promise<any[]> {
   return [];
 }
 
-/**
- * 두 위경도 좌표 간 하버스인(Haversine) 직선 거리(m) 연산
- */
-function calculateHaversineDistance(
-  lat1: number,
-  lon1: number,
-  lat2: number,
-  lon2: number,
-): number {
-  const R = 6371e3; // 지구 반지름 (m)
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLon = ((lon2 - lon1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos((lat1 * Math.PI) / 180) *
-    Math.cos((lat2 * Math.PI) / 180) *
-    Math.sin(dLon / 2) *
-    Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return Math.round(R * c);
+import {
+  calculateHaversineDistance,
+  calculateDifficultyScore,
+  calculateBaseScore,
+  calculateElevationGainMeters,
+  isBeachPlace,
+} from '../src/recommendation/utils/recommendation-calculator.util';
+
+export {
+  calculateHaversineDistance,
+  calculateDifficultyScore,
+  calculateBaseScore,
+  calculateElevationGainMeters,
+  isBeachPlace,
+};
+
+interface SlotPattern {
+  primaryCategories?: PlaceCategory[];
+  isBeach?: boolean;
+  fallbackCategories?: PlaceCategory[];
 }
 
 /**
- * 구간 체감 이동 난이도 비용 함수 연산
+ * 6대 마스터 테마별 4-슬롯(Slot) 시퀀스 패턴 정의
  */
-function calculateDifficultyScore(
-  distanceMeters: number,
-  elevationGainMeters: number,
-  fareWon: number,
-  transitType: TransitType,
-): number {
-  let elevationWeight = 1.0;
-  if (transitType === TransitType.WALKING && elevationGainMeters > 0) {
-    elevationWeight = 2.0; // 보행 경사 가중치 2배 극대화
+function getThemeSlotPattern(themeSlug: string, targetStopCount: number): SlotPattern[] {
+  if (themeSlug === 'local-food') {
+    // 1) local-food: Slot 1(FOOD) -> Slot 2(CAFE) -> Slot 3(FOOD/MARKET) -> Slot 4(VIEWPOINT/NATURE)
+    const pattern: SlotPattern[] = [
+      { primaryCategories: [PlaceCategory.FOOD] },
+      { primaryCategories: [PlaceCategory.CAFE] },
+      { primaryCategories: [PlaceCategory.FOOD, PlaceCategory.MARKET] },
+    ];
+    if (targetStopCount === 4) {
+      pattern.push({
+        primaryCategories: [PlaceCategory.VIEWPOINT, PlaceCategory.NATURE],
+        fallbackCategories: [PlaceCategory.CULTURE, PlaceCategory.EXPERIENCE],
+      });
+    }
+    return pattern;
   }
 
-  const score =
-    distanceMeters * 0.01 +
-    elevationGainMeters * elevationWeight +
-    fareWon * 0.001;
+  if (themeSlug === 'emotion-cafe') {
+    // 2) emotion-cafe: Slot 1(CAFE) -> Slot 2(CULTURE/VIEWPOINT) -> Slot 3(FOOD) -> Slot 4(CAFE)
+    const pattern: SlotPattern[] = [
+      { primaryCategories: [PlaceCategory.CAFE] },
+      { primaryCategories: [PlaceCategory.CULTURE, PlaceCategory.VIEWPOINT] },
+      { primaryCategories: [PlaceCategory.FOOD] },
+    ];
+    if (targetStopCount === 4) {
+      pattern.push({
+        primaryCategories: [PlaceCategory.CAFE],
+        fallbackCategories: [PlaceCategory.VIEWPOINT, PlaceCategory.EXPERIENCE],
+      });
+    }
+    return pattern;
+  }
 
-  return Number(score.toFixed(2));
+  if (themeSlug === 'beach-tour') {
+    // 3) beach-tour: Slot 1(BEACH) -> Slot 2(FOOD) -> Slot 3(BEACH/CAFE) -> Slot 4(VIEWPOINT)
+    const pattern: SlotPattern[] = [
+      { isBeach: true, primaryCategories: [PlaceCategory.NATURE, PlaceCategory.EXPERIENCE, PlaceCategory.VIEWPOINT] },
+      { primaryCategories: [PlaceCategory.FOOD] },
+      { isBeach: true, primaryCategories: [PlaceCategory.CAFE, PlaceCategory.EXPERIENCE, PlaceCategory.NATURE] },
+    ];
+    if (targetStopCount === 4) {
+      pattern.push({
+        primaryCategories: [PlaceCategory.VIEWPOINT],
+        fallbackCategories: [PlaceCategory.NATURE, PlaceCategory.CAFE],
+      });
+    }
+    return pattern;
+  }
+
+  if (themeSlug === 'photo-spot') {
+    // 4) photo-spot: Slot 1(CULTURE) -> Slot 2(CAFE) -> Slot 3(VIEWPOINT) -> Slot 4(FOOD/MARKET)
+    const pattern: SlotPattern[] = [
+      { primaryCategories: [PlaceCategory.CULTURE] },
+      { primaryCategories: [PlaceCategory.CAFE] },
+      { primaryCategories: [PlaceCategory.VIEWPOINT] },
+    ];
+    if (targetStopCount === 4) {
+      pattern.push({
+        primaryCategories: [PlaceCategory.FOOD, PlaceCategory.MARKET],
+        fallbackCategories: [PlaceCategory.CULTURE, PlaceCategory.CAFE],
+      });
+    }
+    return pattern;
+  }
+    if (themeSlug === 'traditional-market') {
+    // 5) traditional-market: Slot 1(MARKET) -> Slot 2(CAFE) -> Slot 3(FOOD) -> Slot 4(CULTURE/VIEWPOINT)
+    const pattern: SlotPattern[] = [
+      { primaryCategories: [PlaceCategory.MARKET] },
+      { primaryCategories: [PlaceCategory.CAFE] },
+      { primaryCategories: [PlaceCategory.FOOD] },
+    ];
+    if (targetStopCount === 4) {
+      pattern.push({
+        primaryCategories: [PlaceCategory.CULTURE, PlaceCategory.VIEWPOINT],
+        fallbackCategories: [PlaceCategory.MARKET, PlaceCategory.FOOD],
+      });
+    }
+    return pattern;
+  }
+
+  // 6) nature-walk: Slot 1(NATURE) -> Slot 2(FOOD/CAFE) -> Slot 3(NATURE) -> Slot 4(VIEWPOINT)
+  const pattern: SlotPattern[] = [
+    { primaryCategories: [PlaceCategory.NATURE] },
+    { primaryCategories: [PlaceCategory.FOOD, PlaceCategory.CAFE] },
+    { primaryCategories: [PlaceCategory.NATURE] },
+  ];
+  if (targetStopCount === 4) {
+    pattern.push({
+      primaryCategories: [PlaceCategory.VIEWPOINT],
+      fallbackCategories: [PlaceCategory.EXPERIENCE, PlaceCategory.CAFE],
+    });
+  }
+  return pattern;
 }
 
 async function seedRecommendRoutes() {
@@ -154,48 +230,123 @@ async function seedRecommendRoutes() {
 
   console.log(`📌 DB 마스터 장소 ${allDbPlaces.length}건 기반으로 6대 테마 × 20개 코스 = 총 120개 코스 적재를 시작합니다.`);
 
+  // 이전 추천 루트 전체 멱등성 클린업 (오래된 데이터 잔여 방지)
+  await prisma.routeStop.deleteMany({ where: { route: { routeType: RouteType.RECOMMENDED } } });
+  await prisma.routeTheme.deleteMany({ where: { route: { routeType: RouteType.RECOMMENDED } } });
+  await prisma.route.deleteMany({ where: { routeType: RouteType.RECOMMENDED } });
+
   let totalRouteCount = 0;
 
   // 4. 6대 테마 각각 마다 20개 코스씩 총 120개 마스터 코스 100% 동적 생성
   for (const theme of masterThemes) {
-    // 테마 성격에 부합하는 장소들 필터링
-    let themeCategoryFilters: PlaceCategory[] = [];
-    if (theme.slug === 'local-food') themeCategoryFilters = [PlaceCategory.FOOD, PlaceCategory.MARKET];
-    else if (theme.slug === 'emotion-cafe') themeCategoryFilters = [PlaceCategory.CAFE, PlaceCategory.FOOD];
-    else if (theme.slug === 'beach-tour') themeCategoryFilters = [PlaceCategory.NATURE, PlaceCategory.EXPERIENCE];
-    else if (theme.slug === 'photo-spot') themeCategoryFilters = [PlaceCategory.CULTURE, PlaceCategory.EXPERIENCE];
-    else if (theme.slug === 'traditional-market') themeCategoryFilters = [PlaceCategory.MARKET, PlaceCategory.FOOD];
-    else themeCategoryFilters = [PlaceCategory.NATURE, PlaceCategory.CULTURE];
+    // 숙소(ETC) 카테고리를 전면 제외한 마스터 장소 리스트
+    const validDbPlaces = allDbPlaces.filter((p) => p.category !== PlaceCategory.ETC);
 
-    const targetPlaces = allDbPlaces.filter((p) => themeCategoryFilters.includes(p.category));
-    const themeAnchors = (targetPlaces.length >= 20 ? targetPlaces : allDbPlaces).slice(0, 20);
+    // 테마 성격에 부합하는 대표 앵커 장소 필터링
+    let themeAnchors: any[] = [];
+    if (theme.slug === 'beach-tour') {
+      themeAnchors = validDbPlaces.filter((p) => isBeachPlace(p));
+    } else if (theme.slug === 'local-food') {
+      themeAnchors = validDbPlaces.filter((p) => p.category === PlaceCategory.FOOD);
+    } else if (theme.slug === 'emotion-cafe') {
+      themeAnchors = validDbPlaces.filter((p) => p.category === PlaceCategory.CAFE);
+    } else if (theme.slug === 'photo-spot') {
+      themeAnchors = validDbPlaces.filter(
+        (p) => p.category === PlaceCategory.CULTURE || p.category === PlaceCategory.VIEWPOINT,
+      );
+    } else if (theme.slug === 'traditional-market') {
+      themeAnchors = validDbPlaces.filter((p) => p.category === PlaceCategory.MARKET);
+    } else {
+      themeAnchors = validDbPlaces.filter((p) => p.category === PlaceCategory.NATURE);
+    }
+
+    if (themeAnchors.length < 20) {
+      themeAnchors = [
+        ...themeAnchors,
+        ...validDbPlaces.filter((p) => !themeAnchors.includes(p)),
+      ];
+    }
+    themeAnchors = themeAnchors.slice(0, 20);
 
     for (let courseIdx = 0; courseIdx < themeAnchors.length; courseIdx++) {
       const anchor = themeAnchors[courseIdx];
       totalRouteCount++;
 
-      // 거리순 정렬
-      const otherPlaces = allDbPlaces.filter((p) => p.id !== anchor.id);
-      const sortedByDistance = otherPlaces.map((p) => ({
-        place: p,
-        distance: calculateHaversineDistance(
-          Number(anchor.latitude),
-          Number(anchor.longitude),
-          Number(p.latitude),
-          Number(p.longitude),
-        ),
-      })).sort((a, b) => a.distance - b.distance);
+      // 경유지 수: 3 ~ 4개 가변 정돈 (모듈 기준)
+      const targetStopCount = 3 + (totalRouteCount % 2); // 3개 또는 4개 가변
+      const slotPatterns = getThemeSlotPattern(theme.slug, targetStopCount);
 
-      // 경유지 수: 4 ~ 6개 가변 조립 (부정합 3 해결!)
-      const targetStopCount = 4 + (totalRouteCount % 3); // 4, 5, 6개 가변
-      const rawStops = [
-        anchor,
-        sortedByDistance.find((i) => i.place.category === PlaceCategory.FOOD || i.place.category === PlaceCategory.CAFE)?.place || sortedByDistance[0].place,
-        sortedByDistance.find((i) => i.place.category === PlaceCategory.CULTURE || i.place.category === PlaceCategory.NATURE)?.place || sortedByDistance[1].place,
-        ...sortedByDistance.slice(2, targetStopCount + 2).map((i) => i.place),
-      ];
+      const selectedStops: any[] = [anchor];
+      const usedPlaceIds = new Set<string>([anchor.id]);
+      let lastCategory: PlaceCategory | null = anchor.category ?? null;
 
-      const uniqueStops = Array.from(new Set(rawStops)).slice(0, targetStopCount);
+      // Slot 1은 anchor가 담당, Slot 2 ~ S 조립 (Nearest Neighbor + 연속 동일 카테고리 방지 + 5단계 Fallback)
+      for (let slotIdx = 1; slotIdx < slotPatterns.length; slotIdx++) {
+        const slot = slotPatterns[slotIdx];
+        const prevStop = selectedStops[selectedStops.length - 1];
+
+        // 이전 스팟 기준 Haversine 직선 거리순 후보군 정렬
+        const sortedCandidates = validDbPlaces
+          .filter((p) => !usedPlaceIds.has(p.id))
+          .map((p) => ({
+            place: p,
+            distance: calculateHaversineDistance(
+              Number(prevStop.latitude),
+              Number(prevStop.longitude),
+              Number(p.latitude),
+              Number(p.longitude),
+            ),
+          }))
+          .sort((a, b) => a.distance - b.distance);
+
+        // 1차: 슬롯 조건 부합 & 직전 카테고리와 연속되지 않는 최단거리 장소 (FOOD->FOOD 방지)
+        let pickedCandidate = sortedCandidates.find((c) => {
+          const isCatMatch =
+            slot.primaryCategories && slot.primaryCategories.includes(c.place.category);
+          const isBeachMatch = slot.isBeach ? isBeachPlace(c.place) : true;
+          const isNoConsecutiveSameCategory = lastCategory !== c.place.category;
+          return (isCatMatch || slot.isBeach) && isBeachMatch && isNoConsecutiveSameCategory;
+        })?.place;
+
+        // 2차: 슬롯 조건 부합 최단거리 장소 (동일 카테고리 연속 방지 조건 완화)
+        if (!pickedCandidate) {
+          pickedCandidate = sortedCandidates.find((c) => {
+            const isCatMatch =
+              slot.primaryCategories && slot.primaryCategories.includes(c.place.category);
+            const isBeachMatch = slot.isBeach ? isBeachPlace(c.place) : true;
+            return (isCatMatch || slot.isBeach) && isBeachMatch;
+          })?.place;
+        }
+
+        // 3차 (Fallback): Fallback 카테고리 & 연속 방지
+        if (!pickedCandidate && slot.fallbackCategories) {
+          pickedCandidate = sortedCandidates.find((c) => {
+            const isFallbackMatch = slot.fallbackCategories!.includes(c.place.category);
+            const isNoConsecutiveSameCategory = lastCategory !== c.place.category;
+            return isFallbackMatch && isNoConsecutiveSameCategory;
+          })?.place;
+        }
+
+        // 4차 (최후 Fallback): 직전 카테고리와 연속되지 않는 최단거리 장소
+        if (!pickedCandidate) {
+          pickedCandidate = sortedCandidates.find(
+            (c) => lastCategory !== c.place.category,
+          )?.place;
+        }
+
+        // 5차 (Crash 방지): 무조건 최단거리 장소 자동 할당
+        if (!pickedCandidate && sortedCandidates.length > 0) {
+          pickedCandidate = sortedCandidates[0].place;
+        }
+
+        if (pickedCandidate) {
+          selectedStops.push(pickedCandidate);
+          usedPlaceIds.add(pickedCandidate.id);
+          lastCategory = pickedCandidate.category ?? null;
+        }
+      }
+
+      const uniqueStops = selectedStops.slice(0, targetStopCount);
 
       // 결정론적 고유 해시 ID (SHA256)
       const hash = crypto
@@ -227,6 +378,7 @@ async function seedRecommendRoutes() {
         let distMeters = 0;
 
         if (i > 0) {
+          // 이동 순서 상대 오르막 고도 상승분: 오르막만 저장, 내리막 0m
           elevationGainMeters = Math.max(0, currentElevation - prevElevation);
           distMeters = calculateHaversineDistance(
             Number(uniqueStops[i - 1].latitude),
@@ -281,6 +433,9 @@ async function seedRecommendRoutes() {
         theme: { connect: { slug } },
       }));
 
+      // 코스 기본 점수 BaseScore 사전 연산 (BaseScore = max(50.0, 95.0 - (0.05 * D)))
+      const calculatedScore = calculateBaseScore(totalDifficultyScore);
+
       // 기존 릴레이션 cleanup 후 Upsert
       await prisma.routeStop.deleteMany({ where: { route: { id: routeId } } });
       await prisma.routeTheme.deleteMany({ where: { route: { id: routeId } } });
@@ -293,8 +448,13 @@ async function seedRecommendRoutes() {
           region: '부산광역시',
           routeType: RouteType.RECOMMENDED,
           isPublished: true,
-          congestionLevel: totalRouteCount % 3 === 0 ? CongestionLevel.HIGH : totalRouteCount % 2 === 0 ? CongestionLevel.MEDIUM : CongestionLevel.LOW,
-          score: new Prisma.Decimal(92.0 - (totalRouteCount % 5) * 1.5),
+          congestionLevel:
+            totalRouteCount % 3 === 0
+              ? CongestionLevel.HIGH
+              : totalRouteCount % 2 === 0
+                ? CongestionLevel.MEDIUM
+                : CongestionLevel.LOW,
+          score: new Prisma.Decimal(calculatedScore),
           estimatedCostWon,
           foodCostWon,
           experienceCostWon,
@@ -306,8 +466,12 @@ async function seedRecommendRoutes() {
           estimatedDurationMin: totalTimeMin,
           totalDistanceMeters,
           estimatedSavingsWon: 4500,
-          stops: { create: stopCreateInputs },
-          themes: { create: themeConnections },
+          stops: {
+            create: stopCreateInputs,
+          },
+          themes: {
+            create: themeConnections,
+          },
         },
         create: {
           id: routeId,
@@ -316,8 +480,13 @@ async function seedRecommendRoutes() {
           region: '부산광역시',
           routeType: RouteType.RECOMMENDED,
           isPublished: true,
-          congestionLevel: totalRouteCount % 3 === 0 ? CongestionLevel.HIGH : totalRouteCount % 2 === 0 ? CongestionLevel.MEDIUM : CongestionLevel.LOW,
-          score: new Prisma.Decimal(92.0 - (totalRouteCount % 5) * 1.5),
+          congestionLevel:
+            totalRouteCount % 3 === 0
+              ? CongestionLevel.HIGH
+              : totalRouteCount % 2 === 0
+                ? CongestionLevel.MEDIUM
+                : CongestionLevel.LOW,
+          score: new Prisma.Decimal(calculatedScore),
           estimatedCostWon,
           foodCostWon,
           experienceCostWon,
@@ -329,8 +498,12 @@ async function seedRecommendRoutes() {
           estimatedDurationMin: totalTimeMin,
           totalDistanceMeters,
           estimatedSavingsWon: 4500,
-          stops: { create: stopCreateInputs },
-          themes: { create: themeConnections },
+          stops: {
+            create: stopCreateInputs,
+          },
+          themes: {
+            create: themeConnections,
+          },
         },
       });
 
@@ -340,7 +513,7 @@ async function seedRecommendRoutes() {
     }
   }
 
-  console.log(`🎉 6대 테마 × 5개 코스 = 총 ${totalRouteCount}개 마스터 추천 코스 적재가 완벽히 완료되었습니다!`);
+  console.log('🎉 6대 테마 × 20개 코스 = 총 120개 마스터 추천 코스 적재가 완벽히 완료되었습니다!');
 }
 
 seedRecommendRoutes()

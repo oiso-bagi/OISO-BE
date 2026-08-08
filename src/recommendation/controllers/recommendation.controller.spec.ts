@@ -34,7 +34,7 @@ describe('RecommendationController', () => {
 
   it('delegates raw recommendation request body to service', async () => {
     const body = {
-      travelStyleSlugs: ['local-food', 'cafe'],
+      travelStyleSlugs: ['local-food', 'emotion-cafe'],
       durationDays: 1,
       dailyBudgetWon: 60000,
     };

@@ -23,8 +23,8 @@ describe('RecommendationService', () => {
     expect(result.budgetAllocation.defaultDailyBudgetWon).toBe(60000);
     expect(result.travelStyles.map((travelStyle) => travelStyle.slug)).toEqual([
       'local-food',
-      'cafe',
-      'beach',
+      'emotion-cafe',
+      'beach-tour',
       'photo-spot',
       'traditional-market',
       'nature-walk',
@@ -46,7 +46,7 @@ describe('RecommendationService', () => {
     ]);
 
     const result = await service.recommendRoutes({
-      travelStyleSlugs: ['local-food', 'cafe', 'local-food'],
+      travelStyleSlugs: ['local-food', 'emotion-cafe', 'local-food'],
       durationDays: 1,
       dailyBudgetWon: 60000,
     });
@@ -54,7 +54,7 @@ describe('RecommendationService', () => {
     expect(
       mockRecommendationRepository.findRecommendedRoutes,
     ).toHaveBeenCalledWith({
-      travelStyleSlugs: ['local-food', 'cafe'],
+      travelStyleSlugs: ['local-food', 'emotion-cafe'],
       durationDays: 1,
       dailyBudgetWon: 60000,
       totalBudgetWon: 60000,
@@ -255,7 +255,7 @@ describe('RecommendationService', () => {
       {
         id: 'route-valid-far',
         name: 'Valid Far Route',
-        score: 85,
+        score: 88,
         stops: [
           {
             orderIndex: 0,
@@ -293,10 +293,16 @@ describe('RecommendationService', () => {
     });
 
     expect(results.length).toBeGreaterThan(0);
-    // Package 0 starts with route-day1. Day 2 picks route-valid-near (~1.4km < 10000m fallback).
-    expect(results[0].stopLocations[1].placeName).toBe('유효하고 가까운 장소');
+    // Package starting with route-day1. Day 2 picks route-valid-near (~1.4km < 10000m fallback).
+    const packageStartingDay1 = results.find(
+      (r) => r.stopLocations[0].placeName === '출발 장소',
+    );
+    expect(packageStartingDay1).toBeDefined();
+    expect(packageStartingDay1!.stopLocations[1].placeName).toBe(
+      '유효하고 가까운 장소',
+    );
 
-    // Package 2 starts with route-valid-far (~48km). Day 2 picks route-invalid-coord (10000m fallback < 48km Haversine distance).
+    // Package starting with route-valid-far (~48km). Day 2 picks route-invalid-coord (10000m fallback < 48km Haversine distance).
     const packageStartingFar = results.find(
       (r) => r.stopLocations[0].placeName === '유효하지만 먼 장소',
     );
@@ -304,5 +310,77 @@ describe('RecommendationService', () => {
     expect(packageStartingFar!.stopLocations[1].placeName).toBe(
       '범주 초과 장소',
     );
+  });
+
+  it('aggregates totalTimeMinutes across multi-day routes correctly in returned DTO', async () => {
+    mockRecommendationRepository.findRecommendedRoutes.mockResolvedValue([
+      {
+        id: 'r1',
+        name: 'Route 1',
+        score: 90,
+        estimatedDurationMin: 180,
+        stops: [
+          {
+            orderIndex: 0,
+            travelMinutesFromPrev: 30,
+            stayMinutes: 150,
+            place: { id: 'p1', latitude: 35.1, longitude: 129.1 },
+          },
+        ],
+      },
+      {
+        id: 'r2',
+        name: 'Route 2',
+        score: 85,
+        estimatedDurationMin: 240,
+        stops: [
+          {
+            orderIndex: 0,
+            travelMinutesFromPrev: 60,
+            stayMinutes: 180,
+            place: { id: 'p2', latitude: 35.11, longitude: 129.11 },
+          },
+        ],
+      },
+    ]);
+
+    const results = await service.recommendRoutes({
+      travelStyleSlugs: ['local-food'],
+      durationDays: 2,
+      dailyBudgetWon: 60000,
+    });
+
+    expect(results).toHaveLength(2);
+    // Day 1: (30+150=180) + Day 2: (60+180=240) = 420 minutes total
+    expect(results[0].totalTimeMinutes).toBe(420);
+  });
+
+  it('assembles multi-day package successfully using soft penalty route reuse when candidates are fewer than requested duration', async () => {
+    // Only 1 candidate available for a 3-day request
+    mockRecommendationRepository.findRecommendedRoutes.mockResolvedValue([
+      {
+        id: 'single-route',
+        name: 'Single Available Route',
+        score: 90,
+        stops: [
+          {
+            orderIndex: 0,
+            place: { id: 'p-single', latitude: 35.15, longitude: 129.11 },
+          },
+        ],
+      },
+    ]);
+
+    const results = await service.recommendRoutes({
+      travelStyleSlugs: ['local-food'],
+      durationDays: 3,
+      dailyBudgetWon: 60000,
+    });
+
+    expect(results).toHaveLength(1);
+    expect(results[0].stopLocations).toHaveLength(3);
+    expect(results[0].stopLocations[0].dayNumber).toBe(1);
+    expect(results[0].stopLocations[1].dayNumber).toBe(2);
+    expect(results[0].stopLocations[2].dayNumber).toBe(3);
   });
 });

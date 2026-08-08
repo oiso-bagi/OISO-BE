@@ -19,7 +19,7 @@ flowchart TD
         DB_Place -->|"외부 API 추가 호출 0회 (0-Call)"| RouteSeed
         ThemeData["UI 6대 마스터 테마 (Theme: local-food, beach-tour 등)"] -->|"RouteTheme N:M 매핑"| RouteSeed
         
-        RouteSeed -->|"1일차 모듈 기준 & 오르막 상승분 & TPI & 고도 난이도 & 하이브리드 동선 정렬"| DB_Route[("Route & RouteStop & RouteTheme 테이블 (역정규화 사전 계산 데이터)")]
+        RouteSeed -->|"1일차 모듈 기준 & 4-슬롯 시퀀스 & 오르막 상승분 & TPI & 고도 난이도"| DB_Route[("Route & RouteStop & RouteTheme 테이블 (역정규화 사전 계산 데이터)")]
     end
 
     subgraph Phase2["[Phase 2] Background Caching Worker (매일 04:00 1회 실행)"]
@@ -30,15 +30,15 @@ flowchart TD
 
     subgraph Phase3["[Phase 3] Runtime Recommendation Engine (사용자 요청 시)"]
         User["User App / Client"] -->|"Validation Check (부동소수점 오차 방어 & Rate Limiting)"| Throttler["ThrottlerModule / class-validator"]
-        Throttler -->|"POST /recommended-routes/recommend (budget, ratios, themeSlugs)"| Controller["RouteController"]
-        Controller --> Service["RouteService.getRecommendedRoutes"]
+        Throttler -->|"POST /recommended-routes/recommend (budget, ratios, themeSlugs)"| Controller["RecommendationController"]
+        Controller --> Service["RecommendationService.recommendRoutes"]
         
         Service -->|"Step 1: Hard Filter (Cost Index Scan + Theme N:M Some Filter)"| DB_Route
         DB_Route -->|"테마 및 예산 부합 후보군 Top 50 리턴"| Service
         
         Service -->|"Step 2: Soft Filter (4단계 종합 추천도 Final Score 연산)"| MemoryEngine["메모리 연산 엔진"]
-        MemoryEngine -->|"Step 3: Final Score 내림차순 정렬 & Top 3 선별 (dayNumber 포함)"| Top3["Top 3 추천 루트 선별 (RecommendedRouteListResponseDto)"]
-        Top3 -->|"JSON Response (프론트 지도 Color Coding 연동)"| User
+        MemoryEngine -->|"Step 3: Multi-Day Stitching (Soft Penalty) & Top 3 선별"| Top3["Top 3 추천 루트 선별 (RecommendedRouteListResponseDto)"]
+        Top3 -->|"JSON Response (프론트 지도 Color Coding dayNumber 연동)"| User
     end
 ```
 
@@ -56,9 +56,35 @@ flowchart TD
 4. **비정상 응답 (XML/HTML) 방어 & Prisma Upsert 멱등성 보장**:
    - `contentid` ➡️ `Place.apiSourceId` (@unique) 기준으로 멱등적 업데이트
 
+#### 2.1.1 TourAPI 4.0 ➡️ OISO PlaceCategory 정밀 분류 규칙
+
+한국관광공사 TourAPI 4.0 원본 카테고리(`contentTypeId`) 및 상호명/소분류(`cat3`) 키워드를 조합하여 OISO 도메인의 8대 장소 카테고리로 정밀 분류(Re-categorize)합니다:
+
+| OISO `PlaceCategory` | TourAPI 4.0 원본 타입 (`contentTypeId`) | 정밀 분류 및 키워드 매핑 조건 |
+|---|---|---|
+| ☕ **`CAFE`** | `contentTypeId = 39` (음식점) 세분화 | 소분류 `cat3 = A05020900` (카페/찻집) 또는 상호명에 `카페, 커피, cafe, 디저트, 베이커리, 제과, 찻집, 로스터리` 포함 |
+| 🍱 **`FOOD`** | `contentTypeId = 39` (음식점) | 대분류 `cat1 = A05` (음식) 중 위 `CAFE` 조건에 포함되지 않은 일반 식당 (한식, 일식, 중식, 양식 등) |
+| 🏛️ **`CULTURE`** | `contentTypeId = 14` (문화시설) | 대분류 `cat1 = A02` 또는 중분류 `cat2 = A0206` (박물관/미술관), 상호명에 `박물관, 미술관, 전시관, 갤러리, 기념관, 역사관` 포함 |
+| 🏄‍♂️ **`EXPERIENCE`** | `contentTypeId = 15, 28` (행사/레포츠) | 대분류 `cat1 = A03` (레포츠) 또는 상호명에 `체험, 요트, 서핑, 해양, 레포츠, 루지, 아쿠아리움, 스파` 포함 |
+| 🛍️ **`MARKET`** | `contentTypeId = 38` (쇼핑) | 중분류 `cat2 = A0401` (시장) 또는 상호명에 `시장, 상가, 몰, 아울렛, 백화점` 포함 |
+| 🌃 **`VIEWPOINT`** | `contentTypeId = 12` (관광지) 세분화 | 상호명에 `전망대, 타워, 야경, 스카이워크, 루프탑, 포토존, 전망, 일출, 해넘이, 케이블카` 포함 |
+| 🌊 **`NATURE`** | `contentTypeId = 12` (관광지) | 대분류 `cat1 = A01` (자연) 중 위 `CULTURE`, `VIEWPOINT`, `EXPERIENCE` 조건에 포함되지 않은 순수 자연 스팟 |
+| 🏨 **`ETC`** | `contentTypeId = 32` (숙박) 등 | 호텔, 모텔, 게스트하우스, 리조트 등 숙박시설 (추천 루트 조립 대상에서 전면 제외) |
+
 ### 2.2 하이브리드 동선 정렬 & 고도 역정규화 적재 (`scripts/seed-recommend-routes.ts`)
+- **숙소(ETC) 카테고리 전면 제외 정책**:
+  - 사용자 입력 예산(식비/카페/체험/교통)의 순수 여행 경험 극대화를 위해 `PlaceCategory.ETC` (호텔/숙소) 장소는 1일차 추천 마스터 코스 조립 대상에서 전면 제외
+- **1일 모듈 코스당 3~4개 스팟 가변 조립**:
+  - 이동 피로도를 최소화하고 조합 다양성(Variation)을 높이기 위해 1일차 코스의 스팟 수를 `3 ~ 4개`로 정돈하여 조립
+- **6대 테마별 핀포인트 제약 조건 기반 코스 조립**:
+  - `local-food`: 식당/시장 2개 이상 필수 포함 및 원도심 노포/대표 맛집 중심 조립
+  - `emotion-cafe`: 카페 2개 이상 필수 포함 및 바다/뷰포인트 감성 카페 연계
+  - `beach-tour`: 해변/해수욕장/해양레포츠 스팟 2개 이상 필수 포함
+  - `photo-spot`: 문화(전시/갤러리) + 전망(포토존/야경) 스팟 하루 2개 이상 필수 포함
+  - `traditional-market`: 전통시장(`MARKET`) 1개 이상 필수 포함
+  - `nature-walk`: 자연/공원/산책 스팟 2개 이상 필수 포함
 - **하이브리드 동선 정렬 (Category Flow + Nearest Neighbor)**:
-  - 카테고리 시퀀스 흐름(`[관광/산책 ➡️ 식사/카페 ➡️ 체험/야경]`)과 지리적 최근접 이동 거리(`Nearest Neighbor`)를 통합 조합하여 낭비 없는 자연스러운 동선 순서(`orderIndex`) 자동 산출
+  - 카테고리 시퀀스 흐름(`[관광/자연/문화 ➡️ 식사/시장 ➡️ 카페/체험 ➡️ (선택)야경/전망]`)과 지리적 최근접 이동 거리(`Nearest Neighbor`)를 통합 조합하여 낭비 없는 자연스러운 동선 순서(`orderIndex`) 자동 산출
 - **이동 순서 오르막 상승분 (`RouteStop.elevationGainMeters`) 역정규화 적재 이유**:
   - 장소 고도(`Place.elevationMeters`)는 정적 절대값인 반면, 오르막 피로도(`elevationGainMeters`)는 **어느 이동 순서(Order)로 이동하느냐에 의존하는 상대값** (오르막만 피로도 차감, 내리막 0m)
   - SEED 시점에 `RouteStop.elevationGainMeters` 및 `Route.totalElevationGainMeters`에 사전 계산 저장함으로써 **런타임 외부 API 추가 호출 0회 (0-Call) & DB 읽기 속도 O(1) 최적화 달성**
@@ -68,9 +94,16 @@ flowchart TD
   $$D = (0.01 \times \text{distance}) + (b \times \text{elevationGain}) + (0.001 \times \text{fare})$$
   *※ [특약] $transitType = \text{WALKING}$ 이고 $\text{elevationGain} > 0$ 일 때 부산 산복도로 경사 피로도 반영을 위한 고도 가중치 $b = 2.0$ 적용*
 
-- **체감 난이도 $D$의 코스 기본 점수(Base Score) 연동 산출 수식**:
-  $$\text{Base Score} = \text{Initial Rating} - (\alpha \times D) \quad (\alpha = 0.05)$$
-  *※ 산복도로 계단 피로도 점수 $D$를 코스 기본 점수 차감 요인으로 연동하여 가성비 및 체감 피로도를 종합 정량 평가*
+- **체감 난이도 $D$의 코스 기본 점수(Base Score) 사전 연산 산출 수식**:
+  $$\text{Base Score} = \max\left(50.0, 95.0 - (0.05 \times D)\right)$$
+  *※ 산복도로 계단 피로도 점수 $D$를 코스 기본 점수 차감 요인으로 연동하여 가성비 및 체감 피로도를 사전 계산 및 `Route.score`에 사전 적재*
+
+- **Crash-Free 5단계 다층 Fallback 알고리즘**:
+  - `1차`: 슬롯 조건 부합 & 직전 카테고리와 연속되지 않는 최단거리 장소 (`FOOD->FOOD` 연속 방지)
+  - `2차`: 슬롯 조건 부합 최단거리 장소
+  - `3차`: Fallback 카테고리 & 연속 방지 최단거리 장소
+  - `4차`: 직전 카테고리와 연속되지 않는 최단거리 장소
+  - `5차`: 무조건 Haversine 최단거리 장소 자동 할당 (SEED 스크립트 중단 원천 방어)
 
 - **관광객 프리미엄 지수 (TPI)**:
   $$\text{TPI} = \max\left(0, \frac{100 \times (\text{주요관광지물가} - \text{원도심물가})}{\text{원도심물가}}\right)$$
@@ -104,29 +137,32 @@ sequenceDiagram
     autonumber
     actor Client as 클라이언트 (Postman/App)
     participant Throttler as Throttler & Validator
-    participant Ctrl as RouteController
-    participant Svc as RouteService
+    participant Ctrl as RecommendationController
+    participant Svc as RecommendationService
     participant DB as PostgreSQL (Prisma)
 
-    Client->>Throttler: POST /recommended-routes/recommend { budget, ratios, themeSlugs }
-    Throttler->>Throttler: Validation Check (budget > 0, ratio sum 1.0, float guard) & Rate Limiting
+    Client->>Throttler: POST /recommended-routes/recommend { dailyBudgetWon, durationDays, travelStyleSlugs, ratios }
+    Throttler->>Throttler: Validation Check (dailyBudgetWon > 0, ratio sum 1.0, float guard) & Rate Limiting
     Throttler->>Ctrl: 검증 완료된 DTO 전달
-    Ctrl->>Svc: getRecommendedRoutes(dto)
+    Ctrl->>Svc: recommendRoutes(dto)
     
     Note over Svc,DB: [Step 1: Hard Filter] Composite Index Scan + Theme Relation Filter
-    Svc->>DB: findMany({ where: { estimatedCostWon <= budget, themes: { some: { theme: { slug: { in: themeSlugs } } } } } })
+    Svc->>DB: findMany({ where: { estimatedCostWon <= dailyBudgetWon, themes: { some: { theme: { slug: { in: travelStyleSlugs } } } } } })
     DB-->>Svc: 후보군 루트 데이터 전달 (Take 50)
     
     Note over Svc: [Step 2: Soft Filter & 추천도 점수 연산] 메모리 레벨 연산 (1~2ms)
     loop 후보군 Candidate Route 마다 4단계 연산
-        Svc->>Svc: 1) BaseScore = InitialRating - (0.05 * D) 계산
+        Svc->>Svc: 1) BaseScore = Route.score (SEED 사전계산 정적 기본점수 사용)
         Svc->>Svc: 2) 실제 비용 비율 계산 (actualFood, actualExp, actualTrans)
         Svc->>Svc: 3) 비율 오차 제곱 패널티 (Variance Penalty) 연산
         Svc->>Svc: 4) Final Score = max(0, BaseScore - Penalty + CongestionAdj)
     end
     
-    Note over Svc: [Step 3: Top 3 Selection]
-    Svc->>Svc: Final Score 내림차순 정렬 및 Top 3 코스 선별
+    Note over Svc: [Step 3: Multi-Day Stitching & Soft Penalty] (durationDays > 1)
+    Svc->>Svc: Haversine 최단거리 체이닝 + Soft Penalty (+50,000m overlap, +20,000m used, -15,000m theme)
+
+    Note over Svc: [Step 4: Top 3 Selection]
+    Svc->>Svc: 최종 패키지 점수 내림차순 정렬 및 Top 3 코스 선별 (dayNumber 메타데이터 연동)
     Svc-->>Ctrl: Top 3 추천 루트 리스트 반환 (RecommendedRouteListResponseDto)
     Ctrl-->>Client: 200 OK Response (JSON)
 ```
@@ -141,9 +177,9 @@ sequenceDiagram
 
 #### 📐 추천도 점수 4단계 통합 계산 수식 (Final Recommendation Score Formula)
 
-1. **1단계: 코스 기본 점수 및 피로도 감점 ($\text{Base Score}$)**
-   $$\text{Base Score} = \text{Initial Rating} - (\alpha \times D) \quad (\alpha = 0.05)$$
-   *(코스 원본 평가점수에서 산복도로 계단 보행 난이도 점수 $D$를 감점 연동)*
+1. **1단계: 코스 기본 점수 ($\text{Base Score}$)**
+   $$\text{Base Score} = \text{Route.score}$$
+   *(SEED 시점에 이미 $\max(50.0, 95.0 - 0.05 \times D)$가 사전 연산되어 DB `Route.score`에 적재되어 있으므로 런타임 이중 감점을 차단하고 정적 기본점수 사용)*
 
 2. **2단계: 사용자 예산 비율 오차 제곱 패널티 ($\text{Variance Penalty}$)**
    $$\text{Variance Penalty} = \left( (R_{\text{food, user}} - R_{\text{food, actual}})^2 + (R_{\text{exp, user}} - R_{\text{exp, actual}})^2 + (R_{\text{trans, user}} - R_{\text{trans, actual}})^2 \right) \times W \quad (W = 100)$$
@@ -157,8 +193,23 @@ sequenceDiagram
 
 ---
 
-### 4.3 Step 3: Top 3 Selection
-- Take 50개 후보군 대상 메모리 연산 후 `Final Score` 기준 내림차순 정렬하여 최상위 **Top 3** 루트 선별 (응답속도 100ms 이내).
+### 4.3 Step 3: Multi-Day Stitching & Soft Penalty (N일차 체이닝 및 Soft Penalty 가중치 명세) 🆕
+
+`durationDays > 1` (2일~5일) 요청 시, 1일차 추천 코스(Base Route) 선정 후 N일차 코스는 Haversine 최근접 거리 체이닝 및 Soft Penalty 알고리즘으로 조합됩니다.
+
+- **체이닝 거리 계산 수식**:
+  $$\text{Chaining Distance Score} = \text{Haversine}(P_{1,\text{last}}, P_{2,\text{first}}) + \text{OverlapPenalty} + \text{UsedRoutePenalty} + \text{ThemeBonus}$$
+- **Soft Penalty & 가중치 명세**:
+  - `OverlapPenalty`: 이미 선택된 일차의 `PlaceID`가 다음 일차 코스에 포함될 경우 **+50,000m 가중 패널티** 부여 (장소 중복 차단)
+  - `UsedRoutePenalty`: 이전 패키지에서 이미 체이닝된 동일 루트 재사용 시 **+20,000m 가중 패널티** 부여
+  - `ThemeBonus`: N일차 목표 테마와 매칭 시 **-15,000m 거리 할인 효과** 부여
+- **경유지 및 지표 통합 규칙**:
+  - 결합된 패키지의 경유지 객체에 `dayNumber (1, 2, 3...)` 자동 부여
+  - 전체 경유지의 정렬 순서 `orderIndex`를 `0, 1, 2, 3...`으로 연쇄 재정렬
+  - `totalDistanceMeters`, `totalCost`, `totalTimeMinutes`, `estimatedSavingsWon` 지표를 N일 전체 합산으로 통합 반환
+
+### 4.4 Step 4: Top 3 Selection
+- 후보군 대상 연산 및 Multi-Day 체이닝 후 최종 추천도 및 거리 점수 기준 내림차순 정렬하여 최상위 **Top 3** 패키지 리스트(`RecommendedRouteListResponseDto`)를 반환합니다. (응답속도 < 100ms)
 
 ---
 
