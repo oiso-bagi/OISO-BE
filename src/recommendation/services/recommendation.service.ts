@@ -100,9 +100,9 @@ function calculateDistanceMeters(
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos((lat1 * Math.PI) / 180) *
-    Math.cos((lat2 * Math.PI) / 180) *
-    Math.sin(dLon / 2) *
-    Math.sin(dLon / 2);
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return Math.round(R * c);
 }
@@ -111,7 +111,7 @@ function calculateDistanceMeters(
 export class RecommendationService {
   constructor(
     private readonly recommendationRepository: RecommendationRepository,
-  ) { }
+  ) {}
 
   getOptions(): RecommendationOptionsResponseDto {
     return RecommendationOptionsResponseDto.of({
@@ -232,8 +232,8 @@ export class RecommendationService {
 
     const day1Candidates = day1ThemeSlug
       ? candidateRoutes.filter((c) =>
-        (c.themes ?? []).some((t) => t?.theme?.slug === day1ThemeSlug),
-      )
+          (c.themes ?? []).some((t) => t?.theme?.slug === day1ThemeSlug),
+        )
       : candidateRoutes;
 
     const primaryDay1Pool =
@@ -355,10 +355,11 @@ export class RecommendationService {
         }
 
         if (bestNextRoute) {
-          selectedRoutes.push(bestNextRoute);
-          previouslyStitchedRouteIds.add(bestNextRoute.id);
+          const nextRoute: GenericRoute = bestNextRoute;
+          selectedRoutes.push(nextRoute);
+          previouslyStitchedRouteIds.add(nextRoute.id);
           totalChainingCostPenalty += minDistance / 1000;
-          const nextStops = bestNextRoute.stops || [];
+          const nextStops = nextRoute.stops || [];
           nextStops.forEach((s) => {
             if (s.place?.id) visitedPlaceIds.add(s.place.id);
           });
