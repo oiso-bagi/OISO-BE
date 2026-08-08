@@ -255,7 +255,7 @@ describe('RecommendationService', () => {
       {
         id: 'route-valid-far',
         name: 'Valid Far Route',
-        score: 85,
+        score: 88,
         stops: [
           {
             orderIndex: 0,
@@ -293,10 +293,16 @@ describe('RecommendationService', () => {
     });
 
     expect(results.length).toBeGreaterThan(0);
-    // Package 0 starts with route-day1. Day 2 picks route-valid-near (~1.4km < 10000m fallback).
-    expect(results[0].stopLocations[1].placeName).toBe('유효하고 가까운 장소');
+    // Package starting with route-day1. Day 2 picks route-valid-near (~1.4km < 10000m fallback).
+    const packageStartingDay1 = results.find(
+      (r) => r.stopLocations[0].placeName === '출발 장소',
+    );
+    expect(packageStartingDay1).toBeDefined();
+    expect(packageStartingDay1!.stopLocations[1].placeName).toBe(
+      '유효하고 가까운 장소',
+    );
 
-    // Package 2 starts with route-valid-far (~48km). Day 2 picks route-invalid-coord (10000m fallback < 48km Haversine distance).
+    // Package starting with route-valid-far (~48km). Day 2 picks route-invalid-coord (10000m fallback < 48km Haversine distance).
     const packageStartingFar = results.find(
       (r) => r.stopLocations[0].placeName === '유효하지만 먼 장소',
     );

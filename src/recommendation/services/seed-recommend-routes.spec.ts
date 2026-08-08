@@ -3,7 +3,8 @@ import {
   calculateHaversineDistance,
   calculateDifficultyScore,
   calculateBaseScore,
-} from '../../../scripts/seed-recommend-routes';
+  calculateElevationGainMeters,
+} from '@/recommendation/utils/recommendation-calculator.util';
 
 describe('SEED Script Numerical Calculations', () => {
   describe('calculateHaversineDistance', () => {
@@ -21,14 +22,20 @@ describe('SEED Script Numerical Calculations', () => {
     });
   });
 
-  describe('elevationGainMeters calculation logic', () => {
+  describe('calculateElevationGainMeters', () => {
     it('이동 시 오르막 상승분만 가산하고 내리막은 0m로 처리해야 한다', () => {
       const prevElevation = 15;
       const currentElevationHigh = 45;
       const currentElevationLow = 10;
 
-      const gainUp = Math.max(0, currentElevationHigh - prevElevation);
-      const gainDown = Math.max(0, currentElevationLow - prevElevation);
+      const gainUp = calculateElevationGainMeters(
+        currentElevationHigh,
+        prevElevation,
+      );
+      const gainDown = calculateElevationGainMeters(
+        currentElevationLow,
+        prevElevation,
+      );
 
       expect(gainUp).toBe(30);
       expect(gainDown).toBe(0);

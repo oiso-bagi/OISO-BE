@@ -141,18 +141,18 @@ sequenceDiagram
     participant Svc as RecommendationService
     participant DB as PostgreSQL (Prisma)
 
-    Client->>Throttler: POST /recommended-routes/recommend { budget, ratios, themeSlugs }
-    Throttler->>Throttler: Validation Check (budget > 0, ratio sum 1.0, float guard) & Rate Limiting
+    Client->>Throttler: POST /recommended-routes/recommend { dailyBudgetWon, durationDays, travelStyleSlugs, ratios }
+    Throttler->>Throttler: Validation Check (dailyBudgetWon > 0, ratio sum 1.0, float guard) & Rate Limiting
     Throttler->>Ctrl: 검증 완료된 DTO 전달
     Ctrl->>Svc: recommendRoutes(dto)
     
     Note over Svc,DB: [Step 1: Hard Filter] Composite Index Scan + Theme Relation Filter
-    Svc->>DB: findMany({ where: { estimatedCostWon <= budget, themes: { some: { theme: { slug: { in: themeSlugs } } } } } })
+    Svc->>DB: findMany({ where: { estimatedCostWon <= dailyBudgetWon, themes: { some: { theme: { slug: { in: travelStyleSlugs } } } } } })
     DB-->>Svc: 후보군 루트 데이터 전달 (Take 50)
     
     Note over Svc: [Step 2: Soft Filter & 추천도 점수 연산] 메모리 레벨 연산 (1~2ms)
     loop 후보군 Candidate Route 마다 4단계 연산
-        Svc->>Svc: 1) BaseScore = max(50.0, 95.0 - 0.05 * D) 계산
+        Svc->>Svc: 1) BaseScore = Route.score (SEED 사전계산 정적 기본점수 사용)
         Svc->>Svc: 2) 실제 비용 비율 계산 (actualFood, actualExp, actualTrans)
         Svc->>Svc: 3) 비율 오차 제곱 패널티 (Variance Penalty) 연산
         Svc->>Svc: 4) Final Score = max(0, BaseScore - Penalty + CongestionAdj)

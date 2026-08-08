@@ -225,10 +225,26 @@ export class RecommendationService {
     const maxCombinations = Math.min(candidateRoutes.length, 5);
     const previouslyStitchedRouteIds = new Set<string>();
 
+    // 1일차 지정 테마가 있을 경우 해당 테마 후보군 우선 필터링
+    const day1ThemeSlug =
+      requestedThemeSlugs && requestedThemeSlugs.length > 0
+        ? requestedThemeSlugs[0]
+        : null;
+
+    const day1Candidates = day1ThemeSlug
+      ? candidateRoutes.filter((c) =>
+          (c.themes ?? []).some((t) => t?.theme?.slug === day1ThemeSlug),
+        )
+      : candidateRoutes;
+
+    const primaryDay1Pool =
+      day1Candidates.length > 0 ? day1Candidates : candidateRoutes;
+
     for (let i = 0; i < maxCombinations; i++) {
-      const day1Route = candidateRoutes[i];
+      const day1Route = primaryDay1Pool[i % primaryDay1Pool.length];
       const selectedRoutes: GenericRoute[] = [day1Route];
       const visitedPlaceIds = new Set<string>();
+      let totalChainingCostPenalty = 0;
 
       // 1일차 코스를 사용된 루트 목록에 등록하여 후속 패키지 재사용 시 UsedRoutePenalty 부여
       previouslyStitchedRouteIds.add(day1Route.id);
@@ -323,6 +339,7 @@ export class RecommendationService {
         if (bestNextRoute) {
           selectedRoutes.push(bestNextRoute);
           previouslyStitchedRouteIds.add(bestNextRoute.id);
+          totalChainingCostPenalty += minDistance > 0 ? minDistance / 1000 : 0;
           const nextStops = bestNextRoute.stops || [];
           nextStops.forEach((s) => {
             if (s.place?.id) visitedPlaceIds.add(s.place.id);
@@ -340,11 +357,12 @@ export class RecommendationService {
         selectedRoutes,
         targetDurationDays,
         i + 1,
+        totalChainingCostPenalty,
       );
       results.push(stitchedRoute);
     }
 
-    // 패키지 종합 점수 기준 내림차순 정렬
+    // 명시적 다일 패키지 종합 점수 기준 내림차순 정렬
     return results.sort((a, b) => b.score - a.score);
   }
 
@@ -352,6 +370,7 @@ export class RecommendationService {
     routes: GenericRoute[],
     targetDurationDays: number,
     packageIdx: number,
+    chainingCostPenalty = 0,
   ): GenericRoute {
     const combinedStops: GenericStop[] = [];
     let totalDistanceMeters = 0;
@@ -373,7 +392,8 @@ export class RecommendationService {
       experienceCostWon += Number(route.experienceCostWon || 0);
       transportCostWon += Number(route.transportCostWon || 0);
       estimatedDurationMin += Number(route.estimatedDurationMin || 0);
-      totalScoreSum += Number(route.score || 85);
+      // nullish coalescing 적용하여 route.score가 유효한 0점일 때 85로 덮어씌워지지 않도록 방어
+      totalScoreSum += route.score ?? 85;
 
       const stops = route.stops || [];
       stops.forEach((stop) => {
@@ -387,7 +407,11 @@ export class RecommendationService {
 
     const leadRouteName = String(routes[0]?.name || '부산 여행');
     const durationText = `${targetDurationDays - 1}박 ${targetDurationDays}일`;
-    const avgScore = Number((totalScoreSum / routes.length).toFixed(2));
+    const avgScore = totalScoreSum / routes.length;
+    // 체이닝 과정의 패널티(이동거리/중복)를 감안한 명시적 다일 패키지 종합 점수 연산 (최저 0점 보장)
+    const packageScore = Number(
+      Math.max(0, avgScore - chainingCostPenalty * 0.1).toFixed(2),
+    );
 
     return {
       id: `stitched-${String(routes[0]?.id || 'multi')}-${packageIdx}`,
@@ -399,7 +423,7 @@ export class RecommendationService {
       experienceCostWon,
       transportCostWon,
       estimatedDurationMin,
-      score: avgScore,
+      score: packageScore,
       routeType: routes[0]?.routeType || 'RECOMMENDED',
       congestionLevel: routes[0]?.congestionLevel || 'MEDIUM',
       stops: combinedStops,
