@@ -2,6 +2,7 @@ import { applyDecorators } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
+  ApiBody,
   ApiCookieAuth,
   ApiCreatedResponse,
   ApiNotFoundResponse,
@@ -16,9 +17,11 @@ import {
   ApiJwtAccessTokenInternalServerErrorResponseDocs,
   createCommonErrorExample,
 } from '@/common/docs/auth-error-swagger.docs';
+import { CreateSavedRouteDto } from '@/route/dto/create-saved-route.dto';
 import { SavedRouteCompletionResponseDto } from '@/route/dto/saved-route-completion-response.dto';
 import { SavedRouteDetailResponseDto } from '@/route/dto/saved-route-detail-response.dto';
 import { SavedRouteListResponseDto } from '@/route/dto/saved-route-list-response.dto';
+import { ToggleSavedRouteCompletionDto } from '@/route/dto/toggle-saved-route-completion.dto';
 
 const savedRouteBadRequestExamples = {
   invalidUserId: {
@@ -159,8 +162,12 @@ export const ApiSaveRouteDocs = () =>
       summary: '추천 루트 보관함 저장 API',
       description: '선택한 추천 루트를 유저의 보관함(SavedRoute)에 저장합니다.',
     }),
+    ApiBody({ type: CreateSavedRouteDto }),
     ApiCreatedResponse({
       description: '성공적으로 보관함에 저장되었습니다.',
+    }),
+    ApiBadRequestResponse({
+      description: 'routeId가 비어 있으면 400 응답을 반환합니다.',
     }),
     ApiNotFoundResponse({
       description: '존재하지 않는 루트 ID인 경우 404 응답을 반환합니다.',
@@ -201,9 +208,13 @@ export const ApiToggleSavedRouteCompletionDocs = () =>
       description: '여행 완료 상태를 변경할 루트 ID',
       example: 'route_001',
     }),
+    ApiBody({ type: ToggleSavedRouteCompletionDto }),
     ApiOkResponse({
       description: '성공적으로 여행 완료 상태가 토글되었습니다.',
       type: SavedRouteCompletionResponseDto,
+    }),
+    ApiBadRequestResponse({
+      description: 'isCompleted가 boolean이 아닌 경우 400 응답을 반환합니다.',
     }),
     ApiNotFoundResponse({
       description: '존재하지 않는 루트 ID인 경우 404 응답을 반환합니다.',

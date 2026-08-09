@@ -7,7 +7,7 @@ export class BudgetRatiosDto {
     required: false,
     type: Number,
   })
-  foodRatio?: unknown;
+  foodRatio?: number;
 
   @ApiProperty({
     description: '체험/입장료 비율 (0 ~ 1). 미입력 시 기본값 0.25 적용',
@@ -15,7 +15,7 @@ export class BudgetRatiosDto {
     required: false,
     type: Number,
   })
-  experienceRatio?: unknown;
+  experienceRatio?: number;
 
   @ApiProperty({
     description: '교통비 비율 (0 ~ 1). 미입력 시 기본값 0.40 적용',
@@ -23,7 +23,7 @@ export class BudgetRatiosDto {
     required: false,
     type: Number,
   })
-  transportRatio?: unknown;
+  transportRatio?: number;
 }
 
 export class RecommendRouteRequestDto {
@@ -31,22 +31,25 @@ export class RecommendRouteRequestDto {
     description: '추천에 사용할 여행 스타일 slug 목록',
     example: ['local-food', 'cafe'],
     type: [String],
+    required: true,
   })
-  travelStyleSlugs?: unknown;
+  travelStyleSlugs?: string[];
 
   @ApiProperty({
     description: '여행 기간(일). 1부터 5까지 허용됩니다.',
     example: 2,
     type: Number,
+    required: true,
   })
-  durationDays?: unknown;
+  durationDays?: number;
 
   @ApiProperty({
     description: '1일 예산(원). 안전한 양의 정수여야 합니다.',
     example: 60000,
     type: Number,
+    required: true,
   })
-  dailyBudgetWon?: unknown;
+  dailyBudgetWon?: number;
 
   @ApiProperty({
     description:
@@ -59,5 +62,5 @@ export class RecommendRouteRequestDto {
       transportRatio: 0.4,
     },
   })
-  ratios?: unknown;
+  ratios?: BudgetRatiosDto;
 }

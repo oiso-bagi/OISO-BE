@@ -7,19 +7,28 @@ import type {
 } from '@/route/dto/recommended-route-detail-response.dto';
 
 export class RouteStopLocationDto {
-  @ApiProperty({ description: '경유지 순서', example: 1 })
+  @ApiProperty({ description: '경유지 순서', example: 1, type: Number })
   sequence!: number;
 
-  @ApiProperty({ description: '일차 번호 (1일차, 2일차...)', example: 1 })
+  @ApiProperty({
+    description: '일차 번호 (1일차, 2일차...)',
+    example: 1,
+    type: Number,
+  })
   dayNumber!: number;
 
-  @ApiProperty({ description: '장소 이름', example: '광안리해수욕장' })
+  @ApiProperty({
+    description: '장소 이름',
+    example: '광안리해수욕장',
+    type: String,
+  })
   placeName!: string;
 
   @ApiProperty({
     description: '장소 위도',
     example: 35.1532,
     nullable: true,
+    type: Number,
   })
   latitude!: number | null;
 
@@ -27,6 +36,7 @@ export class RouteStopLocationDto {
     description: '장소 경도',
     example: 129.1187,
     nullable: true,
+    type: Number,
   })
   longitude!: number | null;
 
@@ -49,22 +59,27 @@ export class RouteStopLocationDto {
 }
 
 export class RecommendedRouteListResponseDto {
-  @ApiProperty({ description: '추천 루트 ID', example: 'route_001' })
+  @ApiProperty({
+    description: '추천 루트 ID',
+    example: 'route_001',
+    type: String,
+  })
   id!: string;
 
   @ApiProperty({
     description: '추천 루트 이름',
     example: '부산 바다 감성 코스',
+    type: String,
   })
   name!: string;
 
-  @ApiProperty({ description: '경유지 수', example: 4 })
+  @ApiProperty({ description: '경유지 수', example: 4, type: Number })
   stopCount!: number;
 
-  @ApiProperty({ description: '총 이동 거리(m)', example: 8500 })
+  @ApiProperty({ description: '총 이동 거리(m)', example: 8500, type: Number })
   totalDistanceMeters!: number;
 
-  @ApiProperty({ description: '총 이동 거리(km)', example: 8.5 })
+  @ApiProperty({ description: '총 이동 거리(km)', example: 8.5, type: Number })
   totalDistanceKm!: number;
 
   @ApiProperty({
@@ -75,10 +90,18 @@ export class RecommendedRouteListResponseDto {
   })
   transitTypes!: TransitType[];
 
-  @ApiProperty({ description: '예상 총 비용(원)', example: 42000 })
+  @ApiProperty({
+    description: '예상 총 비용(원)',
+    example: 42000,
+    type: Number,
+  })
   totalCost!: number;
 
-  @ApiProperty({ description: '예상 총 소요 시간(분)', example: 180 })
+  @ApiProperty({
+    description: '예상 총 소요 시간(분)',
+    example: 180,
+    type: Number,
+  })
   totalTimeMinutes!: number;
 
   @ApiProperty({
@@ -88,13 +111,17 @@ export class RecommendedRouteListResponseDto {
   })
   congestionLevel!: CongestionLevel;
 
-  @ApiProperty({ description: '예상 절약 금액(원)', example: 15000 })
+  @ApiProperty({
+    description: '예상 절약 금액(원)',
+    example: 15000,
+    type: Number,
+  })
   estimatedSavingsWon!: number;
 
-  @ApiProperty({ description: '추천 점수', example: 87.5 })
+  @ApiProperty({ description: '추천 점수', example: 87.5, type: Number })
   score!: number;
 
-  @ApiProperty({ description: '추천 루트 여부', example: true })
+  @ApiProperty({ description: '추천 루트 여부', example: true, type: Boolean })
   isRecommended!: boolean;
 
   @ApiProperty({

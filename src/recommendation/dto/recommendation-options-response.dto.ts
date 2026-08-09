@@ -30,11 +30,11 @@ export class BudgetPresetDto {
 
 export class BudgetAllocationRuleDto {
   @ApiProperty({
-    description: '예산 항목 구분 (transport, food, activity 등)',
+    description: '예산 항목 구분 (transport | food | activity)',
+    enum: ['transport', 'food', 'activity'],
     example: 'transport',
-    type: String,
   })
-  type!: string;
+  type!: 'transport' | 'food' | 'activity';
 
   @ApiProperty({
     description: '예산 항목 한국어 라벨',

@@ -35,8 +35,9 @@ export class SavedRouteStopDetailDto {
     description: '장소 카테고리',
     enum: PlaceCategory,
     example: PlaceCategory.NATURE,
+    nullable: true,
   })
-  category = '';
+  category: PlaceCategory | null = null;
 
   @ApiProperty({
     description: '장소 영업 시작 시간',
@@ -91,7 +92,7 @@ export class SavedRouteStopDetailDto {
 
     dto.sequence = stop.orderIndex ?? 0;
     dto.placeName = stop.place?.name ?? '';
-    dto.category = stop.place?.category ?? '';
+    dto.category = (stop.place?.category as PlaceCategory) ?? null;
     dto.openTime = stop.place?.openTime ?? null;
     dto.closeTime = stop.place?.closeTime ?? null;
     dto.nextTransportType = stop.transitType ?? null;
@@ -123,7 +124,8 @@ export class SavedRouteDetailResponseDto {
   @ApiProperty({
     description: '저장 일시',
     example: '2026-08-01T00:00:00.000Z',
-    type: Date,
+    type: String,
+    format: 'date-time',
   })
   savedAt = new Date(0);
 
@@ -151,7 +153,8 @@ export class SavedRouteDetailResponseDto {
   congestionLevel: CongestionLevel = CongestionLevel.MEDIUM;
 
   @ApiProperty({
-    description: '예상 절약 금액(원)',
+    description:
+      '절약 금액(원) — savedCost 호환 필드 (estimatedSavingsWon과 동일한 값)',
     example: 15000,
     type: Number,
   })

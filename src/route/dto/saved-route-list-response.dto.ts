@@ -25,28 +25,35 @@ export type SavedRouteRawData = {
 };
 
 export class SavedRouteItemDto {
-  @ApiProperty({ description: '저장 루트 ID', example: 'route_001' })
+  @ApiProperty({
+    description: '저장 루트 ID',
+    example: 'route_001',
+    type: String,
+  })
   routeId!: string;
 
   @ApiProperty({
     description: '저장 루트 이름',
     example: '부산 바다 감성 코스',
+    type: String,
   })
   routeName!: string;
 
   @ApiProperty({
     description: '저장 일시',
     example: '2026-08-01T00:00:00.000Z',
+    type: String,
+    format: 'date-time',
   })
   savedAt!: Date;
 
-  @ApiProperty({ description: '여행 완료 여부', example: false })
+  @ApiProperty({ description: '여행 완료 여부', example: false, type: Boolean })
   isCompleted!: boolean;
 
-  @ApiProperty({ description: '경유지 수', example: 4 })
+  @ApiProperty({ description: '경유지 수', example: 4, type: Number })
   stopCount!: number;
 
-  @ApiProperty({ description: '총 이동 거리(km)', example: 8.5 })
+  @ApiProperty({ description: '총 이동 거리(km)', example: 8.5, type: Number })
   totalDistanceKm!: number;
 
   @ApiProperty({
@@ -57,13 +64,25 @@ export class SavedRouteItemDto {
   })
   transitTypes!: TransitType[];
 
-  @ApiProperty({ description: '예상 총 비용(원)', example: 42000 })
+  @ApiProperty({
+    description: '예상 총 비용(원)',
+    example: 42000,
+    type: Number,
+  })
   totalCost!: number;
 
-  @ApiProperty({ description: '예상 총 소요 시간(분)', example: 180 })
+  @ApiProperty({
+    description: '예상 총 소요 시간(분)',
+    example: 180,
+    type: Number,
+  })
   totalTimeMinutes!: number;
 
-  @ApiProperty({ description: '예상 절약 금액(원)', example: 15000 })
+  @ApiProperty({
+    description: '예상 절약 금액(원)',
+    example: 15000,
+    type: Number,
+  })
   estimatedSavingsWon!: number;
 
   static from(rawData: SavedRouteRawData): SavedRouteItemDto {
@@ -103,10 +122,14 @@ export class SavedRouteItemDto {
 }
 
 export class SavedRouteListResponseDto {
-  @ApiProperty({ description: '저장 루트 개수', example: 3 })
+  @ApiProperty({ description: '저장 루트 개수', example: 3, type: Number })
   savedRouteCount!: number;
 
-  @ApiProperty({ description: '총 예상 절약 금액(원)', example: 45000 })
+  @ApiProperty({
+    description: '총 예상 절약 금액(원)',
+    example: 45000,
+    type: Number,
+  })
   totalSavedSavingsWon!: number;
 
   @ApiProperty({
