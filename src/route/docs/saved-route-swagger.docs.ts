@@ -175,7 +175,7 @@ export const ApiDeleteSavedRouteDocs = () =>
       description: '유저 보관함에 저장된 루트를 삭제(Hard Delete)합니다.',
     }),
     ApiParam({
-      name: 'id',
+      name: 'routeId',
       description: '보관함에서 삭제할 루트 ID',
       example: 'route_001',
     }),

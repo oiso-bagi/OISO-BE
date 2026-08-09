@@ -118,16 +118,30 @@ export class SavedRouteRepository {
           routeId,
         },
       },
+      select: {
+        userId: true,
+        routeId: true,
+      },
     });
   }
 
   async createSavedRoute(userId: string, routeId: string) {
-    return this.prisma.savedRoute.create({
-      data: {
-        userId,
-        routeId,
-      },
-    });
+    try {
+      return await this.prisma.savedRoute.create({
+        data: {
+          userId,
+          routeId,
+        },
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        return { userId, routeId };
+      }
+      throw error;
+    }
   }
 
   async deleteSavedRoute(userId: string, routeId: string) {
@@ -159,26 +173,36 @@ export class SavedRouteRepository {
     isCompleted: boolean,
     actualCostWon?: number,
   ) {
-    const existingTrip = await this.findTripByUserIdAndRouteId(userId, routeId);
+    return this.prisma.$transaction(async (tx) => {
+      const existingTrip = await tx.routeTrip.findFirst({
+        where: {
+          userId,
+          routeId,
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+      });
 
-    if (existingTrip) {
-      return this.prisma.routeTrip.update({
-        where: { id: existingTrip.id },
+      if (existingTrip) {
+        return tx.routeTrip.update({
+          where: { id: existingTrip.id },
+          data: {
+            isCompleted,
+            ...(actualCostWon !== undefined && { actualCostWon }),
+          },
+        });
+      }
+
+      return tx.routeTrip.create({
         data: {
+          userId,
+          routeId,
           isCompleted,
+          startedAt: new Date(),
           ...(actualCostWon !== undefined && { actualCostWon }),
         },
       });
-    }
-
-    return this.prisma.routeTrip.create({
-      data: {
-        userId,
-        routeId,
-        isCompleted,
-        startedAt: new Date(),
-        ...(actualCostWon !== undefined && { actualCostWon }),
-      },
     });
   }
 }

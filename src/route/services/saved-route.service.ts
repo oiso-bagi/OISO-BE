@@ -112,6 +112,16 @@ export class SavedRouteService {
       );
     }
 
+    const isSaved = await this.savedRouteRepository.findSavedRoute(
+      normalizedUserId,
+      normalizedRouteId,
+    );
+    if (!isSaved) {
+      throw new NotFoundException(
+        `보관함에 저장된 루트 ID [${normalizedRouteId}]를 찾을 수 없습니다.`,
+      );
+    }
+
     const updatedTrip =
       await this.savedRouteRepository.upsertRouteTripCompletion(
         normalizedUserId,

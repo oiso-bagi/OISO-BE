@@ -52,14 +52,14 @@ export class SavedRouteController {
     await this.savedRouteService.saveRoute(user.id, dto.routeId);
   }
 
-  @Delete(':id')
+  @Delete(':routeId')
   @HttpCode(HttpStatus.OK)
   @ApiDeleteSavedRouteDocs()
   async deleteSavedRoute(
-    @Param('id') id: string,
+    @Param('routeId') routeId: string,
     @CurrentUser() user: User,
   ): Promise<void> {
-    await this.savedRouteService.deleteSavedRoute(user.id, id);
+    await this.savedRouteService.deleteSavedRoute(user.id, routeId);
   }
 
   @Patch(':routeId/completion')
