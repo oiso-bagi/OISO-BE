@@ -128,8 +128,9 @@ export class RouteStopResponseDto {
     description: '장소 카테고리',
     enum: PlaceCategory,
     example: PlaceCategory.NATURE,
+    nullable: true,
   })
-  category!: string;
+  category!: PlaceCategory | null;
 
   @ApiProperty({
     description: '장소 영업 시작 시간',
@@ -195,7 +196,7 @@ export class RouteStopResponseDto {
     }
 
     dto.placeName = stop.place?.name ?? '';
-    dto.category = stop.place?.category ?? '';
+    dto.category = (stop.place?.category as PlaceCategory) ?? null;
 
     dto.openTime = stop.place?.openTime ?? null;
     dto.closeTime = stop.place?.closeTime ?? null;

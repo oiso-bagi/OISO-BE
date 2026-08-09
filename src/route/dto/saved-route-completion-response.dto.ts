@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty } from '@nestjs/swagger';
 
 export interface RouteTripEntity {
   id: string;
@@ -23,7 +23,7 @@ export class SavedRouteCompletionResponseDto {
   })
   isCompleted!: boolean;
 
-  @ApiPropertyOptional({
+  @ApiProperty({
     description: '실제 지출 금액 (원화)',
     example: 45000,
     nullable: true,
