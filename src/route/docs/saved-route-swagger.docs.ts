@@ -3,6 +3,7 @@ import {
   ApiBadRequestResponse,
   ApiBearerAuth,
   ApiCookieAuth,
+  ApiCreatedResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
@@ -15,6 +16,7 @@ import {
   ApiJwtAccessTokenInternalServerErrorResponseDocs,
   createCommonErrorExample,
 } from '@/common/docs/auth-error-swagger.docs';
+import { SavedRouteCompletionResponseDto } from '@/route/dto/saved-route-completion-response.dto';
 import { SavedRouteDetailResponseDto } from '@/route/dto/saved-route-detail-response.dto';
 import { SavedRouteListResponseDto } from '@/route/dto/saved-route-list-response.dto';
 
@@ -148,4 +150,62 @@ export const ApiGetSavedRouteDetailDocs = () =>
     ApiJwtAccessTokenInternalServerErrorResponseDocs(
       'JWT 액세스 토큰 설정이 누락되었거나 저장 루트 상세 조회 중 예상하지 못한 오류가 발생하면 500 응답을 반환할 수 있습니다.',
     ),
+  );
+
+export const ApiSaveRouteDocs = () =>
+  applyDecorators(
+    applySavedRouteAuthDocs(),
+    ApiOperation({
+      summary: '추천 루트 보관함 저장 API',
+      description: '선택한 추천 루트를 유저의 보관함(SavedRoute)에 저장합니다.',
+    }),
+    ApiCreatedResponse({
+      description: '성공적으로 보관함에 저장되었습니다.',
+    }),
+    ApiNotFoundResponse({
+      description: '존재하지 않는 루트 ID인 경우 404 응답을 반환합니다.',
+    }),
+  );
+
+export const ApiDeleteSavedRouteDocs = () =>
+  applyDecorators(
+    applySavedRouteAuthDocs(),
+    ApiOperation({
+      summary: '저장된 루트 삭제(찜 해제) API',
+      description: '유저 보관함에 저장된 루트를 삭제(Hard Delete)합니다.',
+    }),
+    ApiParam({
+      name: 'id',
+      description: '보관함에서 삭제할 루트 ID',
+      example: 'route_001',
+    }),
+    ApiOkResponse({
+      description: '성공적으로 삭제 처리되었습니다.',
+    }),
+    ApiNotFoundResponse({
+      description:
+        '보관함에 저장되어 있지 않은 루트 ID인 경우 404 응답을 반환합니다.',
+    }),
+  );
+
+export const ApiToggleSavedRouteCompletionDocs = () =>
+  applyDecorators(
+    applySavedRouteAuthDocs(),
+    ApiOperation({
+      summary: '여행 완료/미완료 토글 스위치 API',
+      description:
+        '선택한 루트에 대해 여행 완료 상태(isCompleted: true/false) 및 실제 지출 금액을 토글 처리합니다.',
+    }),
+    ApiParam({
+      name: 'routeId',
+      description: '여행 완료 상태를 변경할 루트 ID',
+      example: 'route_001',
+    }),
+    ApiOkResponse({
+      description: '성공적으로 여행 완료 상태가 토글되었습니다.',
+      type: SavedRouteCompletionResponseDto,
+    }),
+    ApiNotFoundResponse({
+      description: '존재하지 않는 루트 ID인 경우 404 응답을 반환합니다.',
+    }),
   );

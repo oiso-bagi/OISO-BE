@@ -102,4 +102,83 @@ export class SavedRouteRepository {
       select: getSavedRouteDetailSelect(userId),
     });
   }
+
+  async findRouteById(routeId: string) {
+    return this.prisma.route.findUnique({
+      where: { id: routeId },
+      select: { id: true },
+    });
+  }
+
+  async findSavedRoute(userId: string, routeId: string) {
+    return this.prisma.savedRoute.findUnique({
+      where: {
+        userId_routeId: {
+          userId,
+          routeId,
+        },
+      },
+    });
+  }
+
+  async createSavedRoute(userId: string, routeId: string) {
+    return this.prisma.savedRoute.create({
+      data: {
+        userId,
+        routeId,
+      },
+    });
+  }
+
+  async deleteSavedRoute(userId: string, routeId: string) {
+    return this.prisma.savedRoute.delete({
+      where: {
+        userId_routeId: {
+          userId,
+          routeId,
+        },
+      },
+    });
+  }
+
+  async findTripByUserIdAndRouteId(userId: string, routeId: string) {
+    return this.prisma.routeTrip.findFirst({
+      where: {
+        userId,
+        routeId,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+  }
+
+  async upsertRouteTripCompletion(
+    userId: string,
+    routeId: string,
+    isCompleted: boolean,
+    actualCostWon?: number,
+  ) {
+    const existingTrip = await this.findTripByUserIdAndRouteId(userId, routeId);
+
+    if (existingTrip) {
+      return this.prisma.routeTrip.update({
+        where: { id: existingTrip.id },
+        data: {
+          isCompleted,
+          ...(actualCostWon !== undefined && { actualCostWon }),
+        },
+      });
+    }
+
+    return this.prisma.routeTrip.create({
+      data: {
+        userId,
+        routeId,
+        isCompleted,
+        startedAt: new Date(),
+        ...(actualCostWon !== undefined && { actualCostWon }),
+      },
+    });
+  }
 }

@@ -159,7 +159,7 @@ export const ApiRecommendRoutesDocs = () =>
         default: {
           summary: '추천 요청 예시 (비율 지정)',
           value: {
-            travelStyleSlugs: ['local-food', 'cafe'],
+            travelStyleSlugs: ['local-food', 'emotion-cafe'],
             durationDays: 2,
             dailyBudgetWon: 60000,
             ratios: {
@@ -172,7 +172,7 @@ export const ApiRecommendRoutesDocs = () =>
         withoutRatios: {
           summary: '추천 요청 예시 (기본 비율 적용)',
           value: {
-            travelStyleSlugs: ['local-food', 'cafe'],
+            travelStyleSlugs: ['local-food', 'emotion-cafe'],
             durationDays: 2,
             dailyBudgetWon: 60000,
           },

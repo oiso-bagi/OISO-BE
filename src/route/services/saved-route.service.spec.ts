@@ -9,6 +9,11 @@ describe('SavedRouteService', () => {
   const mockSavedRouteRepository = {
     findListByUserId: jest.fn(),
     findDetailByRouteId: jest.fn(),
+    findRouteById: jest.fn(),
+    findSavedRoute: jest.fn(),
+    createSavedRoute: jest.fn(),
+    deleteSavedRoute: jest.fn(),
+    upsertRouteTripCompletion: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -25,6 +30,10 @@ describe('SavedRouteService', () => {
   beforeEach(() => {
     mockSavedRouteRepository.findListByUserId.mockReset();
     mockSavedRouteRepository.findDetailByRouteId.mockReset();
+    mockSavedRouteRepository.findRouteById.mockReset();
+    mockSavedRouteRepository.findSavedRoute.mockReset();
+    mockSavedRouteRepository.createSavedRoute.mockReset();
+    mockSavedRouteRepository.deleteSavedRoute.mockReset();
   });
 
   it('should be defined', () => {
@@ -196,5 +205,113 @@ describe('SavedRouteService', () => {
     expect(result.stops[0].nextTravelTimeMinutes).toBe(20);
     expect(result.stops[1].nextTransportType).toBe('WALKING');
     expect(result.stops[1].nextTravelTimeMinutes).toBe(10);
+  });
+
+  describe('saveRoute', () => {
+    it('throws NotFoundException when route does not exist', async () => {
+      mockSavedRouteRepository.findRouteById.mockResolvedValue(null);
+
+      await expect(
+        service.saveRoute('user-1', 'invalid-route'),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('creates saved route record when valid route is provided', async () => {
+      mockSavedRouteRepository.findRouteById.mockResolvedValue({
+        id: 'route-1',
+      });
+      mockSavedRouteRepository.findSavedRoute.mockResolvedValue(null);
+      mockSavedRouteRepository.createSavedRoute.mockResolvedValue({
+        userId: 'user-1',
+        routeId: 'route-1',
+        savedAt: new Date(),
+      });
+
+      await service.saveRoute('user-1', 'route-1');
+
+      expect(mockSavedRouteRepository.createSavedRoute).toHaveBeenCalledWith(
+        'user-1',
+        'route-1',
+      );
+    });
+
+    it('does not duplicate create when already saved (idempotent)', async () => {
+      mockSavedRouteRepository.findRouteById.mockResolvedValue({
+        id: 'route-1',
+      });
+      mockSavedRouteRepository.findSavedRoute.mockResolvedValue({
+        userId: 'user-1',
+        routeId: 'route-1',
+      });
+
+      await service.saveRoute('user-1', 'route-1');
+
+      expect(mockSavedRouteRepository.createSavedRoute).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('deleteSavedRoute', () => {
+    it('throws NotFoundException when route was not saved before', async () => {
+      mockSavedRouteRepository.findSavedRoute.mockResolvedValue(null);
+
+      await expect(
+        service.deleteSavedRoute('user-1', 'unsaved-route'),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('deletes saved route record successfully', async () => {
+      mockSavedRouteRepository.findSavedRoute.mockResolvedValue({
+        userId: 'user-1',
+        routeId: 'route-1',
+      });
+      mockSavedRouteRepository.deleteSavedRoute.mockResolvedValue({
+        userId: 'user-1',
+        routeId: 'route-1',
+      });
+
+      await service.deleteSavedRoute('user-1', 'route-1');
+
+      expect(mockSavedRouteRepository.deleteSavedRoute).toHaveBeenCalledWith(
+        'user-1',
+        'route-1',
+      );
+    });
+  });
+
+  describe('toggleRouteCompletion', () => {
+    it('throws NotFoundException when route does not exist', async () => {
+      mockSavedRouteRepository.findRouteById.mockResolvedValue(null);
+
+      await expect(
+        service.toggleRouteCompletion('user-1', 'invalid-route', {
+          isCompleted: true,
+        }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('upserts route trip completion status successfully', async () => {
+      mockSavedRouteRepository.findRouteById.mockResolvedValue({
+        id: 'route-1',
+      });
+      mockSavedRouteRepository.upsertRouteTripCompletion.mockResolvedValue({
+        id: 'trip-1',
+        userId: 'user-1',
+        routeId: 'route-1',
+        isCompleted: true,
+        actualCostWon: 40000,
+      });
+
+      const result = await service.toggleRouteCompletion('user-1', 'route-1', {
+        isCompleted: true,
+        actualCostWon: 40000,
+      });
+
+      expect(
+        mockSavedRouteRepository.upsertRouteTripCompletion,
+      ).toHaveBeenCalledWith('user-1', 'route-1', true, 40000);
+      expect(result.routeId).toBe('route-1');
+      expect(result.isCompleted).toBe(true);
+      expect(result.actualCostWon).toBe(40000);
+    });
   });
 });
