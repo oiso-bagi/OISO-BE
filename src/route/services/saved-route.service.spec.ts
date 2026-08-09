@@ -34,6 +34,7 @@ describe('SavedRouteService', () => {
     mockSavedRouteRepository.findSavedRoute.mockReset();
     mockSavedRouteRepository.createSavedRoute.mockReset();
     mockSavedRouteRepository.deleteSavedRoute.mockReset();
+    mockSavedRouteRepository.upsertRouteTripCompletion.mockReset();
   });
 
   it('should be defined', () => {
@@ -251,8 +252,10 @@ describe('SavedRouteService', () => {
   });
 
   describe('deleteSavedRoute', () => {
-    it('throws NotFoundException when route was not saved before', async () => {
-      mockSavedRouteRepository.findSavedRoute.mockResolvedValue(null);
+    it('throws NotFoundException when route was not saved before or deletion count is 0', async () => {
+      mockSavedRouteRepository.deleteSavedRoute.mockResolvedValue({
+        count: 0,
+      });
 
       await expect(
         service.deleteSavedRoute('user-1', 'unsaved-route'),
@@ -260,10 +263,6 @@ describe('SavedRouteService', () => {
     });
 
     it('deletes saved route record successfully', async () => {
-      mockSavedRouteRepository.findSavedRoute.mockResolvedValue({
-        userId: 'user-1',
-        routeId: 'route-1',
-      });
       mockSavedRouteRepository.deleteSavedRoute.mockResolvedValue({
         count: 1,
       });
@@ -274,20 +273,6 @@ describe('SavedRouteService', () => {
         'user-1',
         'route-1',
       );
-    });
-
-    it('throws NotFoundException when deletion count is 0 due to concurrent deletion', async () => {
-      mockSavedRouteRepository.findSavedRoute.mockResolvedValue({
-        userId: 'user-1',
-        routeId: 'route-1',
-      });
-      mockSavedRouteRepository.deleteSavedRoute.mockResolvedValue({
-        count: 0,
-      });
-
-      await expect(
-        service.deleteSavedRoute('user-1', 'route-1'),
-      ).rejects.toThrow(NotFoundException);
     });
   });
 

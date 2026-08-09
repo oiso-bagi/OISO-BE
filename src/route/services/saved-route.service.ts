@@ -80,16 +80,6 @@ export class SavedRouteService {
     const normalizedUserId = this.validateUserId(userId);
     const normalizedRouteId = this.validateRouteId(routeId);
 
-    const alreadySaved = await this.savedRouteRepository.findSavedRoute(
-      normalizedUserId,
-      normalizedRouteId,
-    );
-    if (!alreadySaved) {
-      throw new NotFoundException(
-        `보관함에 저장된 루트 ID [${normalizedRouteId}]를 찾을 수 없습니다.`,
-      );
-    }
-
     const result = await this.savedRouteRepository.deleteSavedRoute(
       normalizedUserId,
       normalizedRouteId,

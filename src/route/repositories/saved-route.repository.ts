@@ -186,6 +186,9 @@ export class SavedRouteRepository {
               orderBy: {
                 createdAt: 'desc',
               },
+              select: {
+                id: true,
+              },
             });
 
             if (existingTrip) {
