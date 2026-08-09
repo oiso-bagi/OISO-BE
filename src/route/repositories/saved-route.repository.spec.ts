@@ -89,9 +89,32 @@ describe('SavedRouteRepository', () => {
   });
 
   describe('upsertRouteTripCompletion', () => {
+    it('returns null when saved route does not exist inside transaction', async () => {
+      const mockTx = {
+        savedRoute: {
+          findUnique: jest.fn().mockResolvedValue(null),
+        },
+      };
+
+      prismaService.$transaction.mockImplementation(
+        (cb: (tx: unknown) => unknown) => cb(mockTx),
+      );
+
+      const result = await repository.upsertRouteTripCompletion(
+        'user-1',
+        'route-1',
+        true,
+      );
+
+      expect(result).toBeNull();
+    });
+
     it('executes transaction with Serializable isolation level and creates record when not existing', async () => {
       const mockTrip = { id: 'trip-1', isCompleted: true };
       const mockTx = {
+        savedRoute: {
+          findUnique: jest.fn().mockResolvedValue({ userId: 'user-1' }),
+        },
         routeTrip: {
           findFirst: jest.fn().mockResolvedValue(null),
           create: jest.fn().mockResolvedValue(mockTrip),
@@ -129,6 +152,9 @@ describe('SavedRouteRepository', () => {
     it('retries when Prisma P2034 serialization conflict error occurs', async () => {
       const mockTrip = { id: 'trip-1', isCompleted: true };
       const mockTx = {
+        savedRoute: {
+          findUnique: jest.fn().mockResolvedValue({ userId: 'user-1' }),
+        },
         routeTrip: {
           findFirst: jest.fn().mockResolvedValue({ id: 'trip-1' }),
           update: jest.fn().mockResolvedValue(mockTrip),

@@ -287,11 +287,13 @@ describe('SavedRouteService', () => {
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('throws NotFoundException when route is not saved in user storage', async () => {
+    it('throws NotFoundException when route is not saved in user storage or concurrent delete occurred', async () => {
       mockSavedRouteRepository.findRouteById.mockResolvedValue({
         id: 'route-1',
       });
-      mockSavedRouteRepository.findSavedRoute.mockResolvedValue(null);
+      mockSavedRouteRepository.upsertRouteTripCompletion.mockResolvedValue(
+        null,
+      );
 
       await expect(
         service.toggleRouteCompletion('user-1', 'route-1', {
@@ -303,10 +305,6 @@ describe('SavedRouteService', () => {
     it('upserts route trip completion status successfully when route is saved', async () => {
       mockSavedRouteRepository.findRouteById.mockResolvedValue({
         id: 'route-1',
-      });
-      mockSavedRouteRepository.findSavedRoute.mockResolvedValue({
-        userId: 'user-1',
-        routeId: 'route-1',
       });
       mockSavedRouteRepository.upsertRouteTripCompletion.mockResolvedValue({
         id: 'trip-1',

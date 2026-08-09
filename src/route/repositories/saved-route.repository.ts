@@ -162,6 +162,15 @@ export class SavedRouteRepository {
       orderBy: {
         createdAt: 'desc',
       },
+      select: {
+        id: true,
+        userId: true,
+        routeId: true,
+        isCompleted: true,
+        actualCostWon: true,
+        startedAt: true,
+        createdAt: true,
+      },
     });
   }
 
@@ -178,6 +187,22 @@ export class SavedRouteRepository {
       try {
         return await this.prisma.$transaction(
           async (tx) => {
+            const savedRoute = await tx.savedRoute.findUnique({
+              where: {
+                userId_routeId: {
+                  userId,
+                  routeId,
+                },
+              },
+              select: {
+                userId: true,
+              },
+            });
+
+            if (!savedRoute) {
+              return null;
+            }
+
             const existingTrip = await tx.routeTrip.findFirst({
               where: {
                 userId,
