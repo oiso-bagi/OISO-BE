@@ -265,8 +265,7 @@ describe('SavedRouteService', () => {
         routeId: 'route-1',
       });
       mockSavedRouteRepository.deleteSavedRoute.mockResolvedValue({
-        userId: 'user-1',
-        routeId: 'route-1',
+        count: 1,
       });
 
       await service.deleteSavedRoute('user-1', 'route-1');
@@ -275,6 +274,20 @@ describe('SavedRouteService', () => {
         'user-1',
         'route-1',
       );
+    });
+
+    it('throws NotFoundException when deletion count is 0 due to concurrent deletion', async () => {
+      mockSavedRouteRepository.findSavedRoute.mockResolvedValue({
+        userId: 'user-1',
+        routeId: 'route-1',
+      });
+      mockSavedRouteRepository.deleteSavedRoute.mockResolvedValue({
+        count: 0,
+      });
+
+      await expect(
+        service.deleteSavedRoute('user-1', 'route-1'),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 

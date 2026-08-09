@@ -9,6 +9,7 @@ describe('SavedRouteRepository', () => {
     savedRoute: {
       findMany: jest.Mock;
       findFirst: jest.Mock;
+      deleteMany: jest.Mock;
     };
     $transaction: jest.Mock;
   };
@@ -18,6 +19,7 @@ describe('SavedRouteRepository', () => {
       savedRoute: {
         findMany: jest.fn(),
         findFirst: jest.fn(),
+        deleteMany: jest.fn(),
       },
       $transaction: jest.fn(),
     };
@@ -69,6 +71,21 @@ describe('SavedRouteRepository', () => {
         where: { routeId: 'route-1', userId: 'user-1' },
       }),
     );
+  });
+
+  it('calls prisma.savedRoute.deleteMany with userId and routeId', async () => {
+    const mockResult = { count: 1 };
+    prismaService.savedRoute.deleteMany.mockResolvedValue(mockResult);
+
+    const result = await repository.deleteSavedRoute('user-1', 'route-1');
+
+    expect(result).toBe(mockResult);
+    expect(prismaService.savedRoute.deleteMany).toHaveBeenCalledWith({
+      where: {
+        userId: 'user-1',
+        routeId: 'route-1',
+      },
+    });
   });
 
   describe('upsertRouteTripCompletion', () => {

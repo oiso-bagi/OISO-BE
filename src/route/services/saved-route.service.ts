@@ -90,10 +90,16 @@ export class SavedRouteService {
       );
     }
 
-    await this.savedRouteRepository.deleteSavedRoute(
+    const result = await this.savedRouteRepository.deleteSavedRoute(
       normalizedUserId,
       normalizedRouteId,
     );
+
+    if (result.count === 0) {
+      throw new NotFoundException(
+        `보관함에 저장된 루트 ID [${normalizedRouteId}]를 찾을 수 없습니다.`,
+      );
+    }
   }
 
   async toggleRouteCompletion(

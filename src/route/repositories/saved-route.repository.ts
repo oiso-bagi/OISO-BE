@@ -145,12 +145,10 @@ export class SavedRouteRepository {
   }
 
   async deleteSavedRoute(userId: string, routeId: string) {
-    return this.prisma.savedRoute.delete({
+    return this.prisma.savedRoute.deleteMany({
       where: {
-        userId_routeId: {
-          userId,
-          routeId,
-        },
+        userId,
+        routeId,
       },
     });
   }
