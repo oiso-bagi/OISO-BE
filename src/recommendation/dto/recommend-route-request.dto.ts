@@ -5,6 +5,7 @@ export class BudgetRatiosDto {
     description: '식비 비율 (0 ~ 1). 미입력 시 기본값 0.35 적용',
     example: 0.35,
     required: false,
+    type: Number,
   })
   foodRatio?: unknown;
 
@@ -12,6 +13,7 @@ export class BudgetRatiosDto {
     description: '체험/입장료 비율 (0 ~ 1). 미입력 시 기본값 0.25 적용',
     example: 0.25,
     required: false,
+    type: Number,
   })
   experienceRatio?: unknown;
 
@@ -19,6 +21,7 @@ export class BudgetRatiosDto {
     description: '교통비 비율 (0 ~ 1). 미입력 시 기본값 0.40 적용',
     example: 0.4,
     required: false,
+    type: Number,
   })
   transportRatio?: unknown;
 }
@@ -34,12 +37,14 @@ export class RecommendRouteRequestDto {
   @ApiProperty({
     description: '여행 기간(일). 1부터 5까지 허용됩니다.',
     example: 2,
+    type: Number,
   })
   durationDays?: unknown;
 
   @ApiProperty({
     description: '1일 예산(원). 안전한 양의 정수여야 합니다.',
     example: 60000,
+    type: Number,
   })
   dailyBudgetWon?: unknown;
 

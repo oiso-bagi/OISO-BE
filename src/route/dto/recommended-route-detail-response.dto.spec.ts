@@ -51,7 +51,7 @@ describe('RecommendedRouteDetailResponseDto', () => {
     expect(dto.stopCount).toBe(1);
     expect(dto.transportType).toBe('BUS');
     expect(dto.stops[0].placeName).toBe('');
-    expect(dto.stops[0].category).toBe('');
+    expect(dto.stops[0].category).toBeNull();
     expect(dto.stops[0].openTime).toBeNull();
     expect(dto.stops[0].closeTime).toBeNull();
     expect(dto.stops[0].nextTransportType).toBe('BUS');
