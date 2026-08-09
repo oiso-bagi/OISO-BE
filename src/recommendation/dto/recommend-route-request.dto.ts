@@ -29,11 +29,11 @@ export class BudgetRatiosDto {
 export class RecommendRouteRequestDto {
   @ApiProperty({
     description: '추천에 사용할 여행 스타일 slug 목록',
-    example: ['local-food', 'cafe'],
+    example: ['local-food', 'emotion-cafe'],
     type: [String],
     required: true,
   })
-  travelStyleSlugs?: string[];
+  travelStyleSlugs!: string[];
 
   @ApiProperty({
     description: '여행 기간(일). 1부터 5까지 허용됩니다.',
@@ -41,7 +41,7 @@ export class RecommendRouteRequestDto {
     type: Number,
     required: true,
   })
-  durationDays?: number;
+  durationDays!: number;
 
   @ApiProperty({
     description: '1일 예산(원). 안전한 양의 정수여야 합니다.',
@@ -49,7 +49,7 @@ export class RecommendRouteRequestDto {
     type: Number,
     required: true,
   })
-  dailyBudgetWon?: number;
+  dailyBudgetWon!: number;
 
   @ApiProperty({
     description:

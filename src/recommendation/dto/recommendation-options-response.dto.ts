@@ -73,7 +73,7 @@ export class RecommendationOptionsResponseDto {
     type: [TravelStyleOptionDto],
     example: [
       { slug: 'local-food', label: '부산 로컬 맛집' },
-      { slug: 'cafe', label: '감성 카페' },
+      { slug: 'emotion-cafe', label: '감성 카페' },
     ],
   })
   travelStyles!: TravelStyleOptionDto[];
