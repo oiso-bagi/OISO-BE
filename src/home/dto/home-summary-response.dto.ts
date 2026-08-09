@@ -5,10 +5,11 @@ export class HomeSummaryResponseDto {
   @ApiProperty({
     description: '저장 루트의 총 예상 절약 금액(원)',
     example: 35000,
+    type: Number,
   })
   totalSavedSavingsWon!: number;
 
-  @ApiProperty({ description: '저장 루트 개수', example: 2 })
+  @ApiProperty({ description: '저장 루트 개수', example: 2, type: Number })
   totalSavedCount!: number;
 
   @ApiProperty({

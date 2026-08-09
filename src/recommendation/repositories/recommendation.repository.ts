@@ -43,7 +43,7 @@ const recommendedRouteSelect = Prisma.validator<Prisma.RouteSelect>()({
 
 const TRAVEL_STYLE_CATEGORY_MAP: Record<string, PlaceCategory[]> = {
   'local-food': [PlaceCategory.FOOD, PlaceCategory.MARKET],
-  cafe: [PlaceCategory.CAFE],
+  'emotion-cafe': [PlaceCategory.CAFE],
   beach: [PlaceCategory.NATURE, PlaceCategory.VIEWPOINT],
   'photo-spot': [PlaceCategory.VIEWPOINT, PlaceCategory.CULTURE],
   'traditional-market': [PlaceCategory.MARKET],

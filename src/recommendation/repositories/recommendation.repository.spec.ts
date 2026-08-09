@@ -22,7 +22,7 @@ describe('RecommendationRepository', () => {
 
     await expect(
       repository.findRecommendedRoutes({
-        travelStyleSlugs: ['local-food', 'cafe'],
+        travelStyleSlugs: ['local-food', 'emotion-cafe'],
         durationDays: 2,
         dailyBudgetWon: 60000,
         totalBudgetWon: 120000,

@@ -247,11 +247,19 @@ export class RecommendedRouteDetailResponseDto {
   congestionLevel!: CongestionLevel;
 
   @ApiProperty({
-    description: '예상 절약 금액(원)',
+    description:
+      '절약 금액(원) — savedCost 호환 필드 (estimatedSavingsWon과 동일한 값)',
     example: 15000,
     type: Number,
   })
   savedCost!: number;
+
+  @ApiProperty({
+    description: '예상 절약 금액(원)',
+    example: 15000,
+    type: Number,
+  })
+  estimatedSavingsWon!: number;
 
   @ApiProperty({ description: '추천 점수', example: 87.5, type: Number })
   recommendScore!: number;
@@ -321,6 +329,7 @@ export class RecommendedRouteDetailResponseDto {
 
     dto.congestionLevel = route.congestionLevel ?? CongestionLevel.MEDIUM;
     dto.savedCost = route.estimatedSavingsWon ?? 0;
+    dto.estimatedSavingsWon = route.estimatedSavingsWon ?? 0;
     const recommendScore = route.score != null ? Number(route.score) : 0;
     dto.recommendScore = Number.isFinite(recommendScore) ? recommendScore : 0;
     dto.isRecommended = route.routeType === 'RECOMMENDED';
