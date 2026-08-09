@@ -173,36 +173,62 @@ export class SavedRouteRepository {
     isCompleted: boolean,
     actualCostWon?: number,
   ) {
-    return this.prisma.$transaction(async (tx) => {
-      const existingTrip = await tx.routeTrip.findFirst({
-        where: {
-          userId,
-          routeId,
-        },
-        orderBy: {
-          createdAt: 'desc',
-        },
-      });
+    const maxRetries = 3;
+    let attempt = 0;
 
-      if (existingTrip) {
-        return tx.routeTrip.update({
-          where: { id: existingTrip.id },
-          data: {
-            isCompleted,
-            ...(actualCostWon !== undefined && { actualCostWon }),
+    while (attempt < maxRetries) {
+      try {
+        return await this.prisma.$transaction(
+          async (tx) => {
+            const existingTrip = await tx.routeTrip.findFirst({
+              where: {
+                userId,
+                routeId,
+              },
+              orderBy: {
+                createdAt: 'desc',
+              },
+            });
+
+            if (existingTrip) {
+              return await tx.routeTrip.update({
+                where: { id: existingTrip.id },
+                data: {
+                  isCompleted,
+                  ...(actualCostWon !== undefined && { actualCostWon }),
+                },
+              });
+            }
+
+            return await tx.routeTrip.create({
+              data: {
+                userId,
+                routeId,
+                isCompleted,
+                startedAt: new Date(),
+                ...(actualCostWon !== undefined && { actualCostWon }),
+              },
+            });
           },
-        });
-      }
+          {
+            isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+          },
+        );
+      } catch (error) {
+        attempt++;
+        const isSerializationConflict =
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === 'P2034';
 
-      return tx.routeTrip.create({
-        data: {
-          userId,
-          routeId,
-          isCompleted,
-          startedAt: new Date(),
-          ...(actualCostWon !== undefined && { actualCostWon }),
-        },
-      });
-    });
+        if (isSerializationConflict && attempt < maxRetries) {
+          continue;
+        }
+        throw error;
+      }
+    }
+
+    throw new Error(
+      'Transaction retries exhausted for upsertRouteTripCompletion',
+    );
   }
 }

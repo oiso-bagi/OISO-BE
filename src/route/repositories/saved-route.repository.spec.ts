@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
 import { SavedRouteRepository } from '@/route/repositories/saved-route.repository';
 
@@ -9,6 +10,7 @@ describe('SavedRouteRepository', () => {
       findMany: jest.Mock;
       findFirst: jest.Mock;
     };
+    $transaction: jest.Mock;
   };
 
   beforeEach(async () => {
@@ -17,6 +19,7 @@ describe('SavedRouteRepository', () => {
         findMany: jest.fn(),
         findFirst: jest.fn(),
       },
+      $transaction: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -66,5 +69,79 @@ describe('SavedRouteRepository', () => {
         where: { routeId: 'route-1', userId: 'user-1' },
       }),
     );
+  });
+
+  describe('upsertRouteTripCompletion', () => {
+    it('executes transaction with Serializable isolation level and creates record when not existing', async () => {
+      const mockTrip = { id: 'trip-1', isCompleted: true };
+      const mockTx = {
+        routeTrip: {
+          findFirst: jest.fn().mockResolvedValue(null),
+          create: jest.fn().mockResolvedValue(mockTrip),
+          update: jest.fn(),
+        },
+      };
+
+      prismaService.$transaction.mockImplementation(
+        (cb: (tx: unknown) => unknown) => cb(mockTx),
+      );
+
+      const result = await repository.upsertRouteTripCompletion(
+        'user-1',
+        'route-1',
+        true,
+        50000,
+      );
+
+      expect(prismaService.$transaction).toHaveBeenCalledWith(
+        expect.any(Function),
+        { isolationLevel: 'Serializable' },
+      );
+      expect(mockTx.routeTrip.create).toHaveBeenCalledWith({
+        data: {
+          userId: 'user-1',
+          routeId: 'route-1',
+          isCompleted: true,
+          startedAt: expect.any(Date) as Date,
+          actualCostWon: 50000,
+        },
+      });
+      expect(result).toEqual(mockTrip);
+    });
+
+    it('retries when Prisma P2034 serialization conflict error occurs', async () => {
+      const mockTrip = { id: 'trip-1', isCompleted: true };
+      const mockTx = {
+        routeTrip: {
+          findFirst: jest.fn().mockResolvedValue({ id: 'trip-1' }),
+          update: jest.fn().mockResolvedValue(mockTrip),
+        },
+      };
+
+      const p2034Error = new Prisma.PrismaClientKnownRequestError(
+        'Serialization failure',
+        { code: 'P2034', clientVersion: '5.22.0' },
+      );
+
+      let attempts = 0;
+      prismaService.$transaction.mockImplementation(
+        (cb: (tx: unknown) => unknown) => {
+          attempts++;
+          if (attempts === 1) {
+            throw p2034Error;
+          }
+          return cb(mockTx);
+        },
+      );
+
+      const result = await repository.upsertRouteTripCompletion(
+        'user-1',
+        'route-1',
+        true,
+      );
+
+      expect(attempts).toBe(2);
+      expect(result).toEqual(mockTrip);
+    });
   });
 });
