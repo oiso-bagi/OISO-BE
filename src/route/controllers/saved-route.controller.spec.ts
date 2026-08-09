@@ -9,6 +9,9 @@ describe('SavedRouteController', () => {
   const mockSavedRouteService = {
     getSavedRouteList: jest.fn(),
     getSavedRouteDetail: jest.fn(),
+    saveRoute: jest.fn(),
+    deleteSavedRoute: jest.fn(),
+    toggleRouteCompletion: jest.fn(),
   };
   const user = { id: 'user-1' } as User;
 
@@ -48,6 +51,28 @@ describe('SavedRouteController', () => {
     expect(result).toBe(mockResponse);
   });
 
+  it('delegates to SavedRouteService.saveRoute with current user id and routeId', async () => {
+    mockSavedRouteService.saveRoute.mockResolvedValue(undefined);
+
+    await controller.saveRoute({ routeId: 'route-1' }, user);
+
+    expect(mockSavedRouteService.saveRoute).toHaveBeenCalledWith(
+      'user-1',
+      'route-1',
+    );
+  });
+
+  it('delegates to SavedRouteService.deleteSavedRoute with current user id and routeId', async () => {
+    mockSavedRouteService.deleteSavedRoute.mockResolvedValue(undefined);
+
+    await controller.deleteSavedRoute('route-1', user);
+
+    expect(mockSavedRouteService.deleteSavedRoute).toHaveBeenCalledWith(
+      'user-1',
+      'route-1',
+    );
+  });
+
   it('delegates to SavedRouteService.getSavedRouteDetail with current user id', async () => {
     const mockResponse = {
       routeId: 'route-1',
@@ -61,6 +86,30 @@ describe('SavedRouteController', () => {
     expect(mockSavedRouteService.getSavedRouteDetail).toHaveBeenCalledWith(
       'route-1',
       'user-1',
+    );
+    expect(result).toBe(mockResponse);
+  });
+
+  it('delegates to SavedRouteService.toggleRouteCompletion with routeId and dto', async () => {
+    const mockDto = { isCompleted: true, actualCostWon: 45000 };
+    const mockResponse = {
+      routeId: 'route-1',
+      isCompleted: true,
+      actualCostWon: 45000,
+    };
+
+    mockSavedRouteService.toggleRouteCompletion.mockResolvedValue(mockResponse);
+
+    const result = await controller.toggleRouteCompletion(
+      'route-1',
+      mockDto,
+      user,
+    );
+
+    expect(mockSavedRouteService.toggleRouteCompletion).toHaveBeenCalledWith(
+      'user-1',
+      'route-1',
+      mockDto,
     );
     expect(result).toBe(mockResponse);
   });
