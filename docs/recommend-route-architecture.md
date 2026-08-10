@@ -141,23 +141,23 @@ sequenceDiagram
     participant Svc as RecommendationService
     participant DB as PostgreSQL (Prisma)
 
-    Client->>Throttler: POST /recommended-routes/recommend { dailyBudgetWon, durationDays, travelStyleSlugs, ratios }
-    Throttler->>Throttler: Validation Check (dailyBudgetWon 10,000~500,000, ratio sum 1.0, float guard) & Rate Limiting
+    Client->>Throttler: POST /recommended-routes/recommend { totalBudgetWon, durationDays, travelStyleSlugs, ratios }
+    Throttler->>Throttler: Validation Check (totalBudgetWon 10,000~500,000, ratio sum 1.0, float guard) & Rate Limiting
     Throttler->>Ctrl: 검증 완료된 DTO 전달
     Ctrl->>Svc: recommendRoutes(dto)
     
     Note over Svc,DB: [Step 1: Hard Filter] Composite Index Scan + PlaceCategory Filter
     Svc->>DB: findMany({ where: { estimatedCostWon <= totalBudgetWon, estimatedDurationMin <= durationDays×1440, stops.some.place.category.in(preferredCategories) } })
     DB-->>Svc: 후보군 루트 데이터 전달 (Take 50)
-    
+
     Note over Svc: [Step 2: Soft Filter & 추천도 점수 연산] 메모리 레벨 연산 (1~2ms)
-    loop 후보군 Candidate Route 마다 4단계 연산
+        loop 후보군 Candidate Route 마다 4단계 연산
         Svc->>Svc: 1) BaseScore = Route.score (SEED 사전계산 정적 기본점수 사용)
         Svc->>Svc: 2) 실제 비용 비율 계산 (actualFood, actualExp, actualTrans)
         Svc->>Svc: 3) 비율 오차 제곱 패널티 (Variance Penalty) 연산
         Svc->>Svc: 4) Final Score = max(0, BaseScore - Penalty + CongestionAdj)
     end
-    
+
     Note over Svc: [Step 3: Multi-Day Stitching & Soft Penalty] (durationDays > 1)
     Svc->>Svc: Haversine 최단거리 체이닝 + Soft Penalty (+50,000m overlap, +20,000m used, -15,000m theme)
 
@@ -167,11 +167,17 @@ sequenceDiagram
     Ctrl-->>Client: 200 OK Response (JSON)
 ```
 
+---
+
 ### 4.1 Step 1: Hard Filter (Prisma 복합 인덱스 & PlaceCategory 필터)
+
 - **조건**: `WHERE routeType = 'RECOMMENDED' AND isPublished = true AND estimatedCostWon <= totalBudgetWon AND estimatedDurationMin <= durationDays × 1440`
   - `travelStyleSlugs`는 내부적으로 `TRAVEL_STYLE_CATEGORY_MAP`을 통해 `PlaceCategory[]`로 변환되며, 변환된 카테고리가 1개 이상인 경우 `stops.some.place.category IN (preferredCategories)` 조건이 추가 적용됩니다.
+  - ※ 1일차 모듈 및 N일 결합 패키지의 총 비용은 `totalBudgetWon` (일정 전체 총예산, 상한선 500,000원) 이하임을 안전하게 보장합니다.
   - ※ `RouteTheme` N:M 조인이 아닌 경유지 장소의 PlaceCategory 직접 필터 방식을 사용합니다.
 - **복합 인덱스**: `Route` 모델의 `@@index([routeType, estimatedCostWon])` 복합 B-Tree Index Scan 수행
+
+---
 
 ### 4.2 Step 2: Soft Filter & 추천도(Final Recommendation Score) 계산 로직
 
@@ -210,7 +216,10 @@ sequenceDiagram
   - 전체 경유지의 정렬 순서 `orderIndex`를 `0, 1, 2, 3...`으로 연쇄 재정렬
   - `totalDistanceMeters`, `totalCost`, `totalTimeMinutes`, `estimatedSavingsWon` 지표를 N일 전체 합산으로 통합 반환
 
+---
+
 ### 4.4 Step 4: Top 3 Selection
+
 - `durationDays = 1` (1일): Soft Filter 기준 내림차순 정렬 후 **Top 3** 즉시 반환
 - `durationDays > 1` (다일): 1일차 후보군 중 최대 **5개 패키지 조합**을 시도(`maxCombinations = Math.min(primaryDay1Pool.length, 5)`)한 뒤, 목표 일수를 완전히 채운 패키지만 종합 점수 내림차순 정렬하여 최상위 **Top 3**를 반환합니다. (응답속도 < 100ms)
 - 반환 타입: `RecommendedRouteListResponseDto[]` (각 경유지 객체에 `dayNumber` 메타데이터 포함)
@@ -220,22 +229,27 @@ sequenceDiagram
 ## 5. API Specification & Security (API 명세 및 보안)
 
 ### Endpoint
+
 - **`POST /recommended-routes/recommend`**
 
-### Validation & Rate Limiting (클라이언트 요청 방어)
-- **부동소수점 오차 허용 Guardrail**: JS의 `0.1 + 0.2 = 0.30000000000000004` 특성으로 인한 정상 요청 차단 방지를 위해, `Math.abs(foodRatio + experienceRatio + transportRatio - 1.0) >= 0.001`이면 예외 발생 (0.001 미만 오차는 정상 처리)
-- **서비스 레벨 입력 검증** (`RecommendationService.validateRecommendationInput`):
-  - `travelStyleSlugs`: 비어 있지 않은 문자열 배열, 지원하지 않는 slug 포함 시 거부
-  - `durationDays`: 1 ~ 5 범위 양의 정수만 허용
-  - `dailyBudgetWon`: **10,000원 이상 500,000원 이하** 양의 정수 (`validateDailyBudgetWon` 전용 메서드)
-  - `ratios`: 각 ratio는 0 ~ 1 범위, 합산이 1.0 ± 0.001 이내
-- **`ThrottlerModule` (Rate Limiter)**: 동일 IP당 분당 최대 60회 요청으로 제한하여 악의적인 디도스 및 쿼리 남용 차단
+### Validation & Rate Limiting (계층별 검증 분리)
 
-#### 💡 일일 예산 범위 (10,000원 ~ 500,000원) 정량적 산출 근거 🆕
-- **DB 사전 적재 비용 데이터 검증**: DB 내 120개 마스터 경로의 1일치 예상 비용(`estimatedCostWon`)이 **최소 25,000원 ~ 최대 45,500원** (평균 33,967원)이며, 5일 체이닝 시 이론상 최고 결합 비용은 **227,500원**입니다.
-- **가드레일 설정 이유**: 1일 초가성비 짠내투어(1만원)부터 5일 풀 여행(일 10만원 $\times$ 5일 = 50만원 상한)까지 실제 추천 데이터 비용 수용률 100%를 보장하도록 검증 기준이 채택되었습니다.
+- **`ThrottlerModule` (Rate Limiter)**: 동일 IP당 분당 최대 60회 요청으로 제한하여 악의적인 디도스 및 쿼리 남용 차단
+- **글로벌 DTO 스키마 검증**: API 수신 계층의 타입 및 기본 정수형 유효성 체크
+- **비즈니스 도메인 검증** (`RecommendationService.validateRecommendationInput`):
+  - `travelStyleSlugs`: 비어 있지 않은 문자열 배열, 지원하지 않는 slug 포함 시 거부 및 정규화
+  - `durationDays`: 1 ~ 5 범위 양의 정수만 허용
+  - `dailyBudgetWon` & `totalBudgetWon`: 일정 전체 **총 여행 예산(`totalBudgetWon`) 10,000원 이상 500,000원 이하** 상한선 검증 (`validateTotalBudgetWon` 전용 메서드)
+  - `ratios`: 각 ratio는 0 ~ 1 범위, 부동소수점 오차 허용 (`Math.abs(sum - 1.0) >= 0.001` 시 예외 발생)
+
+#### 💡 일정 전체 총 예산 범위 (10,000원 ~ 500,000원) 정량적 산출 근거 🆕
+
+- **`MAX_TOTAL_BUDGET_WON` (500,000원)의 성격**: 500,000원은 1일당 금액이 아닌 **일정 전체(N일차 패키지 총합) 총예산(`totalBudgetWon`) 상한선**입니다. 5일 여행(`durationDays = 5`) 시 1일 평균 예산은 최대 **100,000원**($100,000\text{원} \times 5\text{일} = 500,000\text{원}$)까지 조립이 가능합니다.
+- **DB 사전 적재 비용 데이터 검증**: DB 내 120개 마스터 경로의 1일치 예상 비용(`estimatedCostWon`)이 **최소 25,000원 ~ 최대 45,500원** (평균 33,967원)입니다. 5일 체이닝 시 이론상 최고 결합 비용은 **227,500원**으로 일정 전체 총예산 상한선(500,000원) 내에 100% 여유롭게 수용됩니다.
+- **가드레일 설정 이유**: 1일 초가성비 짠내투어(1만원 하한 방어)부터 5일 풀 프리미엄 여행(전체 일정 총예산 50만원 상한)까지 실제 추천 데이터 비용 수용률 100%를 보장하도록 검증 기준이 채택되었습니다.
 
 ### Request Body (JSON)
+
 ```json
 {
   "travelStyleSlugs": ["local-food", "photo-spot"],

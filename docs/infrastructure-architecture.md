@@ -94,15 +94,17 @@ flowchart TD
 
 ## 5. Cross-Domain Interoperability & Security (Vercel ↔ Railway 연동 명세)
 
-### 5.1 CORS (Cross-Origin Resource Sharing) 설정
+### 5.1 CORS (Cross-Origin Resource Sharing) 및 리다이렉트 설정
 
-- **허용 오리진 (Origin)**: `FRONTEND_ORIGIN` 환경변수에 기재된 도메인 (`https://oiso-fe.vercel.app`, `http://localhost:5173` 등 comma 구분을 통한 다중 허용 지원)
+- **허용 오리진 (Origin)**: `FRONTEND_ORIGIN` 환경변수에 기재된 도메인 (`https://oiso-fe.vercel.app`, `http://localhost:5173` 등 쉼표 구분을 통한 다중 오리진 허용 지원)
 - **Credentials**: `credentials: true`로 설정하여 인증 쿠키 전송 허용
+- **OAuth 리다이렉트**: `FRONTEND_ORIGIN`에 쉼표로 구분된 다중 오리진이 설정된 경우, 단일 오리진 주소가 필요한 OAuth 성공 리다이렉트를 위해 **`FRONTEND_AUTH_SUCCESS_REDIRECT`** 환경변수를 필수로 명시해야 합니다. (미지정 시 `FRONTEND_ORIGIN` 배열의 첫 번째 단일 오리진이 Fallback으로 선택됩니다.)
 
 ### 5.2 Cross-Site Auth Cookie 정책
 
-- `AuthCookieService`를 통해 AccessToken / RefreshToken 쿠키 발급 시 기본적으로 `sameSite: 'lax'`, `secure: NODE_ENV === 'production'` 옵션이 적용됩니다.
-- 서로 다른 클라우드 도메인(`vercel.app` ↔ `railway.app`) 간 크로스 도메인 인증 쿠키 전송이 필요한 경우 `COOKIE_SECURE=true`, `COOKIE_DOMAIN` 환경변수 지정을 통해 **`SameSite=None`**, **`Secure=true` (HTTPS 필수)**로 보안 설정을 확장/제어할 수 있습니다.
+- `AuthCookieService`를 통해 AccessToken / RefreshToken 쿠키 발급 시 운영(`production`) 배포 환경에서는 **`COOKIE_SECURE=true`** (또는 `NODE_ENV=production` 시 기본 `true`)가 필수이며, `COOKIE_SECURE=false`는 로컬 HTTP 개발 환경에서만 허용됩니다.
+- 서로 다른 클라우드 도메인(`vercel.app` ↔ `railway.app`) 간 크로스 도메인 인증 쿠키 전송 시 **`SameSite=None`**, **`Secure=true` (HTTPS 필수)** 옵션으로 작동해야 합니다.
+- **`COOKIE_DOMAIN` 주의사항**: Vercel과 Railway는 공유 부모 도메인이 없으므로 `COOKIE_DOMAIN`을 설정하면 쿠키 전송이 거부됩니다. 따라서 Vercel ↔ Railway 간 연동 시에는 `COOKIE_DOMAIN`을 반드시 생략하여 **host-only 쿠키**로 동작시켜야 하며, `COOKIE_DOMAIN` 설정은 두 호스트가 동일한 서브도메인을 공유할 때만 유효합니다.
 
 ---
 
@@ -117,15 +119,15 @@ flowchart TD
 | `DATABASE_URL` | Neon Postgres Pooled DB 연결 문자열 | `postgresql://...sslmode=verify-full` (pgBouncer 쿼리용) |
 | `DIRECT_URL` | Neon Postgres Direct DB 연결 문자열 | `postgresql://...sslmode=verify-full` (DDL 마이그레이션 전용) |
 | `FRONTEND_ORIGIN` | 프론트엔드 배포 및 개발 허용 오리진 | `https://oiso-fe.vercel.app` (CORS 및 쿠키 검증용, 쉼표 구분 가능) |
-| `FRONTEND_AUTH_SUCCESS_REDIRECT` | 로그인 성공 후 이동할 프론트엔드 URL | 미지정 시 `FRONTEND_ORIGIN` 기본값 사용 |
+| `FRONTEND_AUTH_SUCCESS_REDIRECT` | 로그인 성공 후 이동할 프론트엔드 URL | 다중 오리진 설정 시 필수 (미지정 시 `FRONTEND_ORIGIN` 첫 번째 오리진 사용) |
 | `FRONTEND_AUTH_CONSENT_REDIRECT` | 약관 동의 필요 시 이동할 프론트엔드 URL | 예: `https://oiso-fe.vercel.app/signup/terms` |
 | `FRONTEND_AUTH_FAILURE_REDIRECT` | 로그인 실패 시 이동할 프론트엔드 URL | 예: `https://oiso-fe.vercel.app/login?error=auth_failed` |
 | `JWT_ACCESS_SECRET` | AccessToken 서명 암호화 키 | 32자 이상 무작위 문자열 |
 | `JWT_REFRESH_SECRET` | RefreshToken 서명 암호화 키 | 32자 이상 무작위 문자열 |
 | `JWT_ACCESS_EXPIRES_IN` | AccessToken 유효 기간 | 기본값 `15m` |
 | `JWT_REFRESH_EXPIRES_IN` | RefreshToken 유효 기간 | 기본값 `14d` |
-| `COOKIE_SECURE` | 쿠키 Secure 옵션 명시 설정 | `true` / `false` (미지정 시 `production`일 때 `true`) |
-| `COOKIE_DOMAIN` | 쿠키 공유 도메인 설정 | 예: `.vercel.app` (선택 사항) |
+| `COOKIE_SECURE` | 쿠키 Secure 옵션 명시 설정 | 운영 시 `true` 고정 (`false`는 로컬 HTTP 전용) |
+| `COOKIE_DOMAIN` | 쿠키 공유 도메인 설정 | 동일 부모 도메인 공유 시만 사용 (Vercel↔Railway 연동 시 생략하여 host-only 쿠키 사용) |
 | `KAKAO_CLIENT_ID` | 카카오 소셜 로그인 REST API 키 | Kakao Developers |
 | `KAKAO_CLIENT_SECRET` | 카카오 Client Secret | Kakao Developers |
 | `KAKAO_REDIRECT_URI` | 카카오 OAuth 리다이렉트 URL | Railway 배포 도메인 + `/api/v1/auth/kakao/callback` |

@@ -58,8 +58,8 @@ export interface GenericRoute {
 }
 
 const DEFAULT_DAILY_BUDGET_WON = 60000;
-const MIN_DAILY_BUDGET_WON = 10000;
-const MAX_DAILY_BUDGET_WON = 500000;
+const MIN_TOTAL_BUDGET_WON = 10000;
+const MAX_TOTAL_BUDGET_WON = 500000;
 
 const DEFAULT_RATIOS: BudgetRatios = {
   foodRatio: 0.35,
@@ -164,6 +164,7 @@ export class RecommendationService {
     const stitchedRoutes = this.stitchMultiDayRoutes(
       candidateRoutes,
       validatedInput.durationDays,
+      validatedInput.totalBudgetWon,
       validatedInput.travelStyleSlugs,
     );
 
@@ -221,6 +222,7 @@ export class RecommendationService {
   private stitchMultiDayRoutes(
     candidateRoutes: GenericRoute[],
     targetDurationDays: number,
+    totalBudgetWon?: number,
     requestedThemeSlugs?: string[],
   ): GenericRoute[] {
     const results: GenericRoute[] = [];
@@ -372,7 +374,7 @@ export class RecommendationService {
         }
       }
 
-      // N일 패키지의 목표 일수를 완전히 채운 경우만 결합 패키지로 수용
+      // N일 패키지의 목표 일수를 완전히 채우고 총 비용이 totalBudgetWon 이하인 경우만 결합 패키지로 수용
       if (selectedRoutes.length === targetDurationDays) {
         const stitchedRoute = this.combineChainedRoutes(
           selectedRoutes,
@@ -380,7 +382,12 @@ export class RecommendationService {
           results.length + 1,
           totalChainingCostPenalty,
         );
-        results.push(stitchedRoute);
+        if (
+          totalBudgetWon == null ||
+          Number(stitchedRoute.estimatedCostWon || 0) <= totalBudgetWon
+        ) {
+          results.push(stitchedRoute);
+        }
       }
     }
 
@@ -601,21 +608,7 @@ export class RecommendationService {
   }
 
   private validateDailyBudgetWon(value: unknown): number {
-    const dailyBudgetWon = this.validatePositiveInteger(
-      value,
-      'dailyBudgetWon',
-    );
-
-    if (
-      dailyBudgetWon < MIN_DAILY_BUDGET_WON ||
-      dailyBudgetWon > MAX_DAILY_BUDGET_WON
-    ) {
-      throw new BadRequestException(
-        `dailyBudgetWon은 ${MIN_DAILY_BUDGET_WON.toLocaleString()}원 이상 ${MAX_DAILY_BUDGET_WON.toLocaleString()}원 이하여야 합니다.`,
-      );
-    }
-
-    return dailyBudgetWon;
+    return this.validatePositiveInteger(value, 'dailyBudgetWon');
   }
 
   private validateTotalBudgetWon(
@@ -628,7 +621,18 @@ export class RecommendationService {
       );
     }
 
-    return durationDays * dailyBudgetWon;
+    const totalBudgetWon = durationDays * dailyBudgetWon;
+
+    if (
+      totalBudgetWon < MIN_TOTAL_BUDGET_WON ||
+      totalBudgetWon > MAX_TOTAL_BUDGET_WON
+    ) {
+      throw new BadRequestException(
+        `총 여행 예산(totalBudgetWon = durationDays × dailyBudgetWon)은 ${MIN_TOTAL_BUDGET_WON.toLocaleString()}원 이상 ${MAX_TOTAL_BUDGET_WON.toLocaleString()}원 이하여야 합니다.`,
+      );
+    }
+
+    return totalBudgetWon;
   }
 
   private validatePositiveInteger(value: unknown, label: string): number {

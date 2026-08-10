@@ -133,7 +133,7 @@ describe('RecommendationService', () => {
     ).not.toHaveBeenCalled();
   });
 
-  it('rejects recommendation request when daily budget is below the minimum (9,999 won)', async () => {
+  it('rejects recommendation request when total budget is below the minimum (9,999 won)', async () => {
     await expect(
       service.recommendRoutes({
         travelStyleSlugs: ['local-food'],
@@ -146,12 +146,12 @@ describe('RecommendationService', () => {
     ).not.toHaveBeenCalled();
   });
 
-  it('rejects recommendation request when daily budget exceeds the maximum (500,001 won)', async () => {
+  it('rejects recommendation request when total budget exceeds the maximum (500,001 won total)', async () => {
     await expect(
       service.recommendRoutes({
         travelStyleSlugs: ['local-food'],
-        durationDays: 1,
-        dailyBudgetWon: 500001,
+        durationDays: 5,
+        dailyBudgetWon: 100001,
       }),
     ).rejects.toThrow(BadRequestException);
     expect(
@@ -159,7 +159,7 @@ describe('RecommendationService', () => {
     ).not.toHaveBeenCalled();
   });
 
-  it('accepts recommendation request at the boundary values (10,000 and 500,000 won)', async () => {
+  it('accepts recommendation request at the boundary total budget values (10,000 and 500,000 won)', async () => {
     mockRecommendationRepository.findRecommendedRoutes.mockResolvedValue([]);
 
     await expect(
@@ -170,26 +170,33 @@ describe('RecommendationService', () => {
       }),
     ).resolves.toEqual([]);
 
-    await expect(
-      service.recommendRoutes({
-        travelStyleSlugs: ['local-food'],
-        durationDays: 1,
-        dailyBudgetWon: 500000,
-      }),
-    ).resolves.toEqual([]);
-  });
+    await service.recommendRoutes({
+      travelStyleSlugs: ['local-food'],
+      durationDays: 5,
+      dailyBudgetWon: 100000,
+    });
 
-  it('rejects recommendation request when total budget overflows the safe integer range', async () => {
-    await expect(
-      service.recommendRoutes({
-        travelStyleSlugs: ['local-food'],
-        durationDays: 5,
-        dailyBudgetWon: Math.floor(Number.MAX_SAFE_INTEGER / 5),
-      }),
-    ).rejects.toThrow(BadRequestException);
     expect(
       mockRecommendationRepository.findRecommendedRoutes,
-    ).not.toHaveBeenCalled();
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({
+        durationDays: 5,
+        dailyBudgetWon: 100000,
+        totalBudgetWon: 500000,
+      }),
+    );
+  });
+
+  it('rejects total budget overflow in validateTotalBudgetWon helper', () => {
+    const internalService = service as unknown as {
+      validateTotalBudgetWon: (days: number, budget: number) => number;
+    };
+    expect(() =>
+      internalService.validateTotalBudgetWon(
+        5,
+        Math.floor(Number.MAX_SAFE_INTEGER / 5) + 1,
+      ),
+    ).toThrow(BadRequestException);
   });
 
   it('supports fully provided, partially provided, and wholly missing ratios', async () => {
