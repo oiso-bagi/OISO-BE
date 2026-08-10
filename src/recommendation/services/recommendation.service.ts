@@ -601,9 +601,15 @@ export class RecommendationService {
   }
 
   private validateDailyBudgetWon(value: unknown): number {
-    const dailyBudgetWon = this.validatePositiveInteger(value, 'dailyBudgetWon');
+    const dailyBudgetWon = this.validatePositiveInteger(
+      value,
+      'dailyBudgetWon',
+    );
 
-    if (dailyBudgetWon < MIN_DAILY_BUDGET_WON || dailyBudgetWon > MAX_DAILY_BUDGET_WON) {
+    if (
+      dailyBudgetWon < MIN_DAILY_BUDGET_WON ||
+      dailyBudgetWon > MAX_DAILY_BUDGET_WON
+    ) {
       throw new BadRequestException(
         `dailyBudgetWon은 ${MIN_DAILY_BUDGET_WON.toLocaleString()}원 이상 ${MAX_DAILY_BUDGET_WON.toLocaleString()}원 이하여야 합니다.`,
       );
