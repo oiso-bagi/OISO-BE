@@ -117,7 +117,7 @@ N박 M일(다일) 추천 코스 응답 시, 프론트엔드 지도(Map Component
 | 시스템 컴포넌트 | 본 정책 문서 연동 역할 |
 | --- | --- |
 | **`scripts/seed-recommend-routes.ts`** | 본 수치 정책에 따라 6대 테마 × 20개 코스 = 총 120개 마스터 추천 코스 및 약 420개 이상 경유지 자동 연산 및 SEED 저장 |
-| **`RecommendRouteRequestDto`** | `totalBudgetWon` 최소값(10,000원) ~ 최대값(500,000원) 유효성 검증 레인지 설정 (`RecommendationService.validateTotalBudgetWon`) |
+| **`RecommendRouteRequestDto`** | 공개 입력 `dailyBudgetWon`을 전달받아 파생된 총예산(`totalBudgetWon`) 10,000원 ~ 500,000원 유효성 검증 레인지 설정 (`RecommendationService.validateTotalBudgetWon`) |
 | **`RecommendedRouteListResponseDto` → `RouteStopLocationDto`** | 실시간 추천 경유지 객체 내 `dayNumber` 필드를 포함하여 프론트 지도 Color Coding 연동 지원 |
 | **`SavedRouteDetailResponseDto` → `SavedRouteStopDetailDto`** | 저장된 다일 코스 경유지 객체 내 `dayNumber` 필드를 포함하여 일차별 탭 및 지도 마커 색상 구분 지원 |
 | **`docs/recommend-route-architecture.md`** | [recommend-route-architecture.md](./recommend-route-architecture.md) 기술 아키텍처 문서와 연동되어 비즈니스 기획 표준 가이드로 링크 |

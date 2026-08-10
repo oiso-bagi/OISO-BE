@@ -187,16 +187,101 @@ describe('RecommendationService', () => {
     );
   });
 
-  it('rejects total budget overflow in validateTotalBudgetWon helper', () => {
-    const internalService = service as unknown as {
-      validateTotalBudgetWon: (days: number, budget: number) => number;
+  it('rejects recommendation request when total budget overflows safe integer range', async () => {
+    await expect(
+      service.recommendRoutes({
+        travelStyleSlugs: ['local-food'],
+        durationDays: 5,
+        dailyBudgetWon: Math.floor(Number.MAX_SAFE_INTEGER / 5) + 1,
+      }),
+    ).rejects.toThrow(BadRequestException);
+    expect(
+      mockRecommendationRepository.findRecommendedRoutes,
+    ).not.toHaveBeenCalled();
+  });
+
+  it('skips expensive candidates during multi-day chaining and selects valid cheaper alternatives within total budget', async () => {
+    const day1Route = {
+      id: 'day1-route',
+      name: 'Day 1',
+      score: 90,
+      estimatedCostWon: 40000,
+      routeType: 'RECOMMENDED',
+      congestionLevel: 'MEDIUM',
+      stops: [
+        {
+          orderIndex: 0,
+          place: {
+            id: 'p1',
+            name: 'Place 1',
+            category: 'FOOD',
+            latitude: 35.1,
+            longitude: 129.1,
+          },
+        },
+      ],
     };
-    expect(() =>
-      internalService.validateTotalBudgetWon(
-        5,
-        Math.floor(Number.MAX_SAFE_INTEGER / 5) + 1,
-      ),
-    ).toThrow(BadRequestException);
+    const expensiveDay2Route = {
+      id: 'expensive-day2',
+      name: 'Expensive Day 2',
+      score: 95,
+      estimatedCostWon: 30000, // 40000 + 30000 = 70000 > 60000 total budget
+      routeType: 'RECOMMENDED',
+      congestionLevel: 'MEDIUM',
+      stops: [
+        {
+          orderIndex: 0,
+          place: {
+            id: 'p2',
+            name: 'Place 2',
+            category: 'FOOD',
+            latitude: 35.101,
+            longitude: 129.101,
+          },
+        },
+      ],
+    };
+    const cheaperDay2Route = {
+      id: 'cheaper-day2',
+      name: 'Cheaper Day 2',
+      score: 85,
+      estimatedCostWon: 15000, // 40000 + 15000 = 55000 <= 60000 total budget
+      routeType: 'RECOMMENDED',
+      congestionLevel: 'MEDIUM',
+      stops: [
+        {
+          orderIndex: 0,
+          place: {
+            id: 'p3',
+            name: 'Place 3',
+            category: 'FOOD',
+            latitude: 35.105,
+            longitude: 129.105,
+          },
+        },
+      ],
+    };
+
+    mockRecommendationRepository.findRecommendedRoutes.mockResolvedValue([
+      day1Route,
+      expensiveDay2Route,
+      cheaperDay2Route,
+    ]);
+
+    const results = await service.recommendRoutes({
+      travelStyleSlugs: ['local-food'],
+      durationDays: 2,
+      dailyBudgetWon: 30000, // totalBudgetWon = 60,000
+    });
+
+    expect(results.length).toBeGreaterThan(0);
+    const day1Result = results.find((r) => r.name.includes('Day 1'));
+    expect(day1Result).toBeDefined();
+    const placeNames = (day1Result?.stopLocations || []).map(
+      (s) => s.placeName,
+    );
+    expect(placeNames).toContain('Place 3');
+    expect(placeNames).not.toContain('Place 2');
   });
 
   it('supports fully provided, partially provided, and wholly missing ratios', async () => {

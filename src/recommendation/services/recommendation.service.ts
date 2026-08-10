@@ -280,6 +280,19 @@ export class RecommendationService {
             return;
           }
 
+          if (totalBudgetWon != null) {
+            const currentAccumulatedCost = selectedRoutes.reduce(
+              (sum, r) => sum + Number(r.estimatedCostWon || 0),
+              0,
+            );
+            if (
+              currentAccumulatedCost + Number(candidate.estimatedCostWon || 0) >
+              totalBudgetWon
+            ) {
+              return;
+            }
+          }
+
           const candidateStops = candidate.stops || [];
           const firstStop =
             candidateStops.length > 0 ? candidateStops[0] : null;

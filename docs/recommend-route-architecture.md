@@ -141,8 +141,8 @@ sequenceDiagram
     participant Svc as RecommendationService
     participant DB as PostgreSQL (Prisma)
 
-    Client->>Throttler: POST /recommended-routes/recommend { totalBudgetWon, durationDays, travelStyleSlugs, ratios }
-    Throttler->>Throttler: Validation Check (totalBudgetWon 10,000~500,000, ratio sum 1.0, float guard) & Rate Limiting
+    Client->>Throttler: POST /recommended-routes/recommend { dailyBudgetWon, durationDays, travelStyleSlugs, ratios }
+    Throttler->>Throttler: Validation Check (dailyBudgetWon 10,000~500,000, ratio sum 1.0, float guard) & Rate Limiting
     Throttler->>Ctrl: 검증 완료된 DTO 전달
     Ctrl->>Svc: recommendRoutes(dto)
     
@@ -239,7 +239,7 @@ sequenceDiagram
 - **비즈니스 도메인 검증** (`RecommendationService.validateRecommendationInput`):
   - `travelStyleSlugs`: 비어 있지 않은 문자열 배열, 지원하지 않는 slug 포함 시 거부 및 정규화
   - `durationDays`: 1 ~ 5 범위 양의 정수만 허용
-  - `dailyBudgetWon` & `totalBudgetWon`: 일정 전체 **총 여행 예산(`totalBudgetWon`) 10,000원 이상 500,000원 이하** 상한선 검증 (`validateTotalBudgetWon` 전용 메서드)
+  - `dailyBudgetWon`: 공개 클라이언트 입력 필드이며, `totalBudgetWon`은 `durationDays × dailyBudgetWon`으로 계산되는 내부 파생값입니다. 일정 전체 **총 여행 예산(`totalBudgetWon`) 10,000원 이상 500,000원 이하** 상한선 검증이 수행됩니다 (`validateTotalBudgetWon` 메서드).
   - `ratios`: 각 ratio는 0 ~ 1 범위, 부동소수점 오차 허용 (`Math.abs(sum - 1.0) >= 0.001` 시 예외 발생)
 
 #### 💡 일정 전체 총 예산 범위 (10,000원 ~ 500,000원) 정량적 산출 근거 🆕
