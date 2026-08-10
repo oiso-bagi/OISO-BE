@@ -58,6 +58,8 @@ export interface GenericRoute {
 }
 
 const DEFAULT_DAILY_BUDGET_WON = 60000;
+const MIN_DAILY_BUDGET_WON = 10000;
+const MAX_DAILY_BUDGET_WON = 500000;
 
 const DEFAULT_RATIOS: BudgetRatios = {
   foodRatio: 0.35,
@@ -457,10 +459,7 @@ export class RecommendationService {
       body?.travelStyleSlugs,
     );
     const durationDays = this.validateDurationDays(body?.durationDays);
-    const dailyBudgetWon = this.validatePositiveInteger(
-      body?.dailyBudgetWon,
-      'dailyBudgetWon',
-    );
+    const dailyBudgetWon = this.validateDailyBudgetWon(body?.dailyBudgetWon);
     const totalBudgetWon = this.validateTotalBudgetWon(
       durationDays,
       dailyBudgetWon,
@@ -599,6 +598,18 @@ export class RecommendationService {
     }
 
     return durationDays;
+  }
+
+  private validateDailyBudgetWon(value: unknown): number {
+    const dailyBudgetWon = this.validatePositiveInteger(value, 'dailyBudgetWon');
+
+    if (dailyBudgetWon < MIN_DAILY_BUDGET_WON || dailyBudgetWon > MAX_DAILY_BUDGET_WON) {
+      throw new BadRequestException(
+        `dailyBudgetWon은 ${MIN_DAILY_BUDGET_WON.toLocaleString()}원 이상 ${MAX_DAILY_BUDGET_WON.toLocaleString()}원 이하여야 합니다.`,
+      );
+    }
+
+    return dailyBudgetWon;
   }
 
   private validateTotalBudgetWon(

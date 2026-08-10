@@ -30,11 +30,11 @@ flowchart TD
 
     subgraph Phase3["[Phase 3] Runtime Recommendation Engine (사용자 요청 시)"]
         User["User App / Client"] -->|"Validation Check (부동소수점 오차 방어 & Rate Limiting)"| Throttler["ThrottlerModule / class-validator"]
-        Throttler -->|"POST /recommended-routes/recommend (budget, ratios, themeSlugs)"| Controller["RecommendationController"]
+        Throttler-->|"POST /recommended-routes/recommend (dailyBudgetWon, durationDays, travelStyleSlugs, ratios)"| Controller["RecommendationController"]
         Controller --> Service["RecommendationService.recommendRoutes"]
         
-        Service -->|"Step 1: Hard Filter (Cost Index Scan + Theme N:M Some Filter)"| DB_Route
-        DB_Route -->|"테마 및 예산 부합 후보군 Top 50 리턴"| Service
+        Service -->|"Step 1: Hard Filter (Cost Index Scan + PlaceCategory Filter)"| DB_Route
+        DB_Route -->|"예산/시간/카테고리 부합 후보군 Top 50 리턴"| Service
         
         Service -->|"Step 2: Soft Filter (4단계 종합 추천도 Final Score 연산)"| MemoryEngine["메모리 연산 엔진"]
         MemoryEngine -->|"Step 3: Multi-Day Stitching (Soft Penalty) & Top 3 선별"| Top3["Top 3 추천 루트 선별 (RecommendedRouteListResponseDto)"]
@@ -130,7 +130,7 @@ async handleRouteCongestionUpdate() {
 
 ## 4. Phase 3: Runtime 2-Step Filter & Recommendation Engine (실시간 추천 연산)
 
-클라이언트가 `POST /recommended-routes/recommend`로 예산, 비율, **선호 테마 (`themeSlugs`)**를 전달할 때 수행되는 3단계 필터링 로직입니다.
+클라이언트가 `POST /recommended-routes/recommend`로 예산, 비율, **여행 스타일 슬러그 (`travelStyleSlugs`)**를 전달할 때 수행되는 3단계 필터링 로직입니다.
 
 ```mermaid
 sequenceDiagram
@@ -142,12 +142,12 @@ sequenceDiagram
     participant DB as PostgreSQL (Prisma)
 
     Client->>Throttler: POST /recommended-routes/recommend { dailyBudgetWon, durationDays, travelStyleSlugs, ratios }
-    Throttler->>Throttler: Validation Check (dailyBudgetWon > 0, ratio sum 1.0, float guard) & Rate Limiting
+    Throttler->>Throttler: Validation Check (dailyBudgetWon 10,000~500,000, ratio sum 1.0, float guard) & Rate Limiting
     Throttler->>Ctrl: 검증 완료된 DTO 전달
     Ctrl->>Svc: recommendRoutes(dto)
     
-    Note over Svc,DB: [Step 1: Hard Filter] Composite Index Scan + Theme Relation Filter
-    Svc->>DB: findMany({ where: { estimatedCostWon <= dailyBudgetWon, themes: { some: { theme: { slug: { in: travelStyleSlugs } } } } } })
+    Note over Svc,DB: [Step 1: Hard Filter] Composite Index Scan + PlaceCategory Filter
+    Svc->>DB: findMany({ where: { estimatedCostWon <= totalBudgetWon, estimatedDurationMin <= durationDays×1440, stops.some.place.category.in(preferredCategories) } })
     DB-->>Svc: 후보군 루트 데이터 전달 (Take 50)
     
     Note over Svc: [Step 2: Soft Filter & 추천도 점수 연산] 메모리 레벨 연산 (1~2ms)
@@ -167,9 +167,11 @@ sequenceDiagram
     Ctrl-->>Client: 200 OK Response (JSON)
 ```
 
-### 4.1 Step 1: Hard Filter (Prisma 복합 인덱스 & 테마 필터링)
-- **조건**: `WHERE routeType = 'RECOMMENDED' AND isPublished = true AND estimatedCostWon <= budget` (단, `RecommendRouteRequestDto.themeSlugs` 입력값이 제공된 경우에 한해 `AND themes.some.theme.slug IN (themeSlugs)` 조건 추가 적용)
-- **복합 인덱스**: `Route` 모델의 `@@index([routeType, estimatedCostWon])` 복합 B-Tree Index Scan과 `RouteTheme` 다대다 조인 필터링을 동시 수행
+### 4.1 Step 1: Hard Filter (Prisma 복합 인덱스 & PlaceCategory 필터)
+- **조건**: `WHERE routeType = 'RECOMMENDED' AND isPublished = true AND estimatedCostWon <= totalBudgetWon AND estimatedDurationMin <= durationDays × 1440`
+  - `travelStyleSlugs`는 내부적으로 `TRAVEL_STYLE_CATEGORY_MAP`을 통해 `PlaceCategory[]`로 변환되며, 변환된 카테고리가 1개 이상인 경우 `stops.some.place.category IN (preferredCategories)` 조건이 추가 적용됩니다.
+  - ※ `RouteTheme` N:M 조인이 아닌 경유지 장소의 PlaceCategory 직접 필터 방식을 사용합니다.
+- **복합 인덱스**: `Route` 모델의 `@@index([routeType, estimatedCostWon])` 복합 B-Tree Index Scan 수행
 
 ### 4.2 Step 2: Soft Filter & 추천도(Final Recommendation Score) 계산 로직
 
@@ -209,7 +211,9 @@ sequenceDiagram
   - `totalDistanceMeters`, `totalCost`, `totalTimeMinutes`, `estimatedSavingsWon` 지표를 N일 전체 합산으로 통합 반환
 
 ### 4.4 Step 4: Top 3 Selection
-- 후보군 대상 연산 및 Multi-Day 체이닝 후 최종 추천도 및 거리 점수 기준 내림차순 정렬하여 최상위 **Top 3** 패키지 리스트(`RecommendedRouteListResponseDto`)를 반환합니다. (응답속도 < 100ms)
+- `durationDays = 1` (1일): Soft Filter 기준 내림차순 정렬 후 **Top 3** 즉시 반환
+- `durationDays > 1` (다일): 1일차 후보군 중 최대 **5개 패키지 조합**을 시도(`maxCombinations = Math.min(primaryDay1Pool.length, 5)`)한 뒤, 목표 일수를 완전히 채운 패키지만 종합 점수 내림차순 정렬하여 최상위 **Top 3**를 반환합니다. (응답속도 < 100ms)
+- 반환 타입: `RecommendedRouteListResponseDto[]` (각 경유지 객체에 `dayNumber` 메타데이터 포함)
 
 ---
 
@@ -219,20 +223,29 @@ sequenceDiagram
 - **`POST /recommended-routes/recommend`**
 
 ### Validation & Rate Limiting (클라이언트 요청 방어)
-- **부동소수점 오차 허용 Guardrail (`IsValidRatioSum`)**: JS의 `0.1 + 0.2 = 0.30000000000000004` 특성으로 인한 정상 요청 차단을 방지하기 위해 `Math.abs(foodRatio + experienceRatio + transportRatio - 1.0) < 0.001` 오차 범위 허용 검증 적용
-- **`class-validator` 검증**: `@IsNumber()`, `@Min(10000)`, `@Max(500000)`으로 예산 범위(10,000원 ~ 500,000원) 이외의 입력을 원천 차단
+- **부동소수점 오차 허용 Guardrail**: JS의 `0.1 + 0.2 = 0.30000000000000004` 특성으로 인한 정상 요청 차단 방지를 위해, `Math.abs(foodRatio + experienceRatio + transportRatio - 1.0) >= 0.001`이면 예외 발생 (0.001 미만 오차는 정상 처리)
+- **서비스 레벨 입력 검증** (`RecommendationService.validateRecommendationInput`):
+  - `travelStyleSlugs`: 비어 있지 않은 문자열 배열, 지원하지 않는 slug 포함 시 거부
+  - `durationDays`: 1 ~ 5 범위 양의 정수만 허용
+  - `dailyBudgetWon`: **10,000원 이상 500,000원 이하** 양의 정수 (`validateDailyBudgetWon` 전용 메서드)
+  - `ratios`: 각 ratio는 0 ~ 1 범위, 합산이 1.0 ± 0.001 이내
 - **`ThrottlerModule` (Rate Limiter)**: 동일 IP당 분당 최대 60회 요청으로 제한하여 악의적인 디도스 및 쿼리 남용 차단
+
+#### 💡 일일 예산 범위 (10,000원 ~ 500,000원) 정량적 산출 근거 🆕
+- **DB 사전 적재 비용 데이터 검증**: DB 내 120개 마스터 경로의 1일치 예상 비용(`estimatedCostWon`)이 **최소 25,000원 ~ 최대 45,500원** (평균 33,967원)이며, 5일 체이닝 시 이론상 최고 결합 비용은 **227,500원**입니다.
+- **가드레일 설정 이유**: 1일 초가성비 짠내투어(1만원)부터 5일 풀 여행(일 10만원 $\times$ 5일 = 50만원 상한)까지 실제 추천 데이터 비용 수용률 100%를 보장하도록 검증 기준이 채택되었습니다.
 
 ### Request Body (JSON)
 ```json
 {
-  "budget": 20000,
+  "travelStyleSlugs": ["local-food", "photo-spot"],
+  "durationDays": 2,
+  "dailyBudgetWon": 60000,
   "ratios": {
-    "foodRatio": 0.4,
-    "experienceRatio": 0.4,
-    "transportRatio": 0.2
-  },
-  "themeSlugs": ["local-food", "photo-spot"]
+    "foodRatio": 0.35,
+    "experienceRatio": 0.25,
+    "transportRatio": 0.40
+  }
 }
 ```
 
@@ -252,13 +265,13 @@ sequenceDiagram
 | Flowchart 모듈성 보완 | **PASS** | 1일차 모듈 기준 & dayNumber 메타데이터 노드 반영 |
 | 최종 추천도 4단계 수식 | **PASS** | BaseScore, VariancePenalty, CongestionAdj 4단계 수식 명시 |
 | Exponential Backoff Retry | **PASS** | SEED 스크립트 외부 API 503/429 장애 시 3회 자동 재시도 적용 |
-| DTO 부동소수점 오차 방어 | **PASS** | `Math.abs(sum - 1.0) < 0.001` 커스텀 데코레이터 적용 완료 |
+| DTO 부동소수점 오차 방어 | **PASS** | `Math.abs(sum - 1.0) >= 0.001` 이면 예외 발생 (0.001 미만 오차 허용) |
 | Base Score 난이도 연동 | **PASS** | $\text{Base Score} = \text{Initial Rating} - (0.05 \times D)$ 수식 명시 |
 | Google Elevation 파이프 일괄 수집 | **PASS** | `Place.elevationMeters` 1회성 일괄 수집 완료 |
 | 역정규화 고도 연산 | **PASS** | `RouteStop.elevationGainMeters` 이동 순서 상대값 0-Call 저장 |
-| UI 6대 테마 SEED | **PASS** | `local-food`, `beach-tour` 등 6종 테마 및 RouteTheme N:M 매핑 완료 |
+| UI 6대 테마 SEED | **PASS** | `local-food`, `beach-tour` 등 6종 테마 PlaceCategory 직접 필터 매핑 완료 |
 | `pnpm run build` | **PASS** | NestJS 및 Prisma Client 빌드 100% 성공 |
-| `pnpm run test` | **PASS** | 17개 스위트 / 73개 유닛 테스트 통과 |
+| `pnpm run test` | **PASS** | 32개 스위트 / 176개 유닛 테스트 통과 |
 
 ---
 

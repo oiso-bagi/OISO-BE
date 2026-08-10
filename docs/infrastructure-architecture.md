@@ -25,7 +25,7 @@ flowchart TD
         NeonDB[("Neon Serverless PostgreSQL<br/>sslmode=verify-full | Auto Scaling")]
     end
 
-    VercelApp <-->|"REST API & Auth Cookie (CORS / SameSite=None)"| RailwayServer
+    VercelApp <-->|"REST API & Auth Cookie (CORS / FRONTEND_ORIGIN)"| RailwayServer
     GitRepo -->|"PR / Push"| Actions
     GitRepo -->|"Merge to main (Native Integration)"| RailwayServer
     RailwayServer <-->|"SSL Encrypted Connection (Pooled DB)"| NeonDB
@@ -86,8 +86,9 @@ flowchart TD
 2. **Prisma Schema Validation**: `pnpm run prisma:validate`
 3. **Prisma Client Generation**: `pnpm run prisma:generate`
 4. **Lint Verification**: `pnpm run lint` 코드 스타일 및 아키텍처 규칙 검증
-5. **Production Build**: `pnpm run build:raw` 빌드 유효성 체크 (Prisma Client 선행 생성 후 중복 방지)
-6. **Automated Unit Testing**: `pnpm run test` (Prisma Service Mocking 기반 순수 유닛 테스트만 수행)
+5. **Git Diff Verification**: `git diff --exit-code` 린트 수행으로 인한 불필요한 소스 파일 자동 변경 방지 검증
+6. **Production Build**: `pnpm run build:raw` 빌드 유효성 체크 (Prisma Client 선행 생성 후 중복 방지)
+7. **Automated Unit Testing**: `pnpm run test` (Prisma Service Mocking 기반 순수 유닛 테스트만 수행)
 
 ---
 
@@ -95,13 +96,13 @@ flowchart TD
 
 ### 5.1 CORS (Cross-Origin Resource Sharing) 설정
 
-- **허용 오리진 (Origin)**: 프론트엔드 Vercel 도메인 (`https://oiso-fe.vercel.app`) 및 로컬 개발 주소 (`http://localhost:3000`, `http://localhost:5173`)
+- **허용 오리진 (Origin)**: `FRONTEND_ORIGIN` 환경변수에 기재된 도메인 (`https://oiso-fe.vercel.app`, `http://localhost:5173` 등 comma 구분을 통한 다중 허용 지원)
 - **Credentials**: `credentials: true`로 설정하여 인증 쿠키 전송 허용
 
 ### 5.2 Cross-Site Auth Cookie 정책
 
-- 서로 다른 클라우드 도메인(`vercel.app` ↔ `railway.app`) 간 인증 세션 전송을 위해 **`SameSite=None`**, **`Secure=true` (HTTPS 필수)** 옵션 적용
-- `AuthCookieService`를 통해 AccessToken / RefreshToken 쿠키 발급 시 크로스 도메인 보안 규격 준수
+- `AuthCookieService`를 통해 AccessToken / RefreshToken 쿠키 발급 시 기본적으로 `sameSite: 'lax'`, `secure: NODE_ENV === 'production'` 옵션이 적용됩니다.
+- 서로 다른 클라우드 도메인(`vercel.app` ↔ `railway.app`) 간 크로스 도메인 인증 쿠키 전송이 필요한 경우 `COOKIE_SECURE=true`, `COOKIE_DOMAIN` 환경변수 지정을 통해 **`SameSite=None`**, **`Secure=true` (HTTPS 필수)**로 보안 설정을 확장/제어할 수 있습니다.
 
 ---
 
@@ -115,17 +116,25 @@ flowchart TD
 | `PORT` | NestJS 서버 웹 포트 | 기본값 `3000` (Railway 주입) |
 | `DATABASE_URL` | Neon Postgres Pooled DB 연결 문자열 | `postgresql://...sslmode=verify-full` (pgBouncer 쿼리용) |
 | `DIRECT_URL` | Neon Postgres Direct DB 연결 문자열 | `postgresql://...sslmode=verify-full` (DDL 마이그레이션 전용) |
-| `FRONTEND_URL` | 프론트엔드 Vercel 배포 URL | `https://oiso-fe.vercel.app` (CORS 및 OAuth Redirect) |
+| `FRONTEND_ORIGIN` | 프론트엔드 배포 및 개발 허용 오리진 | `https://oiso-fe.vercel.app` (CORS 및 쿠키 검증용, 쉼표 구분 가능) |
+| `FRONTEND_AUTH_SUCCESS_REDIRECT` | 로그인 성공 후 이동할 프론트엔드 URL | 미지정 시 `FRONTEND_ORIGIN` 기본값 사용 |
+| `FRONTEND_AUTH_CONSENT_REDIRECT` | 약관 동의 필요 시 이동할 프론트엔드 URL | 예: `https://oiso-fe.vercel.app/signup/terms` |
+| `FRONTEND_AUTH_FAILURE_REDIRECT` | 로그인 실패 시 이동할 프론트엔드 URL | 예: `https://oiso-fe.vercel.app/login?error=auth_failed` |
 | `JWT_ACCESS_SECRET` | AccessToken 서명 암호화 키 | 32자 이상 무작위 문자열 |
 | `JWT_REFRESH_SECRET` | RefreshToken 서명 암호화 키 | 32자 이상 무작위 문자열 |
-| `JWT_ACCESS_EXPIRES_IN` | AccessToken 유효 기간 | 예: `15m` |
-| `JWT_REFRESH_EXPIRES_IN` | RefreshToken 유효 기간 | 예: `14d` |
+| `JWT_ACCESS_EXPIRES_IN` | AccessToken 유효 기간 | 기본값 `15m` |
+| `JWT_REFRESH_EXPIRES_IN` | RefreshToken 유효 기간 | 기본값 `14d` |
+| `COOKIE_SECURE` | 쿠키 Secure 옵션 명시 설정 | `true` / `false` (미지정 시 `production`일 때 `true`) |
+| `COOKIE_DOMAIN` | 쿠키 공유 도메인 설정 | 예: `.vercel.app` (선택 사항) |
 | `KAKAO_CLIENT_ID` | 카카오 소셜 로그인 REST API 키 | Kakao Developers |
 | `KAKAO_CLIENT_SECRET` | 카카오 Client Secret | Kakao Developers |
 | `KAKAO_REDIRECT_URI` | 카카오 OAuth 리다이렉트 URL | Railway 배포 도메인 + `/api/v1/auth/kakao/callback` |
+| `KAKAO_AUTH_SCOPES` | 카카오 동의 항목 스코프 | 기본값 `account_email,profile_nickname` |
 | `GOOGLE_CLIENT_ID` | 구글 OAuth Client ID | Google Cloud Console |
+| `GOOGLE_CLIENT_SECRET` | 구글 OAuth Client Secret | Google Cloud Console |
 | `GOOGLE_REDIRECT_URI` | 구글 OAuth 리다이렉트 URL | Railway 배포 도메인 + `/api/v1/auth/google/callback` |
-| `VK_KORSERVICE2_API_KEY` | 한국관광공사 TourAPI 4.0 인코딩 키 | 공공데이터포털 |
+| `GOOGLE_AUTH_SCOPES` | 구글 동의 항목 스코프 | 기본값 `openid email profile` |
+| `VK_KORSERVICE2_API_KEY` | 한국관광공사 TourAPI 4.0 인코딩 키 | 공공데이터포털 (04:00 Cron 갱신용) |
 
 ---
 

@@ -35,6 +35,11 @@
 | **코스 총 이동거리 (Distance)** | **2.0 km** | **5.0 ~ 8.0 km** | **15.0 km** | 이동 동선 낭비를 막고 권역 내 동선 집중화 |
 | **코스 1개당 총 예산 (Budget)** | **10,000원** | **30,000 ~ 150,000원** | **500,000원** 🆕 | 1일 짠내 투어부터 5일 풀 여행(최대 50만원)까지 수용 |
 
+#### 💡 일일 예산 범위 (10,000원 ~ 500,000원) 정량적 산출 근거 🆕
+- **DB 마스터 경로 1일 예상 비용 검증**: 사전 적재된 총 120개 1일차 마스터 추천 경로의 실제 예상 비용(`estimatedCostWon`)은 **최소 25,000원 ~ 최대 45,500원** (평균 33,967원) 범위에 분포합니다.
+- **최대 5일차 패키지 조합 최적화**: 5일 여행(`durationDays = 5`) 체이닝 시 이론상 최고 비용 조합은 $45,500\text{원} \times 5\text{일} = \mathbf{227,500\text{원}}$으로 연산됩니다.
+- **범위 설정 이유**: 1일 초가성비 짠내투어(1만원 입력 시 하한 방어)부터, 5일간 식비·체험·교통비를 넉넉하게 투입하는 풀 여행(일 10만원 $\times$ 5일 = 50만원 상한)까지 **실제 DB 추천 경로의 비용 수용률 100%를 정밀하게 커버**하도록 산정되었습니다.
+
 ---
 
 ## 4. 📌 C. 테마 & 카테고리 매핑 규칙 (Mapping Rules)
@@ -83,6 +88,11 @@ N박 M일(다일) 추천 코스 응답 시, 프론트엔드 지도(Map Component
 
 ### 5.1 `dayNumber` 응답 메타데이터 규격
 - 경유지(`RouteStop`) 응답 배열의 모든 스팟 객체에 해당 장소가 몇 일차에 방문하는 장소인지를 나타내는 `dayNumber` (정수, 1-indexed) 필드를 필수 제공합니다.
+- 실시간 추천 응답(`RecommendedRouteListResponseDto → RouteStopLocationDto`):
+  - **1일 여행** (`durationDays = 1`): 모든 경유지에 `dayNumber: 1` 고정
+  - **다일 여행** (`durationDays > 1`): `combineChainedRoutes()`가 체이닝 시 N일차 코스에 `dayNumber: N` 자동 부여
+- **저장 루트 응답** (`SavedRouteDetailResponseDto → SavedRouteStopDetailDto`):
+  - `SavedRouteStopDetailDto`에도 `dayNumber` 필드를 포함하여 저장된 다일 코스의 일차별 탭/마커 색상 구분을 동일하게 지원합니다.
 - **예시**:
   - `dayNumber: 1` ➡️ 1일차 경유지 (스팟 1~4번)
   - `dayNumber: 2` ➡️ 2일차 경유지 (스팟 5~9번)
@@ -105,6 +115,7 @@ N박 M일(다일) 추천 코스 응답 시, 프론트엔드 지도(Map Component
 | 시스템 컴포넌트 | 본 정책 문서 연동 역할 |
 | --- | --- |
 | **`scripts/seed-recommend-routes.ts`** | 본 수치 정책에 따라 6대 테마 × 20개 코스 = 총 120개 마스터 추천 코스 및 약 420개 이상 경유지 자동 연산 및 SEED 저장 |
-| **`RecommendRouteRequestDto`** | `budget` 최소값(10,000원) ~ 최대값(500,000원) 유효성 검증 레인지 설정 |
-| **`RecommendedRouteDetailResponseDto`** | 경유지 객체 내 `dayNumber` 필드를 포함하여 프론트 지도 Color Coding 연동 지원 |
+| **`RecommendRouteRequestDto`** | `dailyBudgetWon` 최소값(10,000원) ~ 최대값(500,000원) 유효성 검증 레인지 설정 (`validateDailyBudgetWon`) |
+| **`RecommendedRouteListResponseDto` → `RouteStopLocationDto`** | 실시간 추천 경유지 객체 내 `dayNumber` 필드를 포함하여 프론트 지도 Color Coding 연동 지원 |
+| **`SavedRouteDetailResponseDto` → `SavedRouteStopDetailDto`** | 저장된 다일 코스 경유지 객체 내 `dayNumber` 필드를 포함하여 일차별 탭 및 지도 마커 색상 구분 지원 |
 | **`docs/recommend-route-architecture.md`** | [recommend-route-architecture.md](./recommend-route-architecture.md) 기술 아키텍처 문서와 연동되어 비즈니스 기획 표준 가이드로 링크 |

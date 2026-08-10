@@ -133,33 +133,58 @@ describe('RecommendationService', () => {
     ).not.toHaveBeenCalled();
   });
 
-  it('allows total budget at the safe integer boundary', async () => {
+  it('rejects recommendation request when daily budget is below the minimum (9,999 won)', async () => {
+    await expect(
+      service.recommendRoutes({
+        travelStyleSlugs: ['local-food'],
+        durationDays: 1,
+        dailyBudgetWon: 9999,
+      }),
+    ).rejects.toThrow(BadRequestException);
+    expect(
+      mockRecommendationRepository.findRecommendedRoutes,
+    ).not.toHaveBeenCalled();
+  });
+
+  it('rejects recommendation request when daily budget exceeds the maximum (500,001 won)', async () => {
+    await expect(
+      service.recommendRoutes({
+        travelStyleSlugs: ['local-food'],
+        durationDays: 1,
+        dailyBudgetWon: 500001,
+      }),
+    ).rejects.toThrow(BadRequestException);
+    expect(
+      mockRecommendationRepository.findRecommendedRoutes,
+    ).not.toHaveBeenCalled();
+  });
+
+  it('accepts recommendation request at the boundary values (10,000 and 500,000 won)', async () => {
     mockRecommendationRepository.findRecommendedRoutes.mockResolvedValue([]);
 
     await expect(
       service.recommendRoutes({
         travelStyleSlugs: ['local-food'],
         durationDays: 1,
-        dailyBudgetWon: Number.MAX_SAFE_INTEGER,
+        dailyBudgetWon: 10000,
       }),
     ).resolves.toEqual([]);
 
-    expect(
-      mockRecommendationRepository.findRecommendedRoutes,
-    ).toHaveBeenCalledWith({
-      travelStyleSlugs: ['local-food'],
-      durationDays: 1,
-      dailyBudgetWon: Number.MAX_SAFE_INTEGER,
-      totalBudgetWon: Number.MAX_SAFE_INTEGER,
-    });
+    await expect(
+      service.recommendRoutes({
+        travelStyleSlugs: ['local-food'],
+        durationDays: 1,
+        dailyBudgetWon: 500000,
+      }),
+    ).resolves.toEqual([]);
   });
 
   it('rejects recommendation request when total budget overflows the safe integer range', async () => {
     await expect(
       service.recommendRoutes({
         travelStyleSlugs: ['local-food'],
-        durationDays: 2,
-        dailyBudgetWon: Math.floor(Number.MAX_SAFE_INTEGER / 2) + 1,
+        durationDays: 5,
+        dailyBudgetWon: Math.floor(Number.MAX_SAFE_INTEGER / 5),
       }),
     ).rejects.toThrow(BadRequestException);
     expect(

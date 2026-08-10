@@ -24,6 +24,9 @@ export class SavedRouteStopDetailDto {
   @ApiProperty({ description: '경유지 순서', example: 1, type: Number })
   sequence = 0;
 
+  @ApiProperty({ description: '여행 일차 번호', example: 1, type: Number })
+  dayNumber = 1;
+
   @ApiProperty({
     description: '장소 이름',
     example: '광안리해수욕장',
@@ -91,6 +94,15 @@ export class SavedRouteStopDetailDto {
     const dto = new SavedRouteStopDetailDto();
 
     dto.sequence = stop.orderIndex ?? 0;
+    if (
+      typeof stop.dayNumber === 'number' &&
+      Number.isInteger(stop.dayNumber) &&
+      stop.dayNumber > 0
+    ) {
+      dto.dayNumber = stop.dayNumber;
+    } else {
+      dto.dayNumber = 1;
+    }
     dto.placeName = stop.place?.name ?? '';
     dto.category = (stop.place?.category as PlaceCategory) ?? null;
     dto.openTime = stop.place?.openTime ?? null;
