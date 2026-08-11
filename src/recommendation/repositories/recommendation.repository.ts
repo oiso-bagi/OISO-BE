@@ -62,14 +62,14 @@ export class RecommendationRepository {
     const preferredCategories = this.getPreferredCategories(
       filter.travelStyleSlugs,
     );
-    const maxDurationMinutes = filter.durationDays * 24 * 60;
+    const maxDurationMinutes = 480; // 1일 마스터 모듈 코스 최대 권장 소요시간 상한선 (8시간 = 480분)
 
     return this.prisma.route.findMany({
       where: {
         routeType: 'RECOMMENDED',
         isPublished: true,
         estimatedCostWon: {
-          lte: filter.totalBudgetWon,
+          lte: filter.dailyBudgetWon,
         },
         estimatedDurationMin: {
           lte: maxDurationMinutes,
