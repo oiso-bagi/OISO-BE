@@ -1,8 +1,8 @@
 ---
 name: Feature request
 about: 새로운 백엔드 기능 또는 API 작업을 제안합니다.
-title: "feat: "
-labels: "FEAT"
+title: '[FEAT] '
+labels: 'FEAT'
 assignees: ''
 ---
 

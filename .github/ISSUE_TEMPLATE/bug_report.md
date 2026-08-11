@@ -1,8 +1,8 @@
 ---
 name: Bug report
 about: 백엔드 API 또는 서버 동작 문제를 제보합니다.
-title: "fix: "
-labels: "FIX"
+title: '[FIX] '
+labels: 'FIX'
 assignees: ''
 ---
 
