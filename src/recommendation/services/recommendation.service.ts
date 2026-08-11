@@ -58,6 +58,8 @@ export interface GenericRoute {
 }
 
 const DEFAULT_DAILY_BUDGET_WON = 60000;
+const MIN_TOTAL_BUDGET_WON = 10000;
+const MAX_TOTAL_BUDGET_WON = 500000;
 
 const DEFAULT_RATIOS: BudgetRatios = {
   foodRatio: 0.35,
@@ -162,6 +164,7 @@ export class RecommendationService {
     const stitchedRoutes = this.stitchMultiDayRoutes(
       candidateRoutes,
       validatedInput.durationDays,
+      validatedInput.totalBudgetWon,
       validatedInput.travelStyleSlugs,
     );
 
@@ -219,6 +222,7 @@ export class RecommendationService {
   private stitchMultiDayRoutes(
     candidateRoutes: GenericRoute[],
     targetDurationDays: number,
+    totalBudgetWon?: number,
     requestedThemeSlugs?: string[],
   ): GenericRoute[] {
     const results: GenericRoute[] = [];
@@ -274,6 +278,19 @@ export class RecommendationService {
         ) => {
           if (!allowSelectedReuse && selectedRoutes.includes(candidate)) {
             return;
+          }
+
+          if (totalBudgetWon != null) {
+            const currentAccumulatedCost = selectedRoutes.reduce(
+              (sum, r) => sum + Number(r.estimatedCostWon || 0),
+              0,
+            );
+            if (
+              currentAccumulatedCost + Number(candidate.estimatedCostWon || 0) >
+              totalBudgetWon
+            ) {
+              return;
+            }
           }
 
           const candidateStops = candidate.stops || [];
@@ -370,7 +387,7 @@ export class RecommendationService {
         }
       }
 
-      // N일 패키지의 목표 일수를 완전히 채운 경우만 결합 패키지로 수용
+      // N일 패키지의 목표 일수를 완전히 채우고 총 비용이 totalBudgetWon 이하인 경우만 결합 패키지로 수용
       if (selectedRoutes.length === targetDurationDays) {
         const stitchedRoute = this.combineChainedRoutes(
           selectedRoutes,
@@ -378,7 +395,12 @@ export class RecommendationService {
           results.length + 1,
           totalChainingCostPenalty,
         );
-        results.push(stitchedRoute);
+        if (
+          totalBudgetWon == null ||
+          Number(stitchedRoute.estimatedCostWon || 0) <= totalBudgetWon
+        ) {
+          results.push(stitchedRoute);
+        }
       }
     }
 
@@ -457,10 +479,7 @@ export class RecommendationService {
       body?.travelStyleSlugs,
     );
     const durationDays = this.validateDurationDays(body?.durationDays);
-    const dailyBudgetWon = this.validatePositiveInteger(
-      body?.dailyBudgetWon,
-      'dailyBudgetWon',
-    );
+    const dailyBudgetWon = this.validateDailyBudgetWon(body?.dailyBudgetWon);
     const totalBudgetWon = this.validateTotalBudgetWon(
       durationDays,
       dailyBudgetWon,
@@ -601,6 +620,10 @@ export class RecommendationService {
     return durationDays;
   }
 
+  private validateDailyBudgetWon(value: unknown): number {
+    return this.validatePositiveInteger(value, 'dailyBudgetWon');
+  }
+
   private validateTotalBudgetWon(
     durationDays: number,
     dailyBudgetWon: number,
@@ -611,7 +634,18 @@ export class RecommendationService {
       );
     }
 
-    return durationDays * dailyBudgetWon;
+    const totalBudgetWon = durationDays * dailyBudgetWon;
+
+    if (
+      totalBudgetWon < MIN_TOTAL_BUDGET_WON ||
+      totalBudgetWon > MAX_TOTAL_BUDGET_WON
+    ) {
+      throw new BadRequestException(
+        `총 여행 예산(totalBudgetWon = durationDays × dailyBudgetWon)은 ${MIN_TOTAL_BUDGET_WON.toLocaleString()}원 이상 ${MAX_TOTAL_BUDGET_WON.toLocaleString()}원 이하여야 합니다.`,
+      );
+    }
+
+    return totalBudgetWon;
   }
 
   private validatePositiveInteger(value: unknown, label: string): number {

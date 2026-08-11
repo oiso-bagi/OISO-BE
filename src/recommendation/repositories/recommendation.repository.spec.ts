@@ -59,4 +59,40 @@ describe('RecommendationRepository', () => {
       }),
     );
   });
+
+  it('maps beach-tour travel style to NATURE, VIEWPOINT, and EXPERIENCE categories', async () => {
+    findMany.mockResolvedValue([]);
+
+    await repository.findRecommendedRoutes({
+      travelStyleSlugs: ['beach-tour'],
+      durationDays: 1,
+      dailyBudgetWon: 50000,
+      totalBudgetWon: 50000,
+    });
+
+    const calls = findMany.mock.calls as unknown as Array<
+      [
+        {
+          where?: {
+            stops?: {
+              some?: {
+                place?: {
+                  category?: {
+                    in?: PlaceCategory[];
+                  };
+                };
+              };
+            };
+          };
+        },
+      ]
+    >;
+    const callArg = calls[0][0];
+
+    expect(callArg.where?.stops?.some?.place?.category?.in).toEqual([
+      PlaceCategory.NATURE,
+      PlaceCategory.VIEWPOINT,
+      PlaceCategory.EXPERIENCE,
+    ]);
+  });
 });
