@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  InternalServerErrorException,
   Injectable,
 } from '@nestjs/common';
 import { timingSafeEqual } from 'node:crypto';
@@ -10,18 +11,41 @@ import { resolveFrontendOrigins } from '@/common/config/frontend-origin.config';
 @Injectable()
 export class AuthCookieService {
   getBaseCookieOptions(): CookieOptions {
-    const configuredSecure = process.env.COOKIE_SECURE;
+    const isSecureCookie = this.resolveCookieSecure();
 
     return {
       httpOnly: true,
-      secure:
-        configuredSecure === undefined
-          ? process.env.NODE_ENV === 'production'
-          : configuredSecure === 'true',
-      sameSite: 'lax' as const,
+      secure: isSecureCookie,
+      sameSite: isSecureCookie ? ('none' as const) : ('lax' as const),
       domain: process.env.COOKIE_DOMAIN || undefined,
       path: '/',
     };
+  }
+
+  getCookieRemovalOptions(): CookieOptions {
+    return {
+      httpOnly: true,
+      domain: process.env.COOKIE_DOMAIN || undefined,
+      path: '/',
+    };
+  }
+
+  private resolveCookieSecure(): boolean {
+    const configuredSecure = process.env.COOKIE_SECURE;
+
+    if (configuredSecure === undefined) {
+      return process.env.NODE_ENV === 'production';
+    }
+
+    if (configuredSecure === 'true') {
+      return true;
+    }
+
+    if (configuredSecure === 'false') {
+      return false;
+    }
+
+    throw new InternalServerErrorException('서버 설정 오류가 발생했습니다.');
   }
 
   getDurationMilliseconds(value: string): number {

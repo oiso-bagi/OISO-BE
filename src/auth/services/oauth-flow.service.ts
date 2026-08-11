@@ -95,28 +95,22 @@ export class OAuthFlowService {
       );
     } catch (err) {
       this.logger.error(`${providerName} OAuth callback failed.`, err);
-      response.clearCookie(
-        ACCESS_TOKEN_COOKIE,
-        this.authCookieService.getBaseCookieOptions(),
-      );
-      response.clearCookie(
-        REFRESH_TOKEN_COOKIE,
-        this.authCookieService.getBaseCookieOptions(),
-      );
-      response.clearCookie(
-        OAUTH_STATE_COOKIE,
-        this.authCookieService.getBaseCookieOptions(),
-      );
-      response.clearCookie(
-        OAUTH_RETURN_URL_COOKIE,
-        this.authCookieService.getBaseCookieOptions(),
-      );
+      this.clearOAuthFailureCookies(response);
       response.redirect(
         this.authCookieService.getFailureRedirectUrl(
           this.authCookieService.getFailureReason(err),
         ),
       );
     }
+  }
+
+  private clearOAuthFailureCookies(response: Response): void {
+    const cookieOptions = this.authCookieService.getCookieRemovalOptions();
+
+    response.clearCookie(ACCESS_TOKEN_COOKIE, cookieOptions);
+    response.clearCookie(REFRESH_TOKEN_COOKIE, cookieOptions);
+    response.clearCookie(OAUTH_STATE_COOKIE, cookieOptions);
+    response.clearCookie(OAUTH_RETURN_URL_COOKIE, cookieOptions);
   }
 
   private setRefreshTokenCookie(

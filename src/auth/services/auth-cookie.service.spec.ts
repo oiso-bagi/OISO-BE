@@ -1,6 +1,10 @@
 /// <reference types="jest" />
 
-import { BadRequestException, ConflictException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { AuthCookieService } from '@/auth/services/auth-cookie.service';
 
 describe('AuthCookieService', () => {
@@ -14,6 +18,63 @@ describe('AuthCookieService', () => {
 
   afterAll(() => {
     process.env = originalEnv;
+  });
+
+  describe('getBaseCookieOptions', () => {
+    it('uses secure SameSite=None cookies in production by default', () => {
+      process.env.NODE_ENV = 'production';
+      delete process.env.COOKIE_SECURE;
+
+      expect(service.getBaseCookieOptions()).toMatchObject({
+        httpOnly: true,
+        secure: true,
+        sameSite: 'none',
+        path: '/',
+      });
+    });
+
+    it('uses SameSite=Lax cookies outside production by default', () => {
+      process.env.NODE_ENV = 'development';
+      delete process.env.COOKIE_SECURE;
+
+      expect(service.getBaseCookieOptions()).toMatchObject({
+        secure: false,
+        sameSite: 'lax',
+      });
+    });
+
+    it('uses COOKIE_SECURE as the explicit cross-site cookie switch', () => {
+      process.env.NODE_ENV = 'development';
+      process.env.COOKIE_SECURE = 'true';
+
+      expect(service.getBaseCookieOptions()).toMatchObject({
+        secure: true,
+        sameSite: 'none',
+      });
+
+      process.env.NODE_ENV = 'production';
+      process.env.COOKIE_SECURE = 'false';
+
+      expect(service.getBaseCookieOptions()).toMatchObject({
+        secure: false,
+        sameSite: 'lax',
+      });
+    });
+
+    it.each(['TRUE', '', 'ture'])(
+      'rejects invalid COOKIE_SECURE value %p',
+      (value) => {
+        process.env.NODE_ENV = 'production';
+        process.env.COOKIE_SECURE = value;
+
+        expect(() => service.getBaseCookieOptions()).toThrow(
+          InternalServerErrorException,
+        );
+        expect(() => service.getBaseCookieOptions()).toThrow(
+          '서버 설정 오류가 발생했습니다.',
+        );
+      },
+    );
   });
 
   describe('OAuth redirect URLs', () => {

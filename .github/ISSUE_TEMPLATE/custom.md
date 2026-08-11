@@ -1,8 +1,8 @@
 ---
 name: Chore / Docs / Refactor
 about: 설정, 문서, 리팩터링, 기타 백엔드 유지보수 작업을 제안합니다.
-title: "chore: "
-labels: "CHORE"
+title: '[CHORE] '
+labels: 'CHORE'
 assignees: ''
 ---
 
