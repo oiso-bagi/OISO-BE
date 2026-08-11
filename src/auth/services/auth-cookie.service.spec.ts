@@ -16,6 +16,48 @@ describe('AuthCookieService', () => {
     process.env = originalEnv;
   });
 
+  describe('getBaseCookieOptions', () => {
+    it('uses secure SameSite=None cookies in production by default', () => {
+      process.env.NODE_ENV = 'production';
+      delete process.env.COOKIE_SECURE;
+
+      expect(service.getBaseCookieOptions()).toMatchObject({
+        httpOnly: true,
+        secure: true,
+        sameSite: 'none',
+        path: '/',
+      });
+    });
+
+    it('uses SameSite=Lax cookies outside production by default', () => {
+      process.env.NODE_ENV = 'development';
+      delete process.env.COOKIE_SECURE;
+
+      expect(service.getBaseCookieOptions()).toMatchObject({
+        secure: false,
+        sameSite: 'lax',
+      });
+    });
+
+    it('uses COOKIE_SECURE as the explicit cross-site cookie switch', () => {
+      process.env.NODE_ENV = 'development';
+      process.env.COOKIE_SECURE = 'true';
+
+      expect(service.getBaseCookieOptions()).toMatchObject({
+        secure: true,
+        sameSite: 'none',
+      });
+
+      process.env.NODE_ENV = 'production';
+      process.env.COOKIE_SECURE = 'false';
+
+      expect(service.getBaseCookieOptions()).toMatchObject({
+        secure: false,
+        sameSite: 'lax',
+      });
+    });
+  });
+
   describe('OAuth redirect URLs', () => {
     it('accepts a relative returnUrl and appends the login success marker', () => {
       expect(service.getSafeOAuthReturnUrl('/routes/route-id?tab=map')).toBe(

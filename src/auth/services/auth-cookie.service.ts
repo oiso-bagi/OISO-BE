@@ -11,14 +11,15 @@ import { resolveFrontendOrigins } from '@/common/config/frontend-origin.config';
 export class AuthCookieService {
   getBaseCookieOptions(): CookieOptions {
     const configuredSecure = process.env.COOKIE_SECURE;
+    const isProduction =
+      configuredSecure === undefined
+        ? process.env.NODE_ENV === 'production'
+        : configuredSecure === 'true';
 
     return {
       httpOnly: true,
-      secure:
-        configuredSecure === undefined
-          ? process.env.NODE_ENV === 'production'
-          : configuredSecure === 'true',
-      sameSite: 'lax' as const,
+      secure: isProduction,
+      sameSite: isProduction ? ('none' as const) : ('lax' as const),
       domain: process.env.COOKIE_DOMAIN || undefined,
       path: '/',
     };
