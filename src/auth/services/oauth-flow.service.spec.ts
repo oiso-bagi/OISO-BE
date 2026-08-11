@@ -195,4 +195,36 @@ describe('OAuthFlowService', () => {
       'http://localhost:5173/login?error=kakao_auth_failed&reason=kakao_canceled',
     );
   });
+
+  it('redirects with failure reason even when failure cookie cleanup cannot read invalid secure config', async () => {
+    process.env.COOKIE_SECURE = 'TRUE';
+    const mockResponse = createResponse();
+    const getProfile = jest.fn<Promise<SocialUserProfile>, [string]>();
+    const login = jest.fn<Promise<SocialLoginResult>, [SocialUserProfile]>();
+
+    await expect(
+      service.handleSocialCallback({
+        code: undefined,
+        state: 'state',
+        error: 'access_denied',
+        request: createRequest('/routes/1'),
+        response: mockResponse as unknown as Response,
+        providerName: 'Google',
+        getProfile,
+        login,
+      }),
+    ).resolves.toBeUndefined();
+
+    expect(mockResponse.clearCookie).toHaveBeenCalledWith(
+      ACCESS_TOKEN_COOKIE,
+      expect.any(Object),
+    );
+    expect(mockResponse.clearCookie).toHaveBeenCalledWith(
+      REFRESH_TOKEN_COOKIE,
+      expect.any(Object),
+    );
+    expect(mockResponse.redirect).toHaveBeenCalledWith(
+      'http://localhost:5173/login?error=kakao_auth_failed&reason=google_canceled',
+    );
+  });
 });

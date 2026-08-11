@@ -1,6 +1,10 @@
 /// <reference types="jest" />
 
-import { BadRequestException, ConflictException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { AuthCookieService } from '@/auth/services/auth-cookie.service';
 
 describe('AuthCookieService', () => {
@@ -64,7 +68,10 @@ describe('AuthCookieService', () => {
         process.env.COOKIE_SECURE = value;
 
         expect(() => service.getBaseCookieOptions()).toThrow(
-          "COOKIE_SECURE must be exactly 'true' or 'false'.",
+          InternalServerErrorException,
+        );
+        expect(() => service.getBaseCookieOptions()).toThrow(
+          '서버 설정 오류가 발생했습니다.',
         );
       },
     );
