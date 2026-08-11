@@ -10,11 +10,7 @@ import { resolveFrontendOrigins } from '@/common/config/frontend-origin.config';
 @Injectable()
 export class AuthCookieService {
   getBaseCookieOptions(): CookieOptions {
-    const configuredSecure = process.env.COOKIE_SECURE;
-    const isProduction =
-      configuredSecure === undefined
-        ? process.env.NODE_ENV === 'production'
-        : configuredSecure === 'true';
+    const isProduction = this.resolveCookieSecure();
 
     return {
       httpOnly: true,
@@ -23,6 +19,24 @@ export class AuthCookieService {
       domain: process.env.COOKIE_DOMAIN || undefined,
       path: '/',
     };
+  }
+
+  private resolveCookieSecure(): boolean {
+    const configuredSecure = process.env.COOKIE_SECURE;
+
+    if (configuredSecure === undefined) {
+      return process.env.NODE_ENV === 'production';
+    }
+
+    if (configuredSecure === 'true') {
+      return true;
+    }
+
+    if (configuredSecure === 'false') {
+      return false;
+    }
+
+    throw new Error("COOKIE_SECURE must be exactly 'true' or 'false'.");
   }
 
   getDurationMilliseconds(value: string): number {

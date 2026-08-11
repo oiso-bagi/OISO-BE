@@ -56,6 +56,18 @@ describe('AuthCookieService', () => {
         sameSite: 'lax',
       });
     });
+
+    it.each(['TRUE', '', 'ture'])(
+      'rejects invalid COOKIE_SECURE value %p',
+      (value) => {
+        process.env.NODE_ENV = 'production';
+        process.env.COOKIE_SECURE = value;
+
+        expect(() => service.getBaseCookieOptions()).toThrow(
+          "COOKIE_SECURE must be exactly 'true' or 'false'.",
+        );
+      },
+    );
   });
 
   describe('OAuth redirect URLs', () => {
