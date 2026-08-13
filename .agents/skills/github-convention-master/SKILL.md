@@ -31,6 +31,10 @@ description: OISO-BE 프로젝트의 GitHub 워크플로우 텍스트(Issue, Bra
   - `docs`: 문서 변경
   - `github`: .github/ 템플릿 및 워크플로우
 
+- **언어:**
+  - 이슈, 커밋, PR 제목과 본문은 한국어로 작성합니다.
+  - prefix, scope, 이슈 번호, 명령어, 코드 식별자는 컨벤션 형식을 그대로 유지합니다.
+
 ---
 
 ## 1. Issue 요청 시 출력 형식
@@ -151,6 +155,8 @@ description: OISO-BE 프로젝트의 GitHub 워크플로우 텍스트(Issue, Bra
 
 ## 3. Commit 요청 시 출력 형식
 형식: `{prefix}({scope}): #{ISSUE_NUMBER} work summary \n\n body`
+
+커밋 제목의 `work summary`와 본문은 한국어로 작성합니다.
 
 주의: 사소한 변경(오타 등)으로 이슈 번호가 없다면 #ISSUE_NUMBER 대신 * 로 표기합니다.
 

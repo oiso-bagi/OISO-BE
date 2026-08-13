@@ -63,6 +63,7 @@ src/
 ## GitHub 작업 컨벤션
 
 - 이 저장소에서 이슈, 브랜치, 커밋, PR 텍스트를 만들 때는 `.agents/skills/github-convention-master/SKILL.md`의 컨벤션을 우선합니다.
+- 이슈, 커밋, PR 제목과 본문은 한국어로 작성합니다. 단, prefix, scope, 이슈 번호, 명령어, 코드 식별자는 컨벤션 형식을 그대로 유지합니다.
 - 브랜치명은 `{prefix}/{scope}/{ISSUE_NUMBER}-work-summary` 형식을 사용합니다.
   - 예: `fix/auth/67-oauth-cors-preview`
 - Codex 앱의 기본 브랜치 prefix인 `codex/`는 이 저장소의 브랜치 컨벤션보다 우선하지 않습니다.
