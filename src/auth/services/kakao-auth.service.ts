@@ -12,10 +12,10 @@ import type {
 
 @Injectable()
 export class KakaoAuthService {
-  getAuthorizationUrl(state: string): string {
+  getAuthorizationUrl(state: string, redirectUri: string): string {
     const params = new URLSearchParams({
       client_id: this.getRequiredEnv('KAKAO_REST_API_KEY'),
-      redirect_uri: this.getRequiredEnv('KAKAO_REDIRECT_URI'),
+      redirect_uri: redirectUri,
       response_type: 'code',
       scope: process.env.KAKAO_AUTH_SCOPES ?? 'account_email,profile_nickname',
       state,
@@ -24,8 +24,11 @@ export class KakaoAuthService {
     return `https://kauth.kakao.com/oauth/authorize?${params.toString()}`;
   }
 
-  async getUserProfile(code: string): Promise<KakaoUserProfile> {
-    const token = await this.requestToken(code);
+  async getUserProfile(
+    code: string,
+    redirectUri = this.getRequiredEnv('KAKAO_REDIRECT_URI'),
+  ): Promise<KakaoUserProfile> {
+    const token = await this.requestToken(code, redirectUri);
     const kakaoUser = await this.requestUser(token.access_token);
     const providerId = String(kakaoUser.id);
     const email = kakaoUser.kakao_account?.email?.trim();
@@ -46,11 +49,14 @@ export class KakaoAuthService {
     };
   }
 
-  private async requestToken(code: string): Promise<KakaoTokenResponse> {
+  private async requestToken(
+    code: string,
+    redirectUri: string,
+  ): Promise<KakaoTokenResponse> {
     const params = new URLSearchParams({
       grant_type: 'authorization_code',
       client_id: this.getRequiredEnv('KAKAO_REST_API_KEY'),
-      redirect_uri: this.getRequiredEnv('KAKAO_REDIRECT_URI'),
+      redirect_uri: redirectUri,
       code,
     });
     const clientSecret = process.env.KAKAO_CLIENT_SECRET;

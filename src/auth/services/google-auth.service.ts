@@ -17,10 +17,10 @@ const GOOGLE_PROFILE_FETCH_FAILED_MESSAGE =
 
 @Injectable()
 export class GoogleAuthService {
-  getAuthorizationUrl(state: string): string {
+  getAuthorizationUrl(state: string, redirectUri: string): string {
     const params = new URLSearchParams({
       client_id: this.getRequiredEnv('GOOGLE_CLIENT_ID'),
-      redirect_uri: this.getRequiredEnv('GOOGLE_REDIRECT_URI'),
+      redirect_uri: redirectUri,
       response_type: 'code',
       scope: process.env.GOOGLE_AUTH_SCOPES ?? 'openid email profile',
       state,
@@ -31,8 +31,11 @@ export class GoogleAuthService {
     return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
   }
 
-  async getUserProfile(code: string): Promise<GoogleUserProfile> {
-    const token = await this.requestToken(code);
+  async getUserProfile(
+    code: string,
+    redirectUri = this.getRequiredEnv('GOOGLE_REDIRECT_URI'),
+  ): Promise<GoogleUserProfile> {
+    const token = await this.requestToken(code, redirectUri);
     const googleUser = await this.requestUser(token.access_token);
     const providerId = googleUser.sub;
 
@@ -58,12 +61,15 @@ export class GoogleAuthService {
     };
   }
 
-  private async requestToken(code: string): Promise<GoogleTokenResponse> {
+  private async requestToken(
+    code: string,
+    redirectUri: string,
+  ): Promise<GoogleTokenResponse> {
     const params = new URLSearchParams({
       grant_type: 'authorization_code',
       client_id: this.getRequiredEnv('GOOGLE_CLIENT_ID'),
       client_secret: this.getRequiredEnv('GOOGLE_CLIENT_SECRET'),
-      redirect_uri: this.getRequiredEnv('GOOGLE_REDIRECT_URI'),
+      redirect_uri: redirectUri,
       code,
     });
 

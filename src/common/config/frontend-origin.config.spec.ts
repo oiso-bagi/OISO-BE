@@ -1,8 +1,11 @@
 /// <reference types="jest" />
 
 import {
+  isAllowedFrontendOrigin,
   LOCAL_FRONTEND_ORIGIN,
+  parseFrontendOriginRules,
   parseFrontendOrigins,
+  resolveFrontendOriginRules,
   resolveFrontendOrigins,
 } from '@/common/config/frontend-origin.config';
 
@@ -23,6 +26,20 @@ describe('frontend origin config', () => {
     });
   });
 
+  describe('parseFrontendOriginRules', () => {
+    it('separates exact origins and wildcard origin patterns', () => {
+      const rules = parseFrontendOriginRules(
+        'https://oiso-bagi.vercel.app, https://*.vercel.app',
+      );
+
+      expect(rules.exactOrigins).toEqual(['https://oiso-bagi.vercel.app']);
+      expect(
+        isAllowedFrontendOrigin('https://oiso-bagi-git-main.vercel.app', rules),
+      ).toBe(true);
+      expect(isAllowedFrontendOrigin('https://example.com', rules)).toBe(false);
+    });
+  });
+
   describe('resolveFrontendOrigins', () => {
     it('uses the local frontend origin when FRONTEND_ORIGIN is unset outside production', () => {
       expect(resolveFrontendOrigins(undefined, 'development')).toEqual([
@@ -33,6 +50,20 @@ describe('frontend origin config', () => {
     it('rejects delimiter-only FRONTEND_ORIGIN values in production', () => {
       expect(() => resolveFrontendOrigins(' , , ', 'production')).toThrow(
         'FRONTEND_ORIGIN must include at least one origin.',
+      );
+    });
+  });
+
+  describe('resolveFrontendOriginRules', () => {
+    it('allows wildcard-only origins in production', () => {
+      const rules = resolveFrontendOriginRules(
+        'https://*.vercel.app',
+        'production',
+      );
+
+      expect(rules.exactOrigins).toEqual([]);
+      expect(isAllowedFrontendOrigin('https://preview.vercel.app', rules)).toBe(
+        true,
       );
     });
   });

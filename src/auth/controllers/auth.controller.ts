@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   HttpCode,
+  InternalServerErrorException,
   Post,
   Query,
   Req,
@@ -54,10 +55,13 @@ export class AuthController {
   @ApiRedirectToKakaoDocs()
   redirectToKakao(
     @Query('returnUrl') returnUrl: unknown,
+    @Req() request: Request,
     @Res() response: Response,
   ): void {
+    const redirectUri = this.getOAuthCallbackUrl(request, 'kakao');
+
     this.redirectToProvider(response, returnUrl, (state) =>
-      this.kakaoAuthService.getAuthorizationUrl(state),
+      this.kakaoAuthService.getAuthorizationUrl(state, redirectUri),
     );
   }
 
@@ -78,7 +82,10 @@ export class AuthController {
       response,
       providerName: 'Kakao',
       getProfile: (validatedCode) =>
-        this.kakaoAuthService.getUserProfile(validatedCode),
+        this.kakaoAuthService.getUserProfile(
+          validatedCode,
+          this.getOAuthCallbackUrl(request, 'kakao'),
+        ),
       login: (profile) => this.authService.loginWithKakao(profile),
     });
   }
@@ -87,10 +94,13 @@ export class AuthController {
   @ApiRedirectToGoogleDocs()
   redirectToGoogle(
     @Query('returnUrl') returnUrl: unknown,
+    @Req() request: Request,
     @Res() response: Response,
   ): void {
+    const redirectUri = this.getOAuthCallbackUrl(request, 'google');
+
     this.redirectToProvider(response, returnUrl, (state) =>
-      this.googleAuthService.getAuthorizationUrl(state),
+      this.googleAuthService.getAuthorizationUrl(state, redirectUri),
     );
   }
 
@@ -111,7 +121,10 @@ export class AuthController {
       response,
       providerName: 'Google',
       getProfile: (validatedCode) =>
-        this.googleAuthService.getUserProfile(validatedCode),
+        this.googleAuthService.getUserProfile(
+          validatedCode,
+          this.getOAuthCallbackUrl(request, 'google'),
+        ),
       login: (profile) => this.authService.loginWithGoogle(profile),
     });
   }
@@ -183,5 +196,35 @@ export class AuthController {
       });
     }
     response.redirect(getAuthorizationUrl(state));
+  }
+
+  private getOAuthCallbackUrl(
+    request: Request,
+    provider: 'kakao' | 'google',
+  ): string {
+    const protocol = this.getForwardedHeaderValue(
+      request.headers['x-forwarded-proto'],
+    );
+    const host =
+      this.getForwardedHeaderValue(request.headers['x-forwarded-host']) ??
+      request.headers.host;
+
+    if (!host) {
+      throw new InternalServerErrorException(
+        'OAuth callback host could not be resolved.',
+      );
+    }
+
+    const origin = `${protocol ?? request.protocol}://${host}`;
+
+    return `${origin}/api/v1/auth/${provider}/callback`;
+  }
+
+  private getForwardedHeaderValue(
+    value: string | string[] | undefined,
+  ): string | undefined {
+    const header = Array.isArray(value) ? value[0] : value;
+
+    return header?.split(',')[0]?.trim();
   }
 }

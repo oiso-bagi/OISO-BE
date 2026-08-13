@@ -111,6 +111,17 @@ describe('AuthCookieService', () => {
       );
     });
 
+    it('accepts absolute returnUrl values from configured wildcard origins', () => {
+      process.env.FRONTEND_ORIGIN =
+        'https://oiso-bagi.vercel.app, https://*.vercel.app';
+
+      expect(
+        service.getSafeOAuthReturnUrl(
+          'https://oiso-bagi-git-main.vercel.app/routes/1',
+        ),
+      ).toBe('https://oiso-bagi-git-main.vercel.app/routes/1');
+    });
+
     it('rejects backslash returnUrl values parsed as external origins', () => {
       expect(
         service.getSafeOAuthReturnUrl('/\\attacker.example.com/phish'),

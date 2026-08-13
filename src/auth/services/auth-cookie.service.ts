@@ -6,7 +6,10 @@ import {
 } from '@nestjs/common';
 import { timingSafeEqual } from 'node:crypto';
 import type { CookieOptions, Request } from 'express';
-import { resolveFrontendOrigins } from '@/common/config/frontend-origin.config';
+import {
+  isAllowedFrontendOrigin,
+  resolveFrontendOriginRules,
+} from '@/common/config/frontend-origin.config';
 
 @Injectable()
 export class AuthCookieService {
@@ -123,11 +126,11 @@ export class AuthCookieService {
     }
 
     try {
-      const frontendOrigins = this.getFrontendOrigins();
-      const frontendOrigin = frontendOrigins[0];
+      const frontendOriginRules = this.getFrontendOriginRules();
+      const frontendOrigin = this.getFrontendOrigin();
       const url = new URL(returnUrl, frontendOrigin);
 
-      if (!frontendOrigins.includes(url.origin)) {
+      if (!isAllowedFrontendOrigin(url.origin, frontendOriginRules)) {
         return undefined;
       }
 
@@ -260,11 +263,14 @@ export class AuthCookieService {
   }
 
   private getFrontendOrigin(): string {
-    return this.getFrontendOrigins()[0];
+    return (
+      this.getFrontendOriginRules().exactOrigins[0] ??
+      this.getDefaultFrontendOrigin()
+    );
   }
 
-  private getFrontendOrigins(): string[] {
-    return resolveFrontendOrigins(
+  private getFrontendOriginRules() {
+    return resolveFrontendOriginRules(
       process.env.FRONTEND_ORIGIN,
       process.env.NODE_ENV,
       this.getDefaultFrontendOrigin(),
