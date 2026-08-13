@@ -7,7 +7,10 @@ import {
   ACCESS_TOKEN_COOKIE,
   REFRESH_TOKEN_COOKIE,
 } from '@/auth/auth.constants';
-import { resolveFrontendOrigins } from '@/common/config/frontend-origin.config';
+import {
+  isAllowedFrontendOrigin,
+  resolveFrontendOriginRules,
+} from '@/common/config/frontend-origin.config';
 import { applyCommonErrorResponsesToDocument } from '@/common/docs/common-error-swagger.docs';
 
 // Ensure Prisma uses the binary engine at runtime when running locally
@@ -17,12 +20,23 @@ const port = process.env.PORT || 3000;
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const frontendOriginRules = resolveFrontendOriginRules(
+    process.env.FRONTEND_ORIGIN,
+    process.env.NODE_ENV,
+  );
 
   app.enableCors({
-    origin: resolveFrontendOrigins(
-      process.env.FRONTEND_ORIGIN,
-      process.env.NODE_ENV,
-    ),
+    origin: (
+      origin: string | undefined,
+      callback: (error: Error | null, allow?: boolean) => void,
+    ) => {
+      if (!origin || isAllowedFrontendOrigin(origin, frontendOriginRules)) {
+        callback(null, true);
+        return;
+      }
+
+      callback(null, false);
+    },
     credentials: true,
   });
 
