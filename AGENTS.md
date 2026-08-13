@@ -62,10 +62,15 @@ src/
 
 ## GitHub 작업 컨벤션
 
-- 이 저장소에서 이슈, 브랜치, 커밋, PR 텍스트를 만들 때는 `.agents/skills/github-convention-master/SKILL.md`의 컨벤션을 우선합니다.
+- 이 저장소에서 이슈, 브랜치, 커밋, PR 텍스트를 만들 때는 `docs/conventions/git.md`의 컨벤션을 원천 기준으로 삼고, `.agents/skills/github-convention-master/SKILL.md`는 그 기준을 반영한 실행 지침으로 사용합니다.
+- 두 문서의 내용이 충돌하면 `docs/conventions/git.md`를 우선합니다.
 - 이슈, 커밋, PR 제목과 본문은 한국어로 작성합니다. 단, prefix, scope, 이슈 번호, 명령어, 코드 식별자는 컨벤션 형식을 그대로 유지합니다.
-- 브랜치명은 `{prefix}/{scope}/{ISSUE_NUMBER}-work-summary` 형식을 사용합니다.
+- 이슈가 있는 작업의 브랜치명은 `{prefix}/{scope}/{ISSUE_NUMBER}-work-summary` 형식을 사용합니다.
   - 예: `fix/auth/67-oauth-cors-preview`
+- 이슈 없는 변경은 브랜치, 커밋, PR에서 이슈 번호 대신 `no-issue`로 표기합니다.
+  - 예: `docs/github/no-issue-update-agent-guidelines`
+  - 예: `docs(github): no-issue 에이전트 지침 수정`
+  - 예: `docs: 에이전트 지침 수정 (no-issue)`
 - Codex 앱의 기본 브랜치 prefix인 `codex/`는 이 저장소의 브랜치 컨벤션보다 우선하지 않습니다.
 
 ## 코딩 규칙

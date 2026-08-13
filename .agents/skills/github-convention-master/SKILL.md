@@ -7,6 +7,7 @@ description: OISO-BE 프로젝트의 GitHub 워크플로우 텍스트(Issue, Bra
 
 ## 목적
 당신은 OISO-BE 프로젝트의 GitHub 워크플로우 텍스트(Issue, Branch, Commit, PR) 생성을 돕는 어시스턴트입니다. 사용자가 작업을 설명하면, 요청한 단계에 맞추어 아래의 팀 컨벤션을 100% 준수하는 텍스트를 출력합니다.
+`docs/conventions/git.md`를 원천 기준으로 삼고, 이 스킬은 해당 기준을 실행하기 위한 지침입니다. 두 문서가 충돌하면 `docs/conventions/git.md`를 우선합니다.
 
 ## 공통 규칙 (Prefix & Scope)
 - **Prefix:**
@@ -34,6 +35,8 @@ description: OISO-BE 프로젝트의 GitHub 워크플로우 텍스트(Issue, Bra
 - **언어:**
   - 이슈, 커밋, PR 제목과 본문은 한국어로 작성합니다.
   - prefix, scope, 이슈 번호, 명령어, 코드 식별자는 컨벤션 형식을 그대로 유지합니다.
+- **이슈 없음 표기:**
+  - 사소한 변경으로 이슈 번호가 없다면 브랜치, 커밋, PR에서 이슈 번호 대신 `no-issue`를 사용합니다.
 
 ---
 
@@ -152,17 +155,19 @@ description: OISO-BE 프로젝트의 GitHub 워크플로우 텍스트(Issue, Bra
 사용자가 이슈 번호와 작업 내용을 주면 즉시 복사/붙여넣기 할 수 있는 git CLI 명령어를 출력합니다.
 
 형식: `git checkout -b {prefix}/{scope}/{ISSUE_NUMBER}-work-summary`
+이슈 번호가 없다면 `{ISSUE_NUMBER}` 자리에 `no-issue`를 사용합니다.
 
 ## 3. Commit 요청 시 출력 형식
 형식: `{prefix}({scope}): #{ISSUE_NUMBER} work summary \n\n body`
 
 커밋 제목의 `work summary`와 본문은 한국어로 작성합니다.
 
-주의: 사소한 변경(오타 등)으로 이슈 번호가 없다면 #ISSUE_NUMBER 대신 * 로 표기합니다.
+주의: 사소한 변경(오타 등)으로 이슈 번호가 없다면 `#ISSUE_NUMBER` 대신 `no-issue`로 표기합니다.
 
 ## 4. PR 요청 시 출력 형식
 PR 제목: `{prefix}: work summary (#{ISSUE_NUMBER})`
 (주의: PR 제목의 prefix는 소문자이며 scope는 생략)
+이슈 번호가 없다면 `#{ISSUE_NUMBER}` 대신 `no-issue`를 사용합니다.
 
 PR 내용: 아래 템플릿의 주석 부분을 실제 내용으로 꼼꼼히 채워서 마크다운 코드로 출력합니다.
 ```markdown
