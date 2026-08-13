@@ -21,8 +21,8 @@ flowchart TD
     end
 
     subgraph Production["[Backend Production Cloud] Railway Infrastructure"]
-        RailwayServer["Railway Web Service (Node.js 24 / NestJS)<br/>Port: 3000 | Always-On 24/7<br/>Start Command: pnpm exec prisma migrate deploy && pnpm start:prod"]
-        NeonDB[("Neon Serverless PostgreSQL<br/>sslmode=require | Auto Scaling")]
+        RailwayServer["Railway Web Service (Node.js 24 / NestJS)<br/>Port: 3000 | Always-On 24/7<br/>Pre-Deploy Command: pnpm exec prisma migrate deploy<br/>Start Command: pnpm start:prod"]
+        NeonDB[("Neon Serverless PostgreSQL<br/>sslmode=require&channel_binding=require | Auto Scaling")]
     end
 
     VercelApp <-->|"REST API & Auth Cookie (CORS / FRONTEND_ORIGIN)"| RailwayServer
@@ -38,10 +38,10 @@ flowchart TD
 ### 2.1 DB 프로비저닝 사양
 - **Provider**: Neon (Serverless PostgreSQL 15+)
 - **연결 방식**: Prisma ORM 5.22+
-  - `DATABASE_URL`: Transaction Connection Pooling 주소 (pgBouncer 기반 런타임 쿼리용)
-  - `DIRECT_URL`: Direct Connection 주소 (`npx prisma migrate deploy` DDL 마이그레이션 전용)
+  - `DATABASE_URL`: Transaction Connection Pooling 주소 (`sslmode=require&channel_binding=require` 기반 pgBouncer 런타임 쿼리용)
+  - `DIRECT_URL`: Direct Connection 주소 (`sslmode=require&channel_binding=require` 기반 `npx prisma migrate deploy` DDL 마이그레이션 전용)
   - `schema.prisma` 설정: `url = env("DATABASE_URL")`, `directUrl = env("DIRECT_URL")`
-- **보안 설정**: TLS/SSL 암호화 연결 (`sslmode=require` 기반 암호화 전송 강제)
+- **보안 및 SSL 설정**: TLS/SSL 암호화 연결 (`sslmode=require&channel_binding=require` 기반 암호화 전송 강제)
 - **백업 및 복구**: Neon Point-in-time Restore (PITR) 자동 활성화
 
 ### 2.2 Prisma Schema & Migration 관리
@@ -62,7 +62,9 @@ flowchart TD
 ### 3.2 빌드 및 실행 명령어
 
 - **Build Command**: `pnpm install --frozen-lockfile && pnpm run build` *(단독 실행 시 package.json의 `pnpm run build`가 `prisma:generate` 후 `build:raw`를 수행하며, CI 파이프라인에서는 `prisma:generate` 독립 스텝 후 `build:raw`를 실행하여 중복 생성을 회피)*
-- **Start Command**: `pnpm exec prisma migrate deploy && pnpm start:prod` *(Railway 대시보드 UI의 Custom Start Command에 통합 지정하여, 백엔드 구동 전 DB 마이그레이션을 선행 완료 후 런타임 론칭)*
+- **Pre-Deploy Command (Release Command)**: `pnpm exec prisma migrate deploy` *(Railway Pre-Deploy 설정에 지정하여 컨테이너 구동 전 DB 마이그레이션을 선행 실행)*
+- **Start Command**: `pnpm start:prod` *(순수 NestJS 프로덕션 런타임 시작 명령어)*
+
 
 ---
 
@@ -115,8 +117,8 @@ flowchart TD
 |---|---|---|
 | `NODE_ENV` | 실행 환경 (`production` / `development`) | 배포 시 `production` 고정 |
 | `PORT` | NestJS 서버 웹 포트 | 기본값 `3000` (Railway 주입) |
-| `DATABASE_URL` | Neon Postgres Pooled DB 연결 문자열 | `postgresql://...sslmode=require` (pgBouncer 쿼리용) |
-| `DIRECT_URL` | Neon Postgres Direct DB 연결 문자열 | `postgresql://...sslmode=require` (DDL 마이그레이션 전용) |
+| `DATABASE_URL` | Neon Postgres Pooled DB 연결 문자열 | `postgresql://...sslmode=require&channel_binding=require` (pgBouncer 쿼리용) |
+| `DIRECT_URL` | Neon Postgres Direct DB 연결 문자열 | `postgresql://...sslmode=require&channel_binding=require` (DDL 마이그레이션 전용) |
 | `FRONTEND_ORIGIN` | 프론트엔드 배포 및 개발 허용 오리진 | `https://oiso-fe.vercel.app` (CORS 및 쿠키 검증용, 쉼표 구분 가능) |
 | `FRONTEND_AUTH_SUCCESS_REDIRECT` | 로그인 성공 후 이동할 프론트엔드 URL | 다중 오리진 설정 시 필수 (미지정 시 `FRONTEND_ORIGIN` 첫 번째 오리진 사용) |
 | `FRONTEND_AUTH_CONSENT_REDIRECT` | 약관 동의 필요 시 이동할 프론트엔드 URL | 예: `https://oiso-fe.vercel.app/signup/terms` |
@@ -126,9 +128,9 @@ flowchart TD
 | `JWT_ACCESS_EXPIRES_IN` | AccessToken 유효 기간 | 기본값 `15m` |
 | `JWT_REFRESH_EXPIRES_IN` | RefreshToken 유효 기간 | 기본값 `14d` |
 | `COOKIE_SECURE` | 쿠키 Secure 옵션 명시 설정 | 운영 시 `true` 고정 (`false`는 로컬 HTTP 전용) |
-| `COOKIE_DOMAIN` | 쿠키 공유 도메인 설정 | 동일 부모 도메인 공유 시만 사용 (Vercel↔Railway 연동 시 생략하여 host-only 쿠키 사용) |
+| `COOKIE_DOMAIN` | 쿠키 공유 도메인 설정 | 동일 부모 도메인 공유 시만 사용 (Vercel↔Railway 연동 시 생략하여 host-only 사용) |
 | `KAKAO_CLIENT_ID` | 카카오 소셜 로그인 REST API 키 | Kakao Developers |
-| `KAKAO_CLIENT_SECRET` | 카카오 Client Secret | Kakao Developers |
+| `KAKAO_CLIENT_SECRET` | 카카오 Client Secret | Kakao Developers (설정에 따라 선택 사용) |
 | `KAKAO_REDIRECT_URI` | 카카오 OAuth 리다이렉트 URL | Railway 배포 도메인 + `/api/v1/auth/kakao/callback` |
 | `KAKAO_AUTH_SCOPES` | 카카오 동의 항목 스코프 | 기본값 `account_email,profile_nickname` |
 | `GOOGLE_CLIENT_ID` | 구글 OAuth Client ID | Google Cloud Console |
