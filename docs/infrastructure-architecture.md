@@ -21,8 +21,8 @@ flowchart TD
     end
 
     subgraph Production["[Backend Production Cloud] Railway Infrastructure"]
-        RailwayServer["Railway Web Service (Node.js 24 / NestJS)<br/>Port: 3000 | Always-On 24/7<br/>Release Step: pnpm exec prisma migrate deploy (prisma@5.22.0)<br/>Start: pnpm start:prod"]
-        NeonDB[("Neon Serverless PostgreSQL<br/>sslmode=verify-full | Auto Scaling")]
+        RailwayServer["Railway Web Service (Node.js 24 / NestJS)<br/>Port: Railway PORT (기본값: 3000) | Always-On 24/7<br/>Pre-Deploy Command: pnpm exec prisma migrate deploy<br/>Start Command: pnpm start:prod"]
+        NeonDB[("Neon Serverless PostgreSQL<br/>sslmode=require&channel_binding=require | Auto Scaling")]
     end
 
     VercelApp <-->|"REST API & Auth Cookie (CORS / FRONTEND_ORIGIN)"| RailwayServer
@@ -38,16 +38,16 @@ flowchart TD
 ### 2.1 DB 프로비저닝 사양
 - **Provider**: Neon (Serverless PostgreSQL 15+)
 - **연결 방식**: Prisma ORM 5.22+
-  - `DATABASE_URL`: Transaction Connection Pooling 주소 (pgBouncer 기반 런타임 쿼리용)
-  - `DIRECT_URL`: Direct Connection 주소 (`npx prisma migrate deploy` DDL 마이그레이션 전용)
+  - `DATABASE_URL`: Transaction Connection Pooling 주소 (`sslmode=require&channel_binding=require` 기반 pgBouncer 런타임 쿼리용)
+  - `DIRECT_URL`: Direct Connection 주소 (`sslmode=require&channel_binding=require` 기반 `pnpm exec prisma migrate deploy` DDL 마이그레이션 전용)
   - `schema.prisma` 설정: `url = env("DATABASE_URL")`, `directUrl = env("DIRECT_URL")`
-- **보안 설정**: TLS/SSL 필수 검증 연결 (`sslmode=verify-full`, 신뢰할 수 있는 CA 인증서 및 호스트네임 검증 설정)
+- **보안 및 SSL 설정**: TLS/SSL 암호화 연결 (`sslmode=require&channel_binding=require` 기반 암호화 전송 강제)
 - **백업 및 복구**: Neon Point-in-time Restore (PITR) 자동 활성화
 
 ### 2.2 Prisma Schema & Migration 관리
 
-- 개발 환경 스키마 변경 시 `npx prisma migrate dev`로 마이그레이션 SQL 파일 생성
-- CI/CD 배포 파이프라인에서 사전 마이그레이션 SQL 리뷰, 스테이징 검증, PITR 복구 대책, Expand-Contract 모델 호환성 조건이 충족되었을 때 `npx prisma migrate deploy`를 통해 데이터 손실 없는 마이그레이션을 안전하게 전개 (`DIRECT_URL` 경유)
+- 개발 환경 스키마 변경 시 `pnpm exec prisma migrate dev`로 마이그레이션 SQL 파일 생성
+- CI/CD 배포 파이프라인에서 사전 마이그레이션 SQL 리뷰, 스테이징 검증, PITR 복구 대책, Expand-Contract 모델 호환성 조건이 충족되었을 때 `pnpm exec prisma migrate deploy`를 통해 데이터 손실 없는 마이그레이션을 안전하게 전개 (`DIRECT_URL` 경유)
 
 ---
 
@@ -62,8 +62,9 @@ flowchart TD
 ### 3.2 빌드 및 실행 명령어
 
 - **Build Command**: `pnpm install --frozen-lockfile && pnpm run build` *(단독 실행 시 package.json의 `pnpm run build`가 `prisma:generate` 후 `build:raw`를 수행하며, CI 파이프라인에서는 `prisma:generate` 독립 스텝 후 `build:raw`를 실행하여 중복 생성을 회피)*
-- **Release / Pre-deploy Command**: `pnpm exec prisma migrate deploy` *(lockfile에 고정된 `prisma@5.22.0` 버전으로 독립 마이그레이션 잡 또는 Release 스텝에서 선행 완료)*
-- **Start Command**: `pnpm start:prod` (마이그레이션 정상 통과 후 백엔드 런타임 독립 론칭)
+- **Pre-Deploy Command (Release Command)**: `pnpm exec prisma migrate deploy` *(Railway Pre-Deploy 설정에 지정하여 컨테이너 구동 전 DB 마이그레이션을 선행 실행)*
+- **Start Command**: `pnpm start:prod` *(순수 NestJS 프로덕션 런타임 시작 명령어)*
+
 
 ---
 
@@ -103,8 +104,8 @@ flowchart TD
 ### 5.2 Cross-Site Auth Cookie 정책
 
 - `AuthCookieService`를 통해 AccessToken / RefreshToken 쿠키 발급 시 운영(`production`) 배포 환경에서는 **`COOKIE_SECURE=true`** (또는 `NODE_ENV=production` 시 기본 `true`)가 필수이며, `COOKIE_SECURE=false`는 로컬 HTTP 개발 환경에서만 허용됩니다.
-- 서로 다른 클라우드 도메인(`vercel.app` ↔ `railway.app`) 간 크로스 도메인 인증 쿠키 전송 시 **`SameSite=None`**, **`Secure=true` (HTTPS 필수)** 옵션으로 작동해야 합니다.
-- **`COOKIE_DOMAIN` 주의사항**: Vercel과 Railway는 공유 부모 도메인이 없으므로 `COOKIE_DOMAIN`을 설정하면 쿠키 전송이 거부됩니다. 따라서 Vercel ↔ Railway 간 연동 시에는 `COOKIE_DOMAIN`을 반드시 생략하여 **host-only 쿠키**로 동작시켜야 하며, `COOKIE_DOMAIN` 설정은 두 호스트가 동일한 서브도메인을 공유할 때만 유효합니다.
+- 서로 다른 클라우드 도메인(`vercel.app` ↔ `railway.app`) 간 크로스 도메인 인증 쿠키 전송을 위해 **운영(`production`) 환경에서는 `SameSite=None`, `Secure=true` (HTTPS 필수)** 옵션으로 자동 전환되어 작동하며, **로컬 HTTP 개발 환경에서는 `SameSite=Lax`**로 안전하게 동작합니다.
+- **`COOKIE_DOMAIN` 주의사항**: `vercel.app`과 `railway.app`처럼 관련 없는 서로 다른 도메인 간에는 `COOKIE_DOMAIN`을 반드시 생략하여 **host-only 쿠키**로 동작시켜야 하며, 관리되는 공유 부모 도메인이 구성되어 있을 때만 `COOKIE_DOMAIN`을 지정합니다.
 
 ---
 
@@ -116,8 +117,8 @@ flowchart TD
 |---|---|---|
 | `NODE_ENV` | 실행 환경 (`production` / `development`) | 배포 시 `production` 고정 |
 | `PORT` | NestJS 서버 웹 포트 | 기본값 `3000` (Railway 주입) |
-| `DATABASE_URL` | Neon Postgres Pooled DB 연결 문자열 | `postgresql://...sslmode=verify-full` (pgBouncer 쿼리용) |
-| `DIRECT_URL` | Neon Postgres Direct DB 연결 문자열 | `postgresql://...sslmode=verify-full` (DDL 마이그레이션 전용) |
+| `DATABASE_URL` | Neon Postgres Pooled DB 연결 문자열 | `postgresql://...sslmode=require&channel_binding=require` (pgBouncer 쿼리용) |
+| `DIRECT_URL` | Neon Postgres Direct DB 연결 문자열 | `postgresql://...sslmode=require&channel_binding=require` (DDL 마이그레이션 전용) |
 | `FRONTEND_ORIGIN` | 프론트엔드 배포 및 개발 허용 오리진 | `https://oiso-fe.vercel.app` (CORS 및 쿠키 검증용, 쉼표 구분 가능) |
 | `FRONTEND_AUTH_SUCCESS_REDIRECT` | 로그인 성공 후 이동할 프론트엔드 URL | 다중 오리진 설정 시 필수 (미지정 시 `FRONTEND_ORIGIN` 첫 번째 오리진 사용) |
 | `FRONTEND_AUTH_CONSENT_REDIRECT` | 약관 동의 필요 시 이동할 프론트엔드 URL | 예: `https://oiso-fe.vercel.app/signup/terms` |
@@ -127,9 +128,9 @@ flowchart TD
 | `JWT_ACCESS_EXPIRES_IN` | AccessToken 유효 기간 | 기본값 `15m` |
 | `JWT_REFRESH_EXPIRES_IN` | RefreshToken 유효 기간 | 기본값 `14d` |
 | `COOKIE_SECURE` | 쿠키 Secure 옵션 명시 설정 | 운영 시 `true` 고정 (`false`는 로컬 HTTP 전용) |
-| `COOKIE_DOMAIN` | 쿠키 공유 도메인 설정 | 동일 부모 도메인 공유 시만 사용 (Vercel↔Railway 연동 시 생략하여 host-only 쿠키 사용) |
+| `COOKIE_DOMAIN` | 쿠키 공유 도메인 설정 | 무관한 도메인(vercel.app ↔ railway.app) 간 생략하여 host-only 사용 |
 | `KAKAO_CLIENT_ID` | 카카오 소셜 로그인 REST API 키 | Kakao Developers |
-| `KAKAO_CLIENT_SECRET` | 카카오 Client Secret | Kakao Developers |
+| `KAKAO_CLIENT_SECRET` | 카카오 Client Secret | Kakao Developers (설정에 따라 선택 사용) |
 | `KAKAO_REDIRECT_URI` | 카카오 OAuth 리다이렉트 URL | Railway 배포 도메인 + `/api/v1/auth/kakao/callback` |
 | `KAKAO_AUTH_SCOPES` | 카카오 동의 항목 스코프 | 기본값 `account_email,profile_nickname` |
 | `GOOGLE_CLIENT_ID` | 구글 OAuth Client ID | Google Cloud Console |
@@ -137,6 +138,8 @@ flowchart TD
 | `GOOGLE_REDIRECT_URI` | 구글 OAuth 리다이렉트 URL | Railway 배포 도메인 + `/api/v1/auth/google/callback` |
 | `GOOGLE_AUTH_SCOPES` | 구글 동의 항목 스코프 | 기본값 `openid email profile` |
 | `VK_KORSERVICE2_API_KEY` | 한국관광공사 TourAPI 4.0 인코딩 키 | 공공데이터포털 (04:00 Cron 갱신용) |
+
+> **Note (환경변수 검증 정책)**: 현행 백엔드 구현은 `process.env` 직접 참조 방식을 적용 중이며, 서비스 기동 시점 스키마 유효성 검증(NestJS `ConfigModule` + `class-validator` 기반 `env.validation.ts`)은 안정성을 유지하기 위해 향후 고도화 과제로 추진합니다.
 
 ---
 

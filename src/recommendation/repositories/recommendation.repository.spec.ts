@@ -36,10 +36,10 @@ describe('RecommendationRepository', () => {
           routeType: 'RECOMMENDED',
           isPublished: true,
           estimatedCostWon: {
-            lte: 120000,
+            lte: 60000,
           },
           estimatedDurationMin: {
-            lte: 2880,
+            lte: 480,
           },
           stops: {
             some: {

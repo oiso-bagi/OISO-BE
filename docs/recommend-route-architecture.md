@@ -147,7 +147,7 @@ sequenceDiagram
     Ctrl->>Svc: recommendRoutes(dto)
     
     Note over Svc,DB: [Step 1: Hard Filter] Composite Index Scan + PlaceCategory Filter
-    Svc->>DB: findMany({ where: { estimatedCostWon <= totalBudgetWon, estimatedDurationMin <= durationDays×1440, stops.some.place.category.in(preferredCategories) } })
+    Svc->>DB: findMany({ where: { estimatedCostWon <= dailyBudgetWon, estimatedDurationMin <= 480, stops.some.place.category.in(preferredCategories) } })
     DB-->>Svc: 후보군 루트 데이터 전달 (Take 50)
 
     Note over Svc: [Step 2: Soft Filter & 추천도 점수 연산] 메모리 레벨 연산 (1~2ms)
@@ -171,9 +171,9 @@ sequenceDiagram
 
 ### 4.1 Step 1: Hard Filter (Prisma 복합 인덱스 & PlaceCategory 필터)
 
-- **조건**: `WHERE routeType = 'RECOMMENDED' AND isPublished = true AND estimatedCostWon <= totalBudgetWon AND estimatedDurationMin <= durationDays × 1440`
+- **조건**: `WHERE routeType = 'RECOMMENDED' AND isPublished = true AND estimatedCostWon <= dailyBudgetWon AND estimatedDurationMin <= 480`
   - `travelStyleSlugs`는 내부적으로 `TRAVEL_STYLE_CATEGORY_MAP`을 통해 `PlaceCategory[]`로 변환되며, 변환된 카테고리가 1개 이상인 경우 `stops.some.place.category IN (preferredCategories)` 조건이 추가 적용됩니다.
-  - ※ 1일차 모듈 및 N일 결합 패키지의 총 비용은 `totalBudgetWon` (일정 전체 총예산, 상한선 500,000원) 이하임을 안전하게 보장합니다.
+  - ※ 1일 마스터 모듈 조회의 비용 기준은 `dailyBudgetWon`이며, 소요시간 기준은 1일 최대 권장 활동시간 `480분 (8시간)` 이하로 조회를 수행합니다. N일 결합 후 패키지 총 비용 역시 `totalBudgetWon` 이하임을 안전하게 보장합니다.
   - ※ `RouteTheme` N:M 조인이 아닌 경유지 장소의 PlaceCategory 직접 필터 방식을 사용합니다.
 - **복합 인덱스**: `Route` 모델의 `@@index([routeType, estimatedCostWon])` 복합 B-Tree Index Scan 수행
 
@@ -280,7 +280,7 @@ sequenceDiagram
 | 최종 추천도 4단계 수식 | **PASS** | BaseScore, VariancePenalty, CongestionAdj 4단계 수식 명시 |
 | Exponential Backoff Retry | **PASS** | SEED 스크립트 외부 API 503/429 장애 시 3회 자동 재시도 적용 |
 | DTO 부동소수점 오차 방어 | **PASS** | `Math.abs(sum - 1.0) >= 0.001` 이면 예외 발생 (0.001 미만 오차 허용) |
-| Base Score 난이도 연동 | **PASS** | $\text{Base Score} = \text{Initial Rating} - (0.05 \times D)$ 수식 명시 |
+| Base Score 난이도 연동 | **PASS** | $\text{Base Score} = \max\left(50.0, 95.0 - (0.05 \times D)\right)$ 수식 명시 |
 | Google Elevation 파이프 일괄 수집 | **PASS** | `Place.elevationMeters` 1회성 일괄 수집 완료 |
 | 역정규화 고도 연산 | **PASS** | `RouteStop.elevationGainMeters` 이동 순서 상대값 0-Call 저장 |
 | UI 6대 테마 SEED | **PASS** | `local-food`, `beach-tour` 등 6종 테마 PlaceCategory 직접 필터 매핑 완료 |
@@ -329,7 +329,7 @@ sequenceDiagram
 
 ### 9.2 아키텍처 및 알고리즘 참고자료 (Technical References)
 - **OISO 추천 서비스 비즈니스 수치 정책 문서**: [recommend-route-policy.md](./recommend-route-policy.md)
-- **PostgreSQL B-Tree & GIN Index Optimization**: PostgreSQL 15 Official Documentation - *Indexing Strategies for Array Containment (`text[]` GIN Index)*
+- **PostgreSQL B-Tree Index & Category Filtering**: PostgreSQL 15 Official Documentation - *Composite B-Tree Index & Relational Category Join Filtering Strategies (`stops.some.place.category` Join)*
 - **Denormalization for Low Latency Systems**: Martin Fowler - *Enterprise Application Architecture Patterns (Pre-computation & Denormalization)*
 - **Distance & Difficulty Function**: Haversine Formula & Topographic Walking Fatigue Index - *Journal of Transport Geography (Pedestrian Gradient Slope Multipliers)*
 - **NestJS Task Scheduling & Rate Limiting**: NestJS Documentation - *Crons, Throttling, and Class Validator Custom Decorators*
