@@ -21,7 +21,7 @@ flowchart TD
     end
 
     subgraph Production["[Backend Production Cloud] Railway Infrastructure"]
-        RailwayServer["Railway Web Service (Node.js 24 / NestJS)<br/>Port: 3000 | Always-On 24/7<br/>Pre-Deploy Command: pnpm exec prisma migrate deploy<br/>Start Command: pnpm start:prod"]
+        RailwayServer["Railway Web Service (Node.js 24 / NestJS)<br/>Port: Railway PORT (기본값: 3000) | Always-On 24/7<br/>Pre-Deploy Command: pnpm exec prisma migrate deploy<br/>Start Command: pnpm start:prod"]
         NeonDB[("Neon Serverless PostgreSQL<br/>sslmode=require&channel_binding=require | Auto Scaling")]
     end
 
@@ -39,15 +39,15 @@ flowchart TD
 - **Provider**: Neon (Serverless PostgreSQL 15+)
 - **연결 방식**: Prisma ORM 5.22+
   - `DATABASE_URL`: Transaction Connection Pooling 주소 (`sslmode=require&channel_binding=require` 기반 pgBouncer 런타임 쿼리용)
-  - `DIRECT_URL`: Direct Connection 주소 (`sslmode=require&channel_binding=require` 기반 `npx prisma migrate deploy` DDL 마이그레이션 전용)
+  - `DIRECT_URL`: Direct Connection 주소 (`sslmode=require&channel_binding=require` 기반 `pnpm exec prisma migrate deploy` DDL 마이그레이션 전용)
   - `schema.prisma` 설정: `url = env("DATABASE_URL")`, `directUrl = env("DIRECT_URL")`
 - **보안 및 SSL 설정**: TLS/SSL 암호화 연결 (`sslmode=require&channel_binding=require` 기반 암호화 전송 강제)
 - **백업 및 복구**: Neon Point-in-time Restore (PITR) 자동 활성화
 
 ### 2.2 Prisma Schema & Migration 관리
 
-- 개발 환경 스키마 변경 시 `npx prisma migrate dev`로 마이그레이션 SQL 파일 생성
-- CI/CD 배포 파이프라인에서 사전 마이그레이션 SQL 리뷰, 스테이징 검증, PITR 복구 대책, Expand-Contract 모델 호환성 조건이 충족되었을 때 `npx prisma migrate deploy`를 통해 데이터 손실 없는 마이그레이션을 안전하게 전개 (`DIRECT_URL` 경유)
+- 개발 환경 스키마 변경 시 `pnpm exec prisma migrate dev`로 마이그레이션 SQL 파일 생성
+- CI/CD 배포 파이프라인에서 사전 마이그레이션 SQL 리뷰, 스테이징 검증, PITR 복구 대책, Expand-Contract 모델 호환성 조건이 충족되었을 때 `pnpm exec prisma migrate deploy`를 통해 데이터 손실 없는 마이그레이션을 안전하게 전개 (`DIRECT_URL` 경유)
 
 ---
 
@@ -105,7 +105,7 @@ flowchart TD
 
 - `AuthCookieService`를 통해 AccessToken / RefreshToken 쿠키 발급 시 운영(`production`) 배포 환경에서는 **`COOKIE_SECURE=true`** (또는 `NODE_ENV=production` 시 기본 `true`)가 필수이며, `COOKIE_SECURE=false`는 로컬 HTTP 개발 환경에서만 허용됩니다.
 - 서로 다른 클라우드 도메인(`vercel.app` ↔ `railway.app`) 간 크로스 도메인 인증 쿠키 전송을 위해 **운영(`production`) 환경에서는 `SameSite=None`, `Secure=true` (HTTPS 필수)** 옵션으로 자동 전환되어 작동하며, **로컬 HTTP 개발 환경에서는 `SameSite=Lax`**로 안전하게 동작합니다.
-- **`COOKIE_DOMAIN` 주의사항**: Vercel과 Railway는 공유 부모 도메인이 없으므로 `COOKIE_DOMAIN`을 설정하면 쿠키 전송이 거부됩니다. 따라서 Vercel ↔ Railway 간 연동 시에는 `COOKIE_DOMAIN`을 반드시 생략하여 **host-only 쿠키**로 동작시켜야 하며, `COOKIE_DOMAIN` 설정은 두 호스트가 동일한 서브도메인을 공유할 때만 유효합니다.
+- **`COOKIE_DOMAIN` 주의사항**: `vercel.app`과 `railway.app`처럼 관련 없는 서로 다른 도메인 간에는 `COOKIE_DOMAIN`을 반드시 생략하여 **host-only 쿠키**로 동작시켜야 하며, 관리되는 공유 부모 도메인이 구성되어 있을 때만 `COOKIE_DOMAIN`을 지정합니다.
 
 ---
 
@@ -128,7 +128,7 @@ flowchart TD
 | `JWT_ACCESS_EXPIRES_IN` | AccessToken 유효 기간 | 기본값 `15m` |
 | `JWT_REFRESH_EXPIRES_IN` | RefreshToken 유효 기간 | 기본값 `14d` |
 | `COOKIE_SECURE` | 쿠키 Secure 옵션 명시 설정 | 운영 시 `true` 고정 (`false`는 로컬 HTTP 전용) |
-| `COOKIE_DOMAIN` | 쿠키 공유 도메인 설정 | 동일 부모 도메인 공유 시만 사용 (Vercel↔Railway 연동 시 생략하여 host-only 사용) |
+| `COOKIE_DOMAIN` | 쿠키 공유 도메인 설정 | 무관한 도메인(vercel.app ↔ railway.app) 간 생략하여 host-only 사용 |
 | `KAKAO_CLIENT_ID` | 카카오 소셜 로그인 REST API 키 | Kakao Developers |
 | `KAKAO_CLIENT_SECRET` | 카카오 Client Secret | Kakao Developers (설정에 따라 선택 사용) |
 | `KAKAO_REDIRECT_URI` | 카카오 OAuth 리다이렉트 URL | Railway 배포 도메인 + `/api/v1/auth/kakao/callback` |
