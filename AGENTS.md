@@ -60,6 +60,13 @@ src/
 - 기존 사용자의 변경을 되돌리지 않습니다.
 - `.env` 값과 로컬 DB 비밀값을 읽거나 출력하지 않습니다.
 
+## GitHub 작업 컨벤션
+
+- 이 저장소에서 이슈, 브랜치, 커밋, PR 텍스트를 만들 때는 `.agents/skills/github-convention-master/SKILL.md`의 컨벤션을 우선합니다.
+- 브랜치명은 `{prefix}/{scope}/{ISSUE_NUMBER}-work-summary` 형식을 사용합니다.
+  - 예: `fix/auth/67-oauth-cors-preview`
+- Codex 앱의 기본 브랜치 prefix인 `codex/`는 이 저장소의 브랜치 컨벤션보다 우선하지 않습니다.
+
 ## 코딩 규칙
 
 - 파일명은 NestJS 관례와 현재 저장소 패턴을 따릅니다.
