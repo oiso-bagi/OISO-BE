@@ -29,13 +29,16 @@ describe('frontend origin config', () => {
   describe('parseFrontendOriginRules', () => {
     it('separates exact origins and wildcard origin patterns', () => {
       const rules = parseFrontendOriginRules(
-        'https://oiso-bagi.vercel.app, https://*.vercel.app',
+        'https://oiso-bagi.vercel.app, https://oiso-bagi-*.vercel.app',
       );
 
       expect(rules.exactOrigins).toEqual(['https://oiso-bagi.vercel.app']);
       expect(
         isAllowedFrontendOrigin('https://oiso-bagi-git-main.vercel.app', rules),
       ).toBe(true);
+      expect(isAllowedFrontendOrigin('https://preview.vercel.app', rules)).toBe(
+        false,
+      );
       expect(isAllowedFrontendOrigin('https://example.com', rules)).toBe(false);
     });
   });
@@ -57,13 +60,16 @@ describe('frontend origin config', () => {
   describe('resolveFrontendOriginRules', () => {
     it('allows wildcard-only origins in production', () => {
       const rules = resolveFrontendOriginRules(
-        'https://*.vercel.app',
+        'https://oiso-bagi-*.vercel.app',
         'production',
       );
 
       expect(rules.exactOrigins).toEqual([]);
+      expect(
+        isAllowedFrontendOrigin('https://oiso-bagi-preview.vercel.app', rules),
+      ).toBe(true);
       expect(isAllowedFrontendOrigin('https://preview.vercel.app', rules)).toBe(
-        true,
+        false,
       );
     });
   });

@@ -113,13 +113,36 @@ describe('AuthCookieService', () => {
 
     it('accepts absolute returnUrl values from configured wildcard origins', () => {
       process.env.FRONTEND_ORIGIN =
-        'https://oiso-bagi.vercel.app, https://*.vercel.app';
+        'https://oiso-bagi.vercel.app, https://oiso-bagi-*.vercel.app';
 
       expect(
         service.getSafeOAuthReturnUrl(
           'https://oiso-bagi-git-main.vercel.app/routes/1',
         ),
       ).toBe('https://oiso-bagi-git-main.vercel.app/routes/1');
+      expect(
+        service.getSafeOAuthReturnUrl('https://preview.vercel.app/routes/1'),
+      ).toBeUndefined();
+    });
+
+    it('uses a configured success redirect origin for relative redirects with wildcard-only origins', () => {
+      process.env.FRONTEND_ORIGIN = 'https://oiso-bagi-*.vercel.app';
+      process.env.FRONTEND_AUTH_SUCCESS_REDIRECT =
+        'https://oiso-bagi-preview.vercel.app/auth/success';
+
+      expect(service.getSuccessRedirectUrl('/routes/1')).toBe(
+        'https://oiso-bagi-preview.vercel.app/routes/1?login=success',
+      );
+    });
+
+    it('rejects relative redirects when wildcard-only origins have no concrete redirect base', () => {
+      process.env.NODE_ENV = 'production';
+      process.env.FRONTEND_ORIGIN = 'https://oiso-bagi-*.vercel.app';
+      delete process.env.FRONTEND_AUTH_SUCCESS_REDIRECT;
+
+      expect(() => service.getSuccessRedirectUrl('/routes/1')).toThrow(
+        InternalServerErrorException,
+      );
     });
 
     it('rejects backslash returnUrl values parsed as external origins', () => {

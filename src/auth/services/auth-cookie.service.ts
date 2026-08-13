@@ -263,9 +263,21 @@ export class AuthCookieService {
   }
 
   private getFrontendOrigin(): string {
-    return (
-      this.getFrontendOriginRules().exactOrigins[0] ??
-      this.getDefaultFrontendOrigin()
+    const frontendOriginRules = this.getFrontendOriginRules();
+    const exactOrigin = frontendOriginRules.exactOrigins[0];
+
+    if (exactOrigin) {
+      return exactOrigin;
+    }
+
+    const defaultFrontendOrigin = this.getDefaultFrontendOrigin();
+
+    if (isAllowedFrontendOrigin(defaultFrontendOrigin, frontendOriginRules)) {
+      return defaultFrontendOrigin;
+    }
+
+    throw new InternalServerErrorException(
+      'FRONTEND_AUTH_SUCCESS_REDIRECT must be configured when FRONTEND_ORIGIN only contains wildcard origins.',
     );
   }
 
