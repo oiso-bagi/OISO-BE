@@ -28,8 +28,10 @@ export class BudgetRatiosDto {
 
 export class RecommendRouteRequestDto {
   @ApiProperty({
-    description: '추천에 사용할 여행 스타일 slug 목록',
+    description:
+      '추천에 사용할 여행 스타일 slug 목록 (1개 이상 선택 가능: local-food: 부산 로컬 맛집 | emotion-cafe: 감성 카페 | beach-tour: 바다 관광 | photo-spot: 포토 스팟 | traditional-market: 전통시장 | nature-walk: 자연 / 산책)',
     example: ['local-food', 'emotion-cafe'],
+    isArray: true,
     type: [String],
     required: true,
   })

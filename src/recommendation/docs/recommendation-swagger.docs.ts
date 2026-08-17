@@ -145,7 +145,7 @@ export const ApiRecommendRoutesDocs = () =>
         '',
         '요청 파라미터: 없음',
         '요청 바디: 필요',
-        '- travelStyleSlugs: string[] 필수, 지원하는 여행 스타일 slug 목록',
+        '- travelStyleSlugs: string[] 필수, 여행 스타일 slug (local-food: 부산 로컬 맛집, emotion-cafe: 감성 카페, beach-tour: 바다 관광, photo-spot: 포토 스팟, traditional-market: 전통시장, nature-walk: 자연 / 산책) 목록',
         '- durationDays: number 필수, 1~5 사이의 여행 기간',
         '- dailyBudgetWon: number 필수, 안전한 양의 정수인 1일 예산(원)',
         '- ratios: object 선택, { foodRatio, experienceRatio, transportRatio } 합계 1.0 (미입력 시 기본 0.35/0.25/0.40 적용)',
