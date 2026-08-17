@@ -12,6 +12,8 @@ import { PrismaModule } from '@/prisma/prisma.module';
 import { RecommendationModule } from '@/recommendation/recommendation.module';
 import { RouteModule } from '@/route/route.module';
 
+import { AdminModule } from '@/admin/admin.module';
+
 @Module({
   imports: [
     ScheduleModule.forRoot(),
@@ -22,6 +24,7 @@ import { RouteModule } from '@/route/route.module';
     RecommendationModule,
     DashboardModule,
     HomeModule,
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [
