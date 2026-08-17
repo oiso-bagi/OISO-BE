@@ -35,14 +35,7 @@ export class AdminRouteListQueryDto extends AdminPageQueryDto {
   @ApiPropertyOptional({
     description:
       '테마 슬러그 (local-food: 부산 로컬 맛집 | emotion-cafe: 감성 카페 | beach-tour: 바다 관광 | photo-spot: 포토 스팟 | traditional-market: 전통시장 | nature-walk: 자연 / 산책)',
-    enum: [
-      'local-food',
-      'emotion-cafe',
-      'beach-tour',
-      'photo-spot',
-      'traditional-market',
-      'nature-walk',
-    ],
+    example: 'local-food',
   })
   @IsOptional()
   @IsString()
@@ -59,16 +52,7 @@ export class AdminPlaceListQueryDto extends AdminPageQueryDto {
   @ApiPropertyOptional({
     description:
       '장소 카테고리 (FOOD: 식당 | CAFE: 카페 | MARKET: 전통시장 | CULTURE: 문화 | NATURE: 자연 | EXPERIENCE: 체험 | VIEWPOINT: 전망대 | ETC: 기타)',
-    enum: [
-      'FOOD',
-      'CAFE',
-      'MARKET',
-      'CULTURE',
-      'NATURE',
-      'EXPERIENCE',
-      'VIEWPOINT',
-      'ETC',
-    ],
+    example: 'FOOD',
   })
   @IsOptional()
   @IsString()
