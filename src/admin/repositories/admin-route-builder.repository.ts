@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PlaceCategory, Prisma, TransitType } from '@prisma/client';
+import { THEME_LABEL_MAP } from '@/admin/constants/admin-theme.constant';
 import { PrismaService } from '@/prisma/prisma.service';
 import {
   AdminRouteDetailResponseDto,
@@ -7,15 +8,6 @@ import {
   CreateAdminRouteDto,
   UpdateAdminRouteDto,
 } from '@/admin/dto/admin-route-builder.dto';
-
-const THEME_LABEL_MAP: Record<string, string> = {
-  'local-food': '부산 로컬 맛집',
-  'emotion-cafe': '감성 카페',
-  'beach-tour': '바다 관광',
-  'photo-spot': '포토 스팟',
-  'traditional-market': '전통시장',
-  'nature-walk': '자연 / 산책',
-};
 
 type RouteDetailSelectResult = {
   id: string;
@@ -194,19 +186,27 @@ export class AdminRouteBuilderRepository {
     const themeLabel =
       THEME_LABEL_MAP[themeSlug] ?? firstTheme?.name ?? '추천 테마';
 
-    const stops: AdminRouteDetailStopDto[] = route.stops.map((stop) => ({
-      sequence: stop.orderIndex,
-      dayNumber: 1,
-      placeId: stop.place?.id ?? '',
-      placeName: stop.place?.name ?? '',
-      address: stop.place?.address ?? '',
-      category: stop.place?.category ?? null,
-      stayTimeMinutes: stop.stayMinutes ?? 60,
-      nextTravelTimeMinutes: stop.travelMinutesFromPrev ?? null,
-      nextTransportType: stop.transitType ?? null,
-      latitude: stop.place?.latitude ? Number(stop.place.latitude) : 0,
-      longitude: stop.place?.longitude ? Number(stop.place.longitude) : 0,
-    }));
+    const stops: AdminRouteDetailStopDto[] = route.stops.map((stop) => {
+      // orderIndex(1부터 시작하는 순서) 기반 dayNumber 계산 (하루 평균 3~4개 스팟 기준)
+      const estimatedDayNumber = Math.max(1, Math.ceil(stop.orderIndex / 3));
+
+      return {
+        sequence: stop.orderIndex,
+        dayNumber: estimatedDayNumber,
+        placeId: stop.place?.id ?? '',
+        placeName: stop.place?.name ?? '',
+        address: stop.place?.address ?? '',
+        category: stop.place?.category ?? null,
+        stayTimeMinutes: stop.stayMinutes ?? 60,
+        nextTravelTimeMinutes: stop.travelMinutesFromPrev ?? null,
+        nextTransportType: stop.transitType ?? null,
+        latitude: stop.place?.latitude ? Number(stop.place.latitude) : 0,
+        longitude: stop.place?.longitude ? Number(stop.place.longitude) : 0,
+      };
+    });
+
+    const calculatedDurationDays =
+      stops.length > 0 ? Math.max(1, ...stops.map((s) => s.dayNumber)) : 1;
 
     return {
       id: route.id,
@@ -214,7 +214,7 @@ export class AdminRouteBuilderRepository {
       description: route.description,
       themeSlug,
       themeLabel,
-      durationDays: 1,
+      durationDays: calculatedDurationDays,
       stopCount: stops.length,
       totalDistanceKm: Number((route.totalDistanceMeters / 1000).toFixed(1)),
       isPublished: route.isPublished,

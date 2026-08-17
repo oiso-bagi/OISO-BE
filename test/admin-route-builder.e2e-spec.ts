@@ -13,6 +13,7 @@ describe('AdminRouteBuilderController (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
+    app.setGlobalPrefix('api/v1');
     app.useGlobalPipes(
       new ValidationPipe({
         transform: true,
@@ -29,7 +30,7 @@ describe('AdminRouteBuilderController (e2e)', () => {
   describe('POST /api/v1/admin/routes', () => {
     it('인증 없이 요청 시 401 Unauthorized를 반환해야 한다', async () => {
       await request(app.getHttpServer())
-        .post('/admin/routes')
+        .post('/api/v1/admin/routes')
         .send({
           name: '미인증 테스트 코스',
           themeSlug: 'local-food',
@@ -44,7 +45,7 @@ describe('AdminRouteBuilderController (e2e)', () => {
   describe('GET /api/v1/admin/routes/:routeId', () => {
     it('인증 없이 요청 시 401 Unauthorized를 반환해야 한다', async () => {
       await request(app.getHttpServer())
-        .get('/admin/routes/invalid_id')
+        .get('/api/v1/admin/routes/invalid_id')
         .expect(401);
     });
   });
@@ -52,7 +53,7 @@ describe('AdminRouteBuilderController (e2e)', () => {
   describe('PUT /api/v1/admin/routes/:routeId', () => {
     it('인증 없이 요청 시 401 Unauthorized를 반환해야 한다', async () => {
       await request(app.getHttpServer())
-        .put('/admin/routes/invalid_id')
+        .put('/api/v1/admin/routes/invalid_id')
         .send({
           name: '미인증 수정 테스트 코스',
           themeSlug: 'local-food',

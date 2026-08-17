@@ -13,6 +13,7 @@ describe('AdminStatsController (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
+    app.setGlobalPrefix('api/v1');
     app.useGlobalPipes(
       new ValidationPipe({
         transform: true,
@@ -29,7 +30,7 @@ describe('AdminStatsController (e2e)', () => {
   describe('GET /api/v1/admin/stats/overview', () => {
     it('인증 없이 요청 시 401 Unauthorized를 반환해야 한다', async () => {
       await request(app.getHttpServer())
-        .get('/admin/stats/overview')
+        .get('/api/v1/admin/stats/overview')
         .expect(401);
     });
   });
@@ -37,20 +38,24 @@ describe('AdminStatsController (e2e)', () => {
   describe('GET /api/v1/admin/stats/savings-breakdown', () => {
     it('인증 없이 요청 시 401 Unauthorized를 반환해야 한다', async () => {
       await request(app.getHttpServer())
-        .get('/admin/stats/savings-breakdown')
+        .get('/api/v1/admin/stats/savings-breakdown')
         .expect(401);
     });
   });
 
   describe('GET /api/v1/admin/kto/status', () => {
     it('인증 없이 요청 시 401 Unauthorized를 반환해야 한다', async () => {
-      await request(app.getHttpServer()).get('/admin/kto/status').expect(401);
+      await request(app.getHttpServer())
+        .get('/api/v1/admin/kto/status')
+        .expect(401);
     });
   });
 
   describe('POST /api/v1/admin/kto/collect', () => {
     it('인증 없이 요청 시 401 Unauthorized를 반환해야 한다', async () => {
-      await request(app.getHttpServer()).post('/admin/kto/collect').expect(401);
+      await request(app.getHttpServer())
+        .post('/api/v1/admin/kto/collect')
+        .expect(401);
     });
   });
 });

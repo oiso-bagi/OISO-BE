@@ -13,6 +13,7 @@ describe('AdminContentController (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
+    app.setGlobalPrefix('api/v1');
     app.useGlobalPipes(
       new ValidationPipe({
         transform: true,
@@ -28,20 +29,24 @@ describe('AdminContentController (e2e)', () => {
 
   describe('GET /api/v1/admin/routes', () => {
     it('인증 헤더 없이 요청 시 401 Unauthorized를 반환해야 한다', async () => {
-      await request(app.getHttpServer()).get('/admin/routes').expect(401);
+      await request(app.getHttpServer())
+        .get('/api/v1/admin/routes')
+        .expect(401);
     });
   });
 
   describe('GET /api/v1/admin/places', () => {
     it('인증 헤더 없이 요청 시 401 Unauthorized를 반환해야 한다', async () => {
-      await request(app.getHttpServer()).get('/admin/places').expect(401);
+      await request(app.getHttpServer())
+        .get('/api/v1/admin/places')
+        .expect(401);
     });
   });
 
   describe('PATCH /api/v1/admin/routes/:routeId/published', () => {
     it('인증 없이 요청 시 401 Unauthorized를 반환해야 한다', async () => {
       await request(app.getHttpServer())
-        .patch('/admin/routes/invalid_id/published')
+        .patch('/api/v1/admin/routes/invalid_id/published')
         .send({ isPublished: true })
         .expect(401);
     });
@@ -50,7 +55,7 @@ describe('AdminContentController (e2e)', () => {
   describe('PATCH /api/v1/admin/places/:placeId/active', () => {
     it('인증 없이 요청 시 401 Unauthorized를 반환해야 한다', async () => {
       await request(app.getHttpServer())
-        .patch('/admin/places/invalid_id/active')
+        .patch('/api/v1/admin/places/invalid_id/active')
         .send({ isActive: true })
         .expect(401);
     });
