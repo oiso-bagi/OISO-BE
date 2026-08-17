@@ -222,6 +222,21 @@ export class AdminRouteDetailResponseDto {
   @ApiProperty({
     description: '경유 장소 상세 목록',
     type: [AdminRouteDetailStopDto],
+    example: [
+      {
+        sequence: 1,
+        dayNumber: 1,
+        placeId: 'place_001',
+        placeName: '가야포차선지국',
+        address: '부산진구 가야대로',
+        category: 'FOOD',
+        stayTimeMinutes: 60,
+        nextTravelTimeMinutes: 20,
+        nextTransportType: TransitType.WALKING,
+        latitude: 35.1532,
+        longitude: 129.1187,
+      },
+    ],
   })
   stops!: AdminRouteDetailStopDto[];
 }
