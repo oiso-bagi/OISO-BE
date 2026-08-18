@@ -11,11 +11,17 @@ export class RouteCongestionCronService {
   constructor(private readonly routeRepository: RouteRepository) {}
 
   @Cron('0 4 * * *')
-  async handleRouteCongestionUpdate() {
+  async handleRouteCongestionUpdate(): Promise<{
+    updatedCount: number;
+    failureCount: number;
+  }> {
     this.logger.log('추천 경로 혼잡도 갱신을 시작합니다.');
 
     const rawApiKey = process.env.VK_KORSERVICE2_API_KEY;
     const serviceKey = rawApiKey ? decodeURIComponent(rawApiKey) : '';
+
+    let updatedCount = 0;
+    let failureCount = 0;
 
     try {
       const activeRoutes =
@@ -24,8 +30,6 @@ export class RouteCongestionCronService {
       this.logger.log(`혼잡도 갱신 대상 추천 경로: ${activeRoutes.length}건`);
 
       const regionalCache = new Map<string, CongestionLevel>();
-      let updatedCount = 0;
-      let failureCount = 0;
 
       for (const route of activeRoutes) {
         try {
@@ -71,6 +75,8 @@ export class RouteCongestionCronService {
         error instanceof Error ? error.message : String(error);
       this.logger.error(`경로 혼잡도 갱신 대상 조회 실패: ${errorMessage}`);
     }
+
+    return { updatedCount, failureCount };
   }
 
   getRegionalCodes(

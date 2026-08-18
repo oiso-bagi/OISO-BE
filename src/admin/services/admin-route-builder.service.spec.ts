@@ -39,6 +39,28 @@ describe('AdminRouteBuilderService', () => {
   });
 
   describe('createRoute', () => {
+    it('테마 슬러그가 존재하지 않으면 BadRequestException을 던져야 한다', async () => {
+      builderRepository.findThemeIdBySlug.mockResolvedValue(null);
+
+      const dto = {
+        name: '테스트 코스',
+        themeSlug: 'invalid-theme',
+        isPublished: true,
+        stops: [
+          {
+            placeId: 'place_1',
+            sequence: 1,
+            stayTimeMinutes: 60,
+          },
+        ],
+      };
+
+      await expect(service.createRoute(dto)).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(builderRepository.createRoute).not.toHaveBeenCalled();
+    });
+
     it('stops가 비어있으면 BadRequestException을 던져야 한다', async () => {
       builderRepository.findThemeIdBySlug.mockResolvedValue('theme_1');
 
@@ -199,6 +221,42 @@ describe('AdminRouteBuilderService', () => {
       await expect(service.updateRoute('nonexistent_id', dto)).rejects.toThrow(
         NotFoundException,
       );
+    });
+
+    it('수정 시 테마 슬러그가 존재하지 않으면 BadRequestException을 던져야 한다', async () => {
+      const mockDetail = {
+        id: 'route_1',
+        name: '테스트 코스',
+        description: null,
+        themeSlug: 'local-food',
+        themeLabel: '부산 로컬 맛집',
+        durationDays: 1,
+        stopCount: 1,
+        totalDistanceKm: 2.1,
+        isPublished: true,
+        createdAt: new Date(),
+        stops: [],
+      };
+      builderRepository.findRouteDetail.mockResolvedValue(mockDetail);
+      builderRepository.findThemeIdBySlug.mockResolvedValue(null);
+
+      const dto = {
+        name: '수정 테스트 코스',
+        themeSlug: 'invalid-theme',
+        isPublished: true,
+        stops: [
+          {
+            placeId: 'place_1',
+            sequence: 1,
+            stayTimeMinutes: 60,
+          },
+        ],
+      };
+
+      await expect(service.updateRoute('route_1', dto)).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(builderRepository.updateRoute).not.toHaveBeenCalled();
     });
 
     it('sequence가 1부터 연속되지 않으면 BadRequestException을 던져야 한다', async () => {

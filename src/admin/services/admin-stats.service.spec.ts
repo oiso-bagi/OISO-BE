@@ -75,8 +75,10 @@ describe('AdminStatsService', () => {
 
   describe('triggerKtoCollection', () => {
     it('수동 수집 성공 시 결과를 반환해야 한다', async () => {
-      repository.getTargetPlaceCount.mockResolvedValue(50);
-      cronService.handleRouteCongestionUpdate.mockResolvedValue(undefined);
+      cronService.handleRouteCongestionUpdate.mockResolvedValue({
+        updatedCount: 50,
+        failureCount: 0,
+      });
 
       const result = await service.triggerKtoCollection();
 
@@ -85,8 +87,10 @@ describe('AdminStatsService', () => {
     });
 
     it('10분 쿨타임 이내 재요청 시 429 Too Many Requests 예외를 던져야 한다', async () => {
-      repository.getTargetPlaceCount.mockResolvedValue(50);
-      cronService.handleRouteCongestionUpdate.mockResolvedValue(undefined);
+      cronService.handleRouteCongestionUpdate.mockResolvedValue({
+        updatedCount: 50,
+        failureCount: 0,
+      });
 
       await service.triggerKtoCollection();
 

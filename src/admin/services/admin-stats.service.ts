@@ -100,17 +100,17 @@ export class AdminStatsService {
     this.isCollecting = true;
 
     try {
-      await this.routeCongestionCronService.handleRouteCongestionUpdate();
+      const { updatedCount } =
+        await this.routeCongestionCronService.handleRouteCongestionUpdate();
 
       const completedAt: Date = new Date();
       this.lastCollectedAt = completedAt;
-      const targetCount = await this.adminStatsRepository.getTargetPlaceCount();
-      this.dailyApiUsage = Math.min(1000, this.dailyApiUsage + targetCount);
+      this.dailyApiUsage = Math.min(1000, this.dailyApiUsage + updatedCount);
 
       return {
         message: 'KTO 경로 혼잡도 수동 수집이 성공적으로 완료되었습니다.',
         collectedAt: completedAt,
-        updatedPlaceCount: targetCount,
+        updatedPlaceCount: updatedCount,
       };
     } finally {
       this.isCollecting = false;
