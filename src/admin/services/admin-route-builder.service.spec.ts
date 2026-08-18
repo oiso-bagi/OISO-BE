@@ -25,6 +25,7 @@ describe('AdminRouteBuilderService', () => {
           provide: AdminPlaceRepository,
           useValue: {
             findById: jest.fn(),
+            findManyByIds: jest.fn(),
           },
         },
       ],
@@ -54,13 +55,11 @@ describe('AdminRouteBuilderService', () => {
       const dto = {
         name: '테스트 코스',
         themeSlug: 'local-food',
-        durationDays: 1,
         isPublished: true,
         stops: [
           {
             placeId: 'place_1',
-            dayNumber: 1,
-            sequence: 2,
+            sequence: 2, // 1부터 시작해야 함
             stayTimeMinutes: 60,
           },
         ],
@@ -71,29 +70,29 @@ describe('AdminRouteBuilderService', () => {
       );
     });
 
-    it('존재하지 않는 placeId가 들어오면 NotFoundException을 던져야 한다', async () => {
-      placeRepository.findById.mockResolvedValue(null);
+    it('존재하지 않는 placeId가 들어오면 BadRequestException을 던져야 한다', async () => {
+      placeRepository.findManyByIds.mockResolvedValue([]);
 
       const dto = {
         name: '테스트 코스',
         themeSlug: 'local-food',
-        durationDays: 1,
         isPublished: true,
         stops: [
           {
             placeId: 'invalid_place',
-            dayNumber: 1,
             sequence: 1,
             stayTimeMinutes: 60,
           },
         ],
       };
 
-      await expect(service.createRoute(dto)).rejects.toThrow(NotFoundException);
+      await expect(service.createRoute(dto)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('정상적인 요청 시 코스를 생성하고 상세 객체를 반환해야 한다', async () => {
-      placeRepository.findById.mockResolvedValue({ id: 'place_1' });
+      placeRepository.findManyByIds.mockResolvedValue([{ id: 'place_1' }]);
       const mockCreated = {
         id: 'route_new',
         name: '테스트 코스',
@@ -112,12 +111,10 @@ describe('AdminRouteBuilderService', () => {
       const dto = {
         name: '테스트 코스',
         themeSlug: 'local-food',
-        durationDays: 1,
         isPublished: true,
         stops: [
           {
             placeId: 'place_1',
-            dayNumber: 1,
             sequence: 1,
             stayTimeMinutes: 60,
           },
@@ -156,6 +153,63 @@ describe('AdminRouteBuilderService', () => {
 
       const result = await service.getRouteDetail('route_1');
       expect(result.id).toBe('route_1');
+    });
+  });
+
+  describe('updateRoute', () => {
+    it('수정 대상 코스가 존재하지 않으면 NotFoundException을 던져야 한다', async () => {
+      builderRepository.findRouteDetail.mockResolvedValue(null);
+
+      const dto = {
+        name: '수정 테스트 코스',
+        themeSlug: 'local-food',
+        isPublished: true,
+        stops: [
+          {
+            placeId: 'place_1',
+            sequence: 1,
+            stayTimeMinutes: 60,
+          },
+        ],
+      };
+
+      await expect(service.updateRoute('nonexistent_id', dto)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('sequence가 1부터 연속되지 않으면 BadRequestException을 던져야 한다', async () => {
+      const mockDetail = {
+        id: 'route_1',
+        name: '테스트 코스',
+        description: null,
+        themeSlug: 'local-food',
+        themeLabel: '부산 로컬 맛집',
+        durationDays: 1,
+        stopCount: 1,
+        totalDistanceKm: 2.1,
+        isPublished: true,
+        createdAt: new Date(),
+        stops: [],
+      };
+      builderRepository.findRouteDetail.mockResolvedValue(mockDetail);
+
+      const dto = {
+        name: '수정 테스트 코스',
+        themeSlug: 'local-food',
+        isPublished: true,
+        stops: [
+          {
+            placeId: 'place_1',
+            sequence: 2, // 1부터 시작해야 함
+            stayTimeMinutes: 60,
+          },
+        ],
+      };
+
+      await expect(service.updateRoute('route_1', dto)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 });
