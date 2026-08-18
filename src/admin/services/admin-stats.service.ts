@@ -100,17 +100,28 @@ export class AdminStatsService {
     this.isCollecting = true;
 
     try {
-      const { updatedCount } =
+      const { updatedCount, failureCount, apiCallCount } =
         await this.routeCongestionCronService.handleRouteCongestionUpdate();
+
+      this.dailyApiUsage = Math.min(1000, this.dailyApiUsage + apiCallCount);
+
+      if (updatedCount === 0 && failureCount > 0) {
+        throw new ServiceUnavailableException(
+          'KTO 경로 혼잡도 수동 수집이 실패하였습니다. 잠시 후 다시 시도해 주세요.',
+        );
+      }
 
       const completedAt: Date = new Date();
       this.lastCollectedAt = completedAt;
-      this.dailyApiUsage = Math.min(1000, this.dailyApiUsage + updatedCount);
 
       return {
-        message: 'KTO 경로 혼잡도 수동 수집이 성공적으로 완료되었습니다.',
+        message:
+          failureCount > 0
+            ? `KTO 경로 혼잡도 수동 수집이 부분 완료되었습니다. (성공: ${updatedCount}건, 실패: ${failureCount}건)`
+            : 'KTO 경로 혼잡도 수동 수집이 성공적으로 완료되었습니다.',
         collectedAt: completedAt,
         updatedPlaceCount: updatedCount,
+        failureCount,
       };
     } finally {
       this.isCollecting = false;

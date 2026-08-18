@@ -42,4 +42,7 @@ export class AdminKtoCollectResponseDto {
 
   @ApiProperty({ description: '갱신된 장소 건수', example: 85 })
   updatedPlaceCount!: number;
+
+  @ApiProperty({ description: '갱신 실패한 장소 건수', example: 0 })
+  failureCount!: number;
 }

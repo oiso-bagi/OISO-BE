@@ -33,7 +33,7 @@ async function bootstrap() {
       if (!origin || isAllowedFrontendOrigin(origin, frontendOriginRules)) {
         callback(null, true);
       } else {
-        callback(new Error(`Not allowed by CORS: ${origin}`));
+        callback(null, false);
       }
     },
     credentials: true,
