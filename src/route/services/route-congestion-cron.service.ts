@@ -11,66 +11,77 @@ export class RouteCongestionCronService {
   constructor(private readonly routeRepository: RouteRepository) {}
 
   @Cron('0 4 * * *')
-  async handleRouteCongestionUpdate() {
+  async handleRouteCongestionUpdate(): Promise<{
+    updatedCount: number;
+    failureCount: number;
+    apiCallCount: number;
+  }> {
     this.logger.log('추천 경로 혼잡도 갱신을 시작합니다.');
 
     const rawApiKey = process.env.VK_KORSERVICE2_API_KEY;
     const serviceKey = rawApiKey ? decodeURIComponent(rawApiKey) : '';
 
+    let updatedCount = 0;
+    let failureCount = 0;
+    let apiCallCount = 0;
+
+    let activeRoutes: Array<{ id: string; name?: string; region?: string }>;
     try {
-      const activeRoutes =
+      activeRoutes =
         await this.routeRepository.findPublishedRecommendedRouteCongestionTargets();
-
-      this.logger.log(`혼잡도 갱신 대상 추천 경로: ${activeRoutes.length}건`);
-
-      const regionalCache = new Map<string, CongestionLevel>();
-      let updatedCount = 0;
-      let failureCount = 0;
-
-      for (const route of activeRoutes) {
-        try {
-          const regionalCodes = this.getRegionalCodes(route.region);
-          const cacheKey = regionalCodes
-            ? `${regionalCodes.areaCd}_${regionalCodes.signguCd}`
-            : null;
-
-          let nextCongestion: CongestionLevel;
-          if (cacheKey && regionalCache.has(cacheKey)) {
-            nextCongestion = regionalCache.get(cacheKey)!;
-          } else {
-            nextCongestion = await this.fetchAndCalculateCongestion(
-              route.id,
-              serviceKey,
-              route.region,
-            );
-            if (cacheKey) {
-              regionalCache.set(cacheKey, nextCongestion);
-            }
-          }
-
-          await this.routeRepository.updateRouteCongestionLevel(
-            route.id,
-            nextCongestion,
-          );
-          updatedCount++;
-        } catch (error: unknown) {
-          failureCount++;
-          const errorMessage =
-            error instanceof Error ? error.message : String(error);
-          this.logger.error(
-            `경로 혼잡도 갱신 실패 (routeId: ${route.id}): ${errorMessage}`,
-          );
-        }
-      }
-
-      this.logger.log(
-        `추천 경로 혼잡도 갱신 완료 (성공: ${updatedCount}건, 실패: ${failureCount}건)`,
-      );
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
       this.logger.error(`경로 혼잡도 갱신 대상 조회 실패: ${errorMessage}`);
+      throw error;
     }
+
+    this.logger.log(`혼잡도 갱신 대상 추천 경로: ${activeRoutes.length}건`);
+
+    const regionalCache = new Map<string, CongestionLevel>();
+
+    for (const route of activeRoutes) {
+      try {
+        const regionalCodes = this.getRegionalCodes(route.region);
+        const cacheKey = regionalCodes
+          ? `${regionalCodes.areaCd}_${regionalCodes.signguCd}`
+          : null;
+
+        let nextCongestion: CongestionLevel;
+        if (cacheKey && regionalCache.has(cacheKey)) {
+          nextCongestion = regionalCache.get(cacheKey)!;
+        } else {
+          apiCallCount++;
+          nextCongestion = await this.fetchAndCalculateCongestion(
+            route.id,
+            serviceKey,
+            route.region,
+          );
+          if (cacheKey) {
+            regionalCache.set(cacheKey, nextCongestion);
+          }
+        }
+
+        await this.routeRepository.updateRouteCongestionLevel(
+          route.id,
+          nextCongestion,
+        );
+        updatedCount++;
+      } catch (error: unknown) {
+        failureCount++;
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        this.logger.error(
+          `경로 혼잡도 갱신 실패 (routeId: ${route.id}): ${errorMessage}`,
+        );
+      }
+    }
+
+    this.logger.log(
+      `추천 경로 혼잡도 갱신 완료 (성공: ${updatedCount}건, 실패: ${failureCount}건, API 호출: ${apiCallCount}건)`,
+    );
+
+    return { updatedCount, failureCount, apiCallCount };
   }
 
   getRegionalCodes(

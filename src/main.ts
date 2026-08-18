@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { RequestMethod } from '@nestjs/common';
+import { RequestMethod, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from '@/app.module';
@@ -28,17 +28,24 @@ async function bootstrap() {
   app.enableCors({
     origin: (
       origin: string | undefined,
-      callback: (error: Error | null, allow?: boolean) => void,
+      callback: (err: Error | null, allow?: boolean) => void,
     ) => {
       if (!origin || isAllowedFrontendOrigin(origin, frontendOriginRules)) {
         callback(null, true);
-        return;
+      } else {
+        callback(null, false);
       }
-
-      callback(null, false);
     },
     credentials: true,
   });
+
+  app.useGlobalPipes(
+    new ValidationPipe({
+      transform: true,
+      whitelist: true,
+      forbidNonWhitelisted: true,
+    }),
+  );
 
   app.setGlobalPrefix('api/v1', {
     exclude: [{ path: '/', method: RequestMethod.GET }],

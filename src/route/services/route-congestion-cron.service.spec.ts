@@ -48,7 +48,7 @@ describe('RouteCongestionCronService', () => {
         .spyOn(service, 'fetchAndCalculateCongestion')
         .mockResolvedValue(CongestionLevel.MEDIUM);
 
-      await service.handleRouteCongestionUpdate();
+      const result = await service.handleRouteCongestionUpdate();
 
       expect(
         routeRepositoryMock.findPublishedRecommendedRouteCongestionTargets,
@@ -62,6 +62,11 @@ describe('RouteCongestionCronService', () => {
       expect(
         routeRepositoryMock.updateRouteCongestionLevel,
       ).toHaveBeenCalledTimes(2);
+      expect(result).toEqual({
+        updatedCount: 2,
+        failureCount: 0,
+        apiCallCount: 1,
+      });
     });
 
     it('contains failure when one route update fails and continues processing subsequent routes', async () => {
@@ -80,7 +85,7 @@ describe('RouteCongestionCronService', () => {
         .spyOn(service, 'fetchAndCalculateCongestion')
         .mockResolvedValue(CongestionLevel.LOW);
 
-      await service.handleRouteCongestionUpdate();
+      const result = await service.handleRouteCongestionUpdate();
 
       expect(
         routeRepositoryMock.updateRouteCongestionLevel,
@@ -88,6 +93,21 @@ describe('RouteCongestionCronService', () => {
       expect(
         routeRepositoryMock.updateRouteCongestionLevel,
       ).toHaveBeenLastCalledWith('route-success', CongestionLevel.LOW);
+      expect(result).toEqual({
+        updatedCount: 1,
+        failureCount: 1,
+        apiCallCount: 1,
+      });
+    });
+
+    it('rethrows error when target route lookup fails', async () => {
+      routeRepositoryMock.findPublishedRecommendedRouteCongestionTargets.mockRejectedValue(
+        new Error('DB lookup error'),
+      );
+
+      await expect(service.handleRouteCongestionUpdate()).rejects.toThrow(
+        'DB lookup error',
+      );
     });
   });
 

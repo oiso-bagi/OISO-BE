@@ -35,7 +35,8 @@ export class SavedRouteStopDetailDto {
   placeName = '';
 
   @ApiProperty({
-    description: '장소 카테고리',
+    description:
+      '장소 카테고리 (FOOD: 식당 | CAFE: 카페 | MARKET: 전통시장 | CULTURE: 문화 | NATURE: 자연 | EXPERIENCE: 체험 | VIEWPOINT: 전망대 | ETC: 기타)',
     enum: PlaceCategory,
     example: PlaceCategory.NATURE,
     nullable: true,

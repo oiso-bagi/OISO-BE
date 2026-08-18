@@ -69,11 +69,15 @@ export class BudgetAllocationOptionsDto {
 
 export class RecommendationOptionsResponseDto {
   @ApiProperty({
-    description: '선택 가능한 여행 스타일 목록',
+    description: '선택 가능한 여행 스타일 목록 (6대 테마 전체)',
     type: [TravelStyleOptionDto],
     example: [
       { slug: 'local-food', label: '부산 로컬 맛집' },
       { slug: 'emotion-cafe', label: '감성 카페' },
+      { slug: 'beach-tour', label: '바다 관광' },
+      { slug: 'photo-spot', label: '포토 스팟' },
+      { slug: 'traditional-market', label: '전통시장' },
+      { slug: 'nature-walk', label: '자연 / 산책' },
     ],
   })
   travelStyles!: TravelStyleOptionDto[];

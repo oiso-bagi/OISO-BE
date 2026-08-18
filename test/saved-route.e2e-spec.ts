@@ -188,6 +188,7 @@ describe('SavedRouteController (e2e)', () => {
         stops: [
           {
             sequence: 0,
+            dayNumber: 1,
             placeName: '해운대 해수욕장',
             category: 'NATURE',
             openTime: '00:00',
