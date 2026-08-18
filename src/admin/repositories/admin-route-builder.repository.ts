@@ -1,4 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PlaceCategory, Prisma, TransitType } from '@prisma/client';
 import { THEME_LABEL_MAP } from '@/admin/constants/admin-theme.constant';
 import { PrismaService } from '@/prisma/prisma.service';
@@ -45,41 +50,20 @@ export class AdminRouteBuilderRepository {
   async createRoute(
     dto: CreateAdminRouteDto,
   ): Promise<AdminRouteDetailResponseDto> {
-    const { name, description, themeSlug, durationDays, isPublished, stops } =
-      dto;
-
-    const placeIds = Array.from(new Set(stops.map((s) => s.placeId)));
-    const places = await this.prisma.place.findMany({
-      where: { id: { in: placeIds } },
-      select: { id: true, latitude: true, longitude: true },
-    });
-
-    const placeMap = new Map(places.map((p) => [p.id, p]));
-
-    let totalDistanceMeters = 0;
-    for (let i = 0; i < stops.length - 1; i++) {
-      const p1 = placeMap.get(stops[i].placeId);
-      const p2 = placeMap.get(stops[i + 1].placeId);
-      if (p1?.latitude && p1?.longitude && p2?.latitude && p2?.longitude) {
-        totalDistanceMeters += this.calculateDistanceMeters(
-          Number(p1.latitude),
-          Number(p1.longitude),
-          Number(p2.latitude),
-          Number(p2.longitude),
-        );
-      }
-    }
-
-    const totalDurationMin = stops.reduce(
-      (acc, s) =>
-        acc + (s.stayTimeMinutes ?? 60) + (s.nextTravelTimeMinutes ?? 0),
-      0,
-    );
+    const { name, description, themeSlug, isPublished, stops } = dto;
 
     const targetTheme = await this.prisma.theme.findUnique({
       where: { slug: themeSlug },
       select: { id: true },
     });
+    if (!targetTheme) {
+      throw new BadRequestException(
+        `유효하지 않은 테마 슬러그입니다: ${themeSlug}`,
+      );
+    }
+
+    const { totalDistanceMeters, totalDurationMin, stopData } =
+      await this.buildRouteAggregates(stops);
 
     const createdRouteId = await this.prisma.$transaction(async (tx) => {
       const newRoute = await tx.route.create({
@@ -96,27 +80,16 @@ export class AdminRouteBuilderRepository {
         },
       });
 
-      if (targetTheme) {
-        await tx.routeTheme.create({
-          data: {
-            routeId: newRoute.id,
-            themeId: targetTheme.id,
-          },
-        });
-      }
-
-      const stopData: Prisma.RouteStopCreateManyInput[] = stops.map((stop) => ({
-        routeId: newRoute.id,
-        placeId: stop.placeId,
-        orderIndex: stop.sequence,
-        stayMinutes: stop.stayTimeMinutes,
-        travelMinutesFromPrev: stop.nextTravelTimeMinutes ?? null,
-        transitType: stop.nextTransportType ?? null,
-      }));
+      await tx.routeTheme.create({
+        data: {
+          routeId: newRoute.id,
+          themeId: targetTheme.id,
+        },
+      });
 
       if (stopData.length > 0) {
         await tx.routeStop.createMany({
-          data: stopData,
+          data: stopData.map((s) => ({ ...s, routeId: newRoute.id })),
         });
       }
 
@@ -125,9 +98,10 @@ export class AdminRouteBuilderRepository {
 
     const result = await this.findRouteDetail(createdRouteId);
     if (!result) {
-      throw new Error('생성된 코스 정보를 조회할 수 없습니다.');
+      throw new InternalServerErrorException(
+        '생성된 코스 정보를 조회할 수 없습니다.',
+      );
     }
-    result.durationDays = durationDays;
     return result;
   }
 
@@ -186,27 +160,19 @@ export class AdminRouteBuilderRepository {
     const themeLabel =
       THEME_LABEL_MAP[themeSlug] ?? firstTheme?.name ?? '추천 테마';
 
-    const stops: AdminRouteDetailStopDto[] = route.stops.map((stop) => {
-      // orderIndex(1부터 시작하는 순서) 기반 dayNumber 계산 (하루 평균 3~4개 스팟 기준)
-      const estimatedDayNumber = Math.max(1, Math.ceil(stop.orderIndex / 3));
-
-      return {
-        sequence: stop.orderIndex,
-        dayNumber: estimatedDayNumber,
-        placeId: stop.place?.id ?? '',
-        placeName: stop.place?.name ?? '',
-        address: stop.place?.address ?? '',
-        category: stop.place?.category ?? null,
-        stayTimeMinutes: stop.stayMinutes ?? 60,
-        nextTravelTimeMinutes: stop.travelMinutesFromPrev ?? null,
-        nextTransportType: stop.transitType ?? null,
-        latitude: stop.place?.latitude ? Number(stop.place.latitude) : 0,
-        longitude: stop.place?.longitude ? Number(stop.place.longitude) : 0,
-      };
-    });
-
-    const calculatedDurationDays =
-      stops.length > 0 ? Math.max(1, ...stops.map((s) => s.dayNumber)) : 1;
+    const stops: AdminRouteDetailStopDto[] = route.stops.map((stop) => ({
+      sequence: stop.orderIndex,
+      dayNumber: 1, // Route는 1일 단위 모듈로 저장됨. 일차 정보는 조합 시점에서 부여됨
+      placeId: stop.place?.id ?? '',
+      placeName: stop.place?.name ?? '',
+      address: stop.place?.address ?? '',
+      category: stop.place?.category ?? null,
+      stayTimeMinutes: stop.stayMinutes ?? 60,
+      nextTravelTimeMinutes: stop.travelMinutesFromPrev ?? null,
+      nextTransportType: stop.transitType ?? null,
+      latitude: stop.place?.latitude ? Number(stop.place.latitude) : 0,
+      longitude: stop.place?.longitude ? Number(stop.place.longitude) : 0,
+    }));
 
     return {
       id: route.id,
@@ -214,7 +180,7 @@ export class AdminRouteBuilderRepository {
       description: route.description,
       themeSlug,
       themeLabel,
-      durationDays: calculatedDurationDays,
+      durationDays: 1, // Route는 1일 단위 모듈. N일 코스는 N개를 조합하여 연결
       stopCount: stops.length,
       totalDistanceKm: Number((route.totalDistanceMeters / 1000).toFixed(1)),
       isPublished: route.isPublished,
@@ -227,10 +193,73 @@ export class AdminRouteBuilderRepository {
     id: string,
     dto: UpdateAdminRouteDto,
   ): Promise<AdminRouteDetailResponseDto> {
-    const { name, description, themeSlug, durationDays, isPublished, stops } =
-      dto;
+    const { name, description, themeSlug, isPublished, stops } = dto;
 
-    const placeIds = Array.from(new Set(stops.map((s) => s.placeId)));
+    const targetTheme = await this.prisma.theme.findUnique({
+      where: { slug: themeSlug },
+      select: { id: true },
+    });
+    if (!targetTheme) {
+      throw new BadRequestException(
+        `유효하지 않은 테마 슬러그입니다: ${themeSlug}`,
+      );
+    }
+
+    const { totalDistanceMeters, totalDurationMin, stopData } =
+      await this.buildRouteAggregates(stops);
+
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        await tx.route.update({
+          where: { id },
+          data: {
+            name,
+            summary: description ?? null,
+            description: description ?? null,
+            isPublished,
+            totalDistanceMeters,
+            estimatedDurationMin: totalDurationMin,
+          },
+        });
+
+        await tx.routeTheme.deleteMany({ where: { routeId: id } });
+        await tx.routeTheme.create({
+          data: {
+            routeId: id,
+            themeId: targetTheme.id,
+          },
+        });
+
+        await tx.routeStop.deleteMany({ where: { routeId: id } });
+        if (stopData.length > 0) {
+          await tx.routeStop.createMany({
+            data: stopData.map((s) => ({ ...s, routeId: id })),
+          });
+        }
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new NotFoundException('해당 추천 코스를 찾을 수 없습니다.');
+      }
+      throw error;
+    }
+
+    const result = await this.findRouteDetail(id);
+    if (!result) {
+      throw new InternalServerErrorException(
+        '수정된 코스 정보를 조회할 수 없습니다.',
+      );
+    }
+    return result;
+  }
+
+  private async buildRouteAggregates(stops: CreateAdminRouteDto['stops']) {
+    const sortedStops = [...stops].sort((a, b) => a.sequence - b.sequence);
+
+    const placeIds = Array.from(new Set(sortedStops.map((s) => s.placeId)));
     const places = await this.prisma.place.findMany({
       where: { id: { in: placeIds } },
       select: { id: true, latitude: true, longitude: true },
@@ -238,9 +267,12 @@ export class AdminRouteBuilderRepository {
     const placeMap = new Map(places.map((p) => [p.id, p]));
 
     let totalDistanceMeters = 0;
-    for (let i = 0; i < stops.length - 1; i++) {
-      const p1 = placeMap.get(stops[i].placeId);
-      const p2 = placeMap.get(stops[i + 1].placeId);
+    for (let i = 0; i < sortedStops.length - 1; i++) {
+      const s1 = sortedStops[i];
+      const s2 = sortedStops[i + 1];
+
+      const p1 = placeMap.get(s1.placeId);
+      const p2 = placeMap.get(s2.placeId);
       if (p1?.latitude && p1?.longitude && p2?.latitude && p2?.longitude) {
         totalDistanceMeters += this.calculateDistanceMeters(
           Number(p1.latitude),
@@ -251,63 +283,25 @@ export class AdminRouteBuilderRepository {
       }
     }
 
-    const totalDurationMin = stops.reduce(
+    const totalDurationMin = sortedStops.reduce(
       (acc, s) =>
         acc + (s.stayTimeMinutes ?? 60) + (s.nextTravelTimeMinutes ?? 0),
       0,
     );
 
-    const targetTheme = await this.prisma.theme.findUnique({
-      where: { slug: themeSlug },
-      select: { id: true },
-    });
+    const stopData = sortedStops.map((stop) => ({
+      placeId: stop.placeId,
+      orderIndex: stop.sequence,
+      stayMinutes: stop.stayTimeMinutes,
+      travelMinutesFromPrev: stop.nextTravelTimeMinutes ?? null,
+      transitType: stop.nextTransportType ?? null,
+    }));
 
-    await this.prisma.$transaction(async (tx) => {
-      await tx.route.update({
-        where: { id },
-        data: {
-          name,
-          summary: description ?? null,
-          description: description ?? null,
-          isPublished,
-          totalDistanceMeters,
-          estimatedDurationMin: totalDurationMin,
-        },
-      });
-
-      await tx.routeTheme.deleteMany({ where: { routeId: id } });
-      if (targetTheme) {
-        await tx.routeTheme.create({
-          data: {
-            routeId: id,
-            themeId: targetTheme.id,
-          },
-        });
-      }
-
-      await tx.routeStop.deleteMany({ where: { routeId: id } });
-      const stopData: Prisma.RouteStopCreateManyInput[] = stops.map((stop) => ({
-        routeId: id,
-        placeId: stop.placeId,
-        orderIndex: stop.sequence,
-        stayMinutes: stop.stayTimeMinutes,
-        travelMinutesFromPrev: stop.nextTravelTimeMinutes ?? null,
-        transitType: stop.nextTransportType ?? null,
-      }));
-
-      if (stopData.length > 0) {
-        await tx.routeStop.createMany({
-          data: stopData,
-        });
-      }
-    });
-
-    const result = await this.findRouteDetail(id);
-    if (!result) {
-      throw new Error('수정된 코스 정보를 조회할 수 없습니다.');
-    }
-    result.durationDays = durationDays;
-    return result;
+    return {
+      totalDistanceMeters,
+      totalDurationMin,
+      stopData,
+    };
   }
 
   private calculateDistanceMeters(

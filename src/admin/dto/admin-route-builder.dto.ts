@@ -2,6 +2,8 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { TransitType } from '@prisma/client';
 import { Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
+  ArrayMinSize,
   IsArray,
   IsBoolean,
   IsEnum,
@@ -9,7 +11,6 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
-  Max,
   Min,
   ValidateNested,
 } from 'class-validator';
@@ -19,13 +20,6 @@ export class AdminRouteStopInputDto {
   @IsString()
   @IsNotEmpty()
   placeId!: string;
-
-  @ApiProperty({ description: '여행 일차 (1~5)', example: 1 })
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  @Max(5)
-  dayNumber!: number;
 
   @ApiProperty({
     description: '코스 내 경유 순서 (1부터 시작하는 연속 정수)',
@@ -93,13 +87,6 @@ export class CreateAdminRouteDto {
   @IsNotEmpty()
   themeSlug!: string;
 
-  @ApiProperty({ description: '전체 소요 일수 (1~5)', example: 2 })
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  @Max(5)
-  durationDays!: number;
-
   @ApiPropertyOptional({
     description: '게시 여부',
     example: true,
@@ -115,7 +102,6 @@ export class CreateAdminRouteDto {
     example: [
       {
         placeId: 'place_001',
-        dayNumber: 1,
         sequence: 1,
         stayTimeMinutes: 60,
         nextTravelTimeMinutes: 20,
@@ -123,13 +109,14 @@ export class CreateAdminRouteDto {
       },
       {
         placeId: 'place_002',
-        dayNumber: 1,
         sequence: 2,
         stayTimeMinutes: 45,
       },
     ],
   })
   @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(50)
   @ValidateNested({ each: true })
   @Type(() => AdminRouteStopInputDto)
   stops!: AdminRouteStopInputDto[];

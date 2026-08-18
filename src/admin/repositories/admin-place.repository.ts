@@ -113,4 +113,11 @@ export class AdminPlaceRepository {
       select: { id: true },
     });
   }
+
+  async findManyByIds(ids: string[]) {
+    return this.prisma.place.findMany({
+      where: { id: { in: ids } },
+      select: { id: true },
+    });
+  }
 }

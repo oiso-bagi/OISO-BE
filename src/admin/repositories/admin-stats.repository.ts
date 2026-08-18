@@ -29,38 +29,35 @@ export class AdminStatsRepository {
     totalSavingsCostWon: number;
     averageLocalContributionScore: number;
   }> {
-    const savedRoutes = await this.prisma.savedRoute.findMany({
-      select: {
-        route: {
-          select: {
-            estimatedSavingsWon: true,
-            localContributionScore: true,
-          },
-        },
-      },
+    // 저장된 routeId 목록을 distinct하게 조회
+    const savedRouteIds = await this.prisma.savedRoute.findMany({
+      select: { routeId: true },
+      distinct: ['routeId'],
     });
 
-    if (savedRoutes.length === 0) {
+    if (savedRouteIds.length === 0) {
       return {
         totalSavingsCostWon: 0,
         averageLocalContributionScore: 0,
       };
     }
 
-    let totalSavings = 0;
-    let totalScore = 0;
+    const routeIds = savedRouteIds.map((r) => r.routeId);
 
-    for (const item of savedRoutes) {
-      totalSavings += item.route?.estimatedSavingsWon ?? 0;
-      totalScore += item.route?.localContributionScore ?? 0;
-    }
+    // DB에서 직접 합계와 평균 계산 (null은 _avg에서 자동 제외됨)
+    const agg = await this.prisma.route.aggregate({
+      where: { id: { in: routeIds } },
+      _sum: { estimatedSavingsWon: true },
+      _avg: { localContributionScore: true },
+    });
 
-    const averageLocalContributionScore = Number(
-      (totalScore / savedRoutes.length).toFixed(1),
-    );
+    const totalSavingsCostWon = agg._sum.estimatedSavingsWon ?? 0;
+    const rawAvg = agg._avg.localContributionScore;
+    const averageLocalContributionScore =
+      rawAvg != null ? Number(rawAvg.toFixed(1)) : 0;
 
     return {
-      totalSavingsCostWon: totalSavings,
+      totalSavingsCostWon,
       averageLocalContributionScore,
     };
   }
@@ -74,38 +71,51 @@ export class AdminStatsRepository {
       percentage: number;
     }>;
   }> {
-    const savedRouteStops = await this.prisma.savedRoute.findMany({
-      select: {
-        route: {
-          select: {
-            stops: {
-              select: {
-                savingsWon: true,
-                place: {
-                  select: {
-                    category: true,
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
+    // 1단계: 저장된 routeId 목록을 distinct하게 조회
+    const savedRouteIds = await this.prisma.savedRoute.findMany({
+      select: { routeId: true },
+      distinct: ['routeId'],
     });
 
+    if (savedRouteIds.length === 0) {
+      return { totalSavingsCostWon: 0, breakdown: [] };
+    }
+
+    const routeIds = savedRouteIds.map((r) => r.routeId);
+
+    // 2단계: 해당 route의 stops를 placeId 기준으로 groupBy하여 DB에서 savingsWon 집계
+    // Prisma groupBy는 relation 필드 기준 groupBy를 지원하지 않으므로
+    // placeId별 합계를 먼저 구한 뒤 place.category를 별도 조회하여 재집계
+    const stopAggregates = await this.prisma.routeStop.groupBy({
+      by: ['placeId'],
+      where: { routeId: { in: routeIds } },
+      _sum: { savingsWon: true },
+    });
+
+    if (stopAggregates.length === 0) {
+      return { totalSavingsCostWon: 0, breakdown: [] };
+    }
+
+    // 3단계: placeId 목록으로 category 일괄 조회
+    const placeIds = stopAggregates.map((s) => s.placeId);
+    const places = await this.prisma.place.findMany({
+      where: { id: { in: placeIds } },
+      select: { id: true, category: true },
+    });
+    const placeCategoryMap = new Map(places.map((p) => [p.id, p.category]));
+
+    // 4단계: category 기준으로 재집계
     const categoryMap = new Map<PlaceCategory, number>();
     let totalSavingsCostWon = 0;
 
-    for (const savedRoute of savedRouteStops) {
-      for (const stop of savedRoute.route?.stops ?? []) {
-        if (stop.place?.category) {
-          const category = stop.place.category;
-          const savings = stop.savingsWon ?? 0;
-          const current = categoryMap.get(category) ?? 0;
-          categoryMap.set(category, current + savings);
-          totalSavingsCostWon += savings;
-        }
-      }
+    for (const stopAgg of stopAggregates) {
+      const category = placeCategoryMap.get(stopAgg.placeId);
+      if (!category) continue;
+
+      const amount = stopAgg._sum.savingsWon ?? 0;
+      const current = categoryMap.get(category) ?? 0;
+      categoryMap.set(category, current + amount);
+      totalSavingsCostWon += amount;
     }
 
     const breakdown: Array<{

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
 
@@ -95,52 +95,64 @@ export class AdminRouteRepository {
   }
 
   async updatePublishedStatus(id: string, isPublished: boolean) {
-    const updated = await this.prisma.route.update({
-      where: { id },
-      data: { isPublished },
-      select: {
-        id: true,
-        name: true,
-        totalDistanceMeters: true,
-        isPublished: true,
-        createdAt: true,
-        _count: {
-          select: { stops: true },
-        },
-        themes: {
-          take: 1,
-          select: {
-            theme: {
-              select: {
-                slug: true,
-                name: true,
+    try {
+      const updated = await this.prisma.route.update({
+        where: { id, routeType: 'RECOMMENDED' },
+        data: { isPublished },
+        select: {
+          id: true,
+          name: true,
+          totalDistanceMeters: true,
+          isPublished: true,
+          createdAt: true,
+          _count: {
+            select: { stops: true },
+          },
+          themes: {
+            take: 1,
+            select: {
+              theme: {
+                select: {
+                  slug: true,
+                  name: true,
+                },
               },
             },
           },
         },
-      },
-    });
+      });
 
-    const firstTheme = updated.themes[0]?.theme;
-    const themeSlug = firstTheme?.slug ?? 'local-food';
-    const themeLabel =
-      THEME_LABEL_MAP[themeSlug] ?? firstTheme?.name ?? '추천 테마';
+      const firstTheme = updated.themes[0]?.theme;
+      const themeSlug = firstTheme?.slug ?? 'local-food';
+      const themeLabel =
+        THEME_LABEL_MAP[themeSlug] ?? firstTheme?.name ?? '추천 테마';
 
-    return {
-      id: updated.id,
-      name: updated.name,
-      theme: themeSlug,
-      themeLabel,
-      stopCount: updated._count.stops,
-      totalDistanceKm: Number((updated.totalDistanceMeters / 1000).toFixed(1)),
-      isPublished: updated.isPublished,
-      createdAt: updated.createdAt,
-    };
+      return {
+        id: updated.id,
+        name: updated.name,
+        theme: themeSlug,
+        themeLabel,
+        stopCount: updated._count.stops,
+        totalDistanceKm: Number(
+          (updated.totalDistanceMeters / 1000).toFixed(1),
+        ),
+        isPublished: updated.isPublished,
+        createdAt: updated.createdAt,
+      };
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new NotFoundException('해당 추천 코스를 찾을 수 없습니다.');
+      }
+      throw error;
+    }
   }
 
   async findById(id: string) {
-    return this.prisma.route.findUnique({
-      where: { id },
+    return this.prisma.route.findFirst({
+      where: { id, routeType: 'RECOMMENDED' },
       select: { id: true },
     });
   }

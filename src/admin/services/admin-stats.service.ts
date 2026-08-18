@@ -91,20 +91,20 @@ export class AdminStatsService {
     }
 
     this.isCollecting = true;
-    const now = new Date();
 
     try {
       if (this.routeCongestionCronService) {
         await this.routeCongestionCronService.handleRouteCongestionUpdate();
       }
 
-      this.lastCollectedAt = now;
+      const completedAt: Date = new Date();
+      this.lastCollectedAt = completedAt;
       const targetCount = await this.adminStatsRepository.getTargetPlaceCount();
       this.dailyApiUsage = Math.min(1000, this.dailyApiUsage + targetCount);
 
       return {
         message: 'KTO 경로 혼잡도 수동 수집이 성공적으로 완료되었습니다.',
-        collectedAt: now,
+        collectedAt: completedAt,
         updatedPlaceCount: targetCount,
       };
     } finally {

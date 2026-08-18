@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsBoolean,
   IsInt,
@@ -8,6 +8,12 @@ import {
   Max,
   Min,
 } from 'class-validator';
+
+const toStrictBoolean = ({ value }: { value: unknown }) => {
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  return value;
+};
 
 export class AdminPageQueryDto {
   @ApiPropertyOptional({ description: '페이지 번호 (1부터 시작)', default: 1 })
@@ -43,7 +49,7 @@ export class AdminRouteListQueryDto extends AdminPageQueryDto {
 
   @ApiPropertyOptional({ description: '게시 여부 (true/false)' })
   @IsOptional()
-  @Type(() => Boolean)
+  @Transform(toStrictBoolean)
   @IsBoolean()
   isPublished?: boolean;
 }
@@ -60,7 +66,7 @@ export class AdminPlaceListQueryDto extends AdminPageQueryDto {
 
   @ApiPropertyOptional({ description: '활성화 여부 (true/false)' })
   @IsOptional()
-  @Type(() => Boolean)
+  @Transform(toStrictBoolean)
   @IsBoolean()
   isActive?: boolean;
 }

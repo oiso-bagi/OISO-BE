@@ -21,7 +21,7 @@ export class AdminRouteBuilderService {
   async createRoute(
     dto: CreateAdminRouteDto,
   ): Promise<AdminRouteDetailResponseDto> {
-    await this.validateRouteStops(dto.stops, dto.durationDays);
+    await this.validateRouteStops(dto.stops);
     return this.adminRouteBuilderRepository.createRoute(dto);
   }
 
@@ -42,13 +42,12 @@ export class AdminRouteBuilderService {
       throw new NotFoundException('해당 추천 코스를 찾을 수 없습니다.');
     }
 
-    await this.validateRouteStops(dto.stops, dto.durationDays);
+    await this.validateRouteStops(dto.stops);
     return this.adminRouteBuilderRepository.updateRoute(id, dto);
   }
 
   private async validateRouteStops(
     stops: CreateAdminRouteDto['stops'],
-    durationDays: number,
   ): Promise<void> {
     if (!stops || stops.length === 0) {
       throw new BadRequestException(
@@ -56,16 +55,7 @@ export class AdminRouteBuilderService {
       );
     }
 
-    // 1. dayNumber 범위 검증
-    for (const stop of stops) {
-      if (stop.dayNumber > durationDays) {
-        throw new BadRequestException(
-          `경유 장소의 여행 일차(${stop.dayNumber}일차)가 전체 소요 일수(${durationDays}일)를 초과합니다.`,
-        );
-      }
-    }
-
-    // 2. sequence 연속성 검증 (1, 2, 3...)
+    // 1. sequence 연속성 검증 (1, 2, 3...)
     const sortedSequences = stops.map((s) => s.sequence).sort((a, b) => a - b);
     for (let i = 0; i < sortedSequences.length; i++) {
       if (sortedSequences[i] !== i + 1) {
@@ -75,14 +65,19 @@ export class AdminRouteBuilderService {
       }
     }
 
-    // 3. 장소 존재 여부 검증
-    for (const stop of stops) {
-      const place = await this.adminPlaceRepository.findById(stop.placeId);
-      if (!place) {
-        throw new NotFoundException(
-          `ID가 '${stop.placeId}'인 장소를 찾을 수 없습니다.`,
-        );
-      }
+    // 2. 장소 존재 여부 배치 검증
+    const uniquePlaceIds = Array.from(new Set(stops.map((s) => s.placeId)));
+    const existingPlaces =
+      await this.adminPlaceRepository.findManyByIds(uniquePlaceIds);
+    const existingPlaceIdSet = new Set(existingPlaces.map((p) => p.id));
+
+    const missingIds = uniquePlaceIds.filter(
+      (id) => !existingPlaceIdSet.has(id),
+    );
+    if (missingIds.length > 0) {
+      throw new BadRequestException(
+        `존재하지 않는 장소 ID가 포함되어 있습니다: ${missingIds.join(', ')}`,
+      );
     }
   }
 }
