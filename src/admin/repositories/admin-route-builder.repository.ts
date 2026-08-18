@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   Injectable,
   InternalServerErrorException,
   NotFoundException,
@@ -47,20 +46,19 @@ type RouteDetailSelectResult = {
 export class AdminRouteBuilderRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async createRoute(
-    dto: CreateAdminRouteDto,
-  ): Promise<AdminRouteDetailResponseDto> {
-    const { name, description, themeSlug, isPublished, stops } = dto;
-
-    const targetTheme = await this.prisma.theme.findUnique({
-      where: { slug: themeSlug },
+  async findThemeIdBySlug(slug: string): Promise<string | null> {
+    const theme = await this.prisma.theme.findUnique({
+      where: { slug },
       select: { id: true },
     });
-    if (!targetTheme) {
-      throw new BadRequestException(
-        `유효하지 않은 테마 슬러그입니다: ${themeSlug}`,
-      );
-    }
+    return theme?.id ?? null;
+  }
+
+  async createRoute(
+    dto: CreateAdminRouteDto,
+    themeId: string,
+  ): Promise<AdminRouteDetailResponseDto> {
+    const { name, description, isPublished, stops } = dto;
 
     const { totalDistanceMeters, totalDurationMin, stopData } =
       await this.buildRouteAggregates(stops);
@@ -83,7 +81,7 @@ export class AdminRouteBuilderRepository {
       await tx.routeTheme.create({
         data: {
           routeId: newRoute.id,
-          themeId: targetTheme.id,
+          themeId,
         },
       });
 
@@ -160,19 +158,24 @@ export class AdminRouteBuilderRepository {
     const themeLabel =
       THEME_LABEL_MAP[themeSlug] ?? firstTheme?.name ?? '추천 테마';
 
-    const stops: AdminRouteDetailStopDto[] = route.stops.map((stop) => ({
-      sequence: stop.orderIndex,
-      dayNumber: 1, // Route는 1일 단위 모듈로 저장됨. 일차 정보는 조합 시점에서 부여됨
-      placeId: stop.place?.id ?? '',
-      placeName: stop.place?.name ?? '',
-      address: stop.place?.address ?? '',
-      category: stop.place?.category ?? null,
-      stayTimeMinutes: stop.stayMinutes ?? 60,
-      nextTravelTimeMinutes: stop.travelMinutesFromPrev ?? null,
-      nextTransportType: stop.transitType ?? null,
-      latitude: stop.place?.latitude ? Number(stop.place.latitude) : 0,
-      longitude: stop.place?.longitude ? Number(stop.place.longitude) : 0,
-    }));
+    const stops: AdminRouteDetailStopDto[] = route.stops.map((stop, index) => {
+      const nextStop =
+        index < route.stops.length - 1 ? route.stops[index + 1] : null;
+
+      return {
+        sequence: stop.orderIndex,
+        dayNumber: 1, // Route는 1일 단위 모듈로 저장됨
+        placeId: stop.place?.id ?? '',
+        placeName: stop.place?.name ?? '',
+        address: stop.place?.address ?? '',
+        category: stop.place?.category ?? null,
+        stayTimeMinutes: stop.stayMinutes ?? 60,
+        nextTravelTimeMinutes: nextStop?.travelMinutesFromPrev ?? null,
+        nextTransportType: nextStop?.transitType ?? null,
+        latitude: stop.place?.latitude ? Number(stop.place.latitude) : 0,
+        longitude: stop.place?.longitude ? Number(stop.place.longitude) : 0,
+      };
+    });
 
     return {
       id: route.id,
@@ -180,7 +183,7 @@ export class AdminRouteBuilderRepository {
       description: route.description,
       themeSlug,
       themeLabel,
-      durationDays: 1, // Route는 1일 단위 모듈. N일 코스는 N개를 조합하여 연결
+      durationDays: 1,
       stopCount: stops.length,
       totalDistanceKm: Number((route.totalDistanceMeters / 1000).toFixed(1)),
       isPublished: route.isPublished,
@@ -192,18 +195,9 @@ export class AdminRouteBuilderRepository {
   async updateRoute(
     id: string,
     dto: UpdateAdminRouteDto,
+    themeId: string,
   ): Promise<AdminRouteDetailResponseDto> {
-    const { name, description, themeSlug, isPublished, stops } = dto;
-
-    const targetTheme = await this.prisma.theme.findUnique({
-      where: { slug: themeSlug },
-      select: { id: true },
-    });
-    if (!targetTheme) {
-      throw new BadRequestException(
-        `유효하지 않은 테마 슬러그입니다: ${themeSlug}`,
-      );
-    }
+    const { name, description, isPublished, stops } = dto;
 
     const { totalDistanceMeters, totalDurationMin, stopData } =
       await this.buildRouteAggregates(stops);
@@ -226,7 +220,7 @@ export class AdminRouteBuilderRepository {
         await tx.routeTheme.create({
           data: {
             routeId: id,
-            themeId: targetTheme.id,
+            themeId,
           },
         });
 
@@ -283,19 +277,23 @@ export class AdminRouteBuilderRepository {
       }
     }
 
-    const totalDurationMin = sortedStops.reduce(
-      (acc, s) =>
-        acc + (s.stayTimeMinutes ?? 60) + (s.nextTravelTimeMinutes ?? 0),
-      0,
-    );
+    const totalDurationMin = sortedStops.reduce((acc, s, idx) => {
+      const stay = s.stayTimeMinutes ?? 60;
+      const travel =
+        idx < sortedStops.length - 1 ? (s.nextTravelTimeMinutes ?? 0) : 0;
+      return acc + stay + travel;
+    }, 0);
 
-    const stopData = sortedStops.map((stop) => ({
-      placeId: stop.placeId,
-      orderIndex: stop.sequence,
-      stayMinutes: stop.stayTimeMinutes,
-      travelMinutesFromPrev: stop.nextTravelTimeMinutes ?? null,
-      transitType: stop.nextTransportType ?? null,
-    }));
+    const stopData = sortedStops.map((stop, index) => {
+      const prevStop = index > 0 ? sortedStops[index - 1] : null;
+      return {
+        placeId: stop.placeId,
+        orderIndex: stop.sequence,
+        stayMinutes: stop.stayTimeMinutes,
+        travelMinutesFromPrev: prevStop?.nextTravelTimeMinutes ?? null,
+        transitType: prevStop?.nextTransportType ?? null,
+      };
+    });
 
     return {
       totalDistanceMeters,

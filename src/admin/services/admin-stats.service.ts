@@ -3,6 +3,7 @@ import {
   HttpStatus,
   Injectable,
   Optional,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import {
   AdminKtoCollectResponseDto,
@@ -68,6 +69,12 @@ export class AdminStatsService {
   }
 
   async triggerKtoCollection(): Promise<AdminKtoCollectResponseDto> {
+    if (!this.routeCongestionCronService) {
+      throw new ServiceUnavailableException(
+        'KTO 경로 혼잡도 수집 서비스를 이용할 수 없습니다.',
+      );
+    }
+
     if (this.isCollecting) {
       throw new HttpException(
         'KTO 수집 작업이 이미 진행 중입니다.',
@@ -93,9 +100,7 @@ export class AdminStatsService {
     this.isCollecting = true;
 
     try {
-      if (this.routeCongestionCronService) {
-        await this.routeCongestionCronService.handleRouteCongestionUpdate();
-      }
+      await this.routeCongestionCronService.handleRouteCongestionUpdate();
 
       const completedAt: Date = new Date();
       this.lastCollectedAt = completedAt;

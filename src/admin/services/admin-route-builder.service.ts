@@ -21,8 +21,8 @@ export class AdminRouteBuilderService {
   async createRoute(
     dto: CreateAdminRouteDto,
   ): Promise<AdminRouteDetailResponseDto> {
-    await this.validateRouteStops(dto.stops);
-    return this.adminRouteBuilderRepository.createRoute(dto);
+    const themeId = await this.validateRouteContext(dto.themeSlug, dto.stops);
+    return this.adminRouteBuilderRepository.createRoute(dto, themeId);
   }
 
   async getRouteDetail(id: string): Promise<AdminRouteDetailResponseDto> {
@@ -42,20 +42,31 @@ export class AdminRouteBuilderService {
       throw new NotFoundException('해당 추천 코스를 찾을 수 없습니다.');
     }
 
-    await this.validateRouteStops(dto.stops);
-    return this.adminRouteBuilderRepository.updateRoute(id, dto);
+    const themeId = await this.validateRouteContext(dto.themeSlug, dto.stops);
+    return this.adminRouteBuilderRepository.updateRoute(id, dto, themeId);
   }
 
-  private async validateRouteStops(
+  private async validateRouteContext(
+    themeSlug: string,
     stops: CreateAdminRouteDto['stops'],
-  ): Promise<void> {
+  ): Promise<string> {
+    // 1. 테마 존재 여부 사전 검증
+    const themeId =
+      await this.adminRouteBuilderRepository.findThemeIdBySlug(themeSlug);
+    if (!themeId) {
+      throw new BadRequestException(
+        `유효하지 않은 테마 슬러그입니다: ${themeSlug}`,
+      );
+    }
+
+    // 2. stops 존재 여부 검증
     if (!stops || stops.length === 0) {
       throw new BadRequestException(
         '최소 1개 이상의 경유 장소를 등록해야 합니다.',
       );
     }
 
-    // 1. sequence 연속성 검증 (1, 2, 3...)
+    // 3. sequence 연속성 검증 (1, 2, 3...)
     const sortedSequences = stops.map((s) => s.sequence).sort((a, b) => a - b);
     for (let i = 0; i < sortedSequences.length; i++) {
       if (sortedSequences[i] !== i + 1) {
@@ -65,7 +76,7 @@ export class AdminRouteBuilderService {
       }
     }
 
-    // 2. 장소 존재 여부 배치 검증
+    // 4. 장소 존재 여부 배치 검증
     const uniquePlaceIds = Array.from(new Set(stops.map((s) => s.placeId)));
     const existingPlaces =
       await this.adminPlaceRepository.findManyByIds(uniquePlaceIds);
@@ -79,5 +90,7 @@ export class AdminRouteBuilderService {
         `존재하지 않는 장소 ID가 포함되어 있습니다: ${missingIds.join(', ')}`,
       );
     }
+
+    return themeId;
   }
 }

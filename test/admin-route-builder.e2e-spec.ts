@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from '@/app.module';
@@ -83,8 +84,8 @@ describe('AdminRouteBuilderController (e2e)', () => {
             name: '테스트 장소',
             address: '부산 해운대구',
             category: 'FOOD',
-            latitude: '35.1532',
-            longitude: '129.1187',
+            latitude: new Prisma.Decimal('35.1532'),
+            longitude: new Prisma.Decimal('129.1187'),
           },
         },
       ],
@@ -92,8 +93,8 @@ describe('AdminRouteBuilderController (e2e)', () => {
 
     const mockPlaceRow = {
       id: MOCK_PLACE_ID,
-      latitude: '35.1532',
-      longitude: '129.1187',
+      latitude: new Prisma.Decimal('35.1532'),
+      longitude: new Prisma.Decimal('129.1187'),
     };
 
     let themeFindUnique: jest.Mock;
@@ -272,6 +273,12 @@ describe('AdminRouteBuilderController (e2e)', () => {
           stopCount: 1,
           isPublished: true,
         });
+
+        const body = response.body as {
+          stops: Array<{ latitude: number; longitude: number }>;
+        };
+        expect(body.stops[0].latitude).toBe(35.1532);
+        expect(body.stops[0].longitude).toBe(129.1187);
       });
 
       it('존재하지 않는 routeId로 요청 시 404를 반환해야 한다', async () => {

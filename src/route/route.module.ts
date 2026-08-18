@@ -18,5 +18,6 @@ import { SavedRouteService } from '@/route/services/saved-route.service';
     SavedRouteRepository,
     RouteCongestionCronService,
   ],
+  exports: [RouteService, SavedRouteService, RouteCongestionCronService],
 })
 export class RouteModule {}

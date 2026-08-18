@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import {
   AdminPlaceListQueryDto,
   AdminRouteListQueryDto,
@@ -39,10 +40,20 @@ export class AdminContentService {
       throw new NotFoundException('해당 추천 코스를 찾을 수 없습니다.');
     }
 
-    return this.adminRouteRepository.updatePublishedStatus(
-      routeId,
-      body.isPublished,
-    );
+    try {
+      return await this.adminRouteRepository.updatePublishedStatus(
+        routeId,
+        body.isPublished,
+      );
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new NotFoundException('해당 추천 코스를 찾을 수 없습니다.');
+      }
+      throw error;
+    }
   }
 
   async getPlaces(
