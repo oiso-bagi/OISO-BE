@@ -2,12 +2,14 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 import {
   IsBoolean,
+  IsEnum,
   IsInt,
   IsOptional,
   IsString,
   Max,
   Min,
 } from 'class-validator';
+import { UserRole } from '@prisma/client';
 
 const toStrictBoolean = ({ value }: { value: unknown }) => {
   if (value === 'true') return true;
@@ -69,4 +71,29 @@ export class AdminPlaceListQueryDto extends AdminPageQueryDto {
   @Transform(toStrictBoolean)
   @IsBoolean()
   isActive?: boolean;
+}
+
+export class AdminUserListQueryDto extends AdminPageQueryDto {
+  @ApiPropertyOptional({
+    description: 'OAuth 제공자 필터',
+    example: 'google',
+  })
+  @IsOptional()
+  @IsString()
+  provider?: string;
+
+  @ApiPropertyOptional({ description: '계정 활성 상태 필터 (true/false)' })
+  @IsOptional()
+  @Transform(toStrictBoolean)
+  @IsBoolean()
+  isActive?: boolean;
+
+  @ApiPropertyOptional({
+    description: '회원 권한 필터',
+    enum: UserRole,
+    example: UserRole.USER,
+  })
+  @IsOptional()
+  @IsEnum(UserRole)
+  role?: UserRole;
 }
