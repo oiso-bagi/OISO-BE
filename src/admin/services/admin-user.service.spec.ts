@@ -54,7 +54,7 @@ describe('AdminUserService', () => {
     await expect(
       service.toggleUserActive('missing-id', { isActive: false }),
     ).rejects.toThrow(NotFoundException);
-    expect(repository.findById).toHaveBeenCalledWith('missing-id', tx);
+    expect(repository.findById.mock.calls).toContainEqual(['missing-id', tx]);
   });
 
   it('prevents deactivating the last active admin', async () => {
@@ -66,7 +66,7 @@ describe('AdminUserService', () => {
     await expect(
       service.toggleUserActive('admin-id', { isActive: false }),
     ).rejects.toThrow(ConflictException);
-    expect(repository.countActiveAdmins).toHaveBeenCalledWith(tx);
+    expect(repository.countActiveAdmins.mock.calls).toContainEqual([tx]);
   });
 
   it('updates active status when another active admin exists', async () => {
@@ -80,11 +80,11 @@ describe('AdminUserService', () => {
     await expect(
       service.toggleUserActive('admin-id', { isActive: false }),
     ).resolves.toEqual(updated);
-    expect(repository.updateActiveStatus).toHaveBeenCalledWith(
+    expect(repository.updateActiveStatus.mock.calls).toContainEqual([
       'admin-id',
       false,
       tx,
-    );
+    ]);
   });
 
   it('prevents admins from changing their own role', async () => {
@@ -118,11 +118,11 @@ describe('AdminUserService', () => {
         role: UserRole.ADMIN,
       }),
     ).resolves.toEqual(updated);
-    expect(repository.updateRole).toHaveBeenCalledWith(
+    expect(repository.updateRole.mock.calls).toContainEqual([
       'target-id',
       UserRole.ADMIN,
       tx,
-    );
+    ]);
   });
 
   it('retries serialization failures once before applying the update', async () => {
@@ -142,7 +142,7 @@ describe('AdminUserService', () => {
       service.toggleUserActive('user-id', { isActive: false }),
     ).resolves.toEqual(updated);
 
-    expect(repository.runInSerializableTransaction).toHaveBeenCalledTimes(2);
+    expect(repository.runInSerializableTransaction.mock.calls).toHaveLength(2);
   });
 });
 

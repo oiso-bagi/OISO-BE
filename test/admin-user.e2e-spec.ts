@@ -8,6 +8,25 @@ import { AppModule } from '@/app.module';
 import { AuthGuard } from '@/common/guards/auth.guard';
 import { PrismaService } from '@/prisma/prisma.service';
 
+type TransactionOperation = (tx: PrismaMock) => Promise<unknown>;
+
+type PrismaMock = {
+  onModuleInit: jest.Mock<Promise<void>, []>;
+  onModuleDestroy: jest.Mock<Promise<void>, []>;
+  $connect: jest.Mock<Promise<void>, []>;
+  $disconnect: jest.Mock<Promise<void>, []>;
+  $transaction: jest.Mock<
+    Promise<unknown>,
+    [operation: TransactionOperation, options?: unknown]
+  >;
+  user: {
+    count: jest.Mock;
+    findMany: jest.Mock;
+    findUnique: jest.Mock;
+    update: jest.Mock;
+  };
+};
+
 describe('AdminUserController (e2e)', () => {
   describe('unauthenticated requests', () => {
     let app: INestApplication<App>;
@@ -101,7 +120,7 @@ describe('AdminUserController (e2e)', () => {
     beforeEach(() => {
       currentRole = UserRole.ADMIN;
       jest.clearAllMocks();
-      prismaMock.$transaction.mockImplementation(async (operation) =>
+      prismaMock.$transaction.mockImplementation((operation) =>
         operation(prismaMock),
       );
     });
@@ -201,22 +220,25 @@ describe('AdminUserController (e2e)', () => {
   });
 });
 
-function createPrismaMock() {
+function createPrismaMock(): PrismaMock {
   const mock = {
-    onModuleInit: jest.fn(),
-    onModuleDestroy: jest.fn(),
-    $connect: jest.fn(),
-    $disconnect: jest.fn(),
-    $transaction: jest.fn(),
+    onModuleInit: jest.fn<Promise<void>, []>(),
+    onModuleDestroy: jest.fn<Promise<void>, []>(),
+    $connect: jest.fn<Promise<void>, []>(),
+    $disconnect: jest.fn<Promise<void>, []>(),
+    $transaction: jest.fn<
+      Promise<unknown>,
+      [operation: TransactionOperation, options?: unknown]
+    >(),
     user: {
       count: jest.fn(),
       findMany: jest.fn(),
       findUnique: jest.fn(),
       update: jest.fn(),
     },
-  };
+  } satisfies PrismaMock;
 
-  mock.$transaction.mockImplementation(async (operation) => operation(mock));
+  mock.$transaction.mockImplementation((operation) => operation(mock));
 
   return mock;
 }
