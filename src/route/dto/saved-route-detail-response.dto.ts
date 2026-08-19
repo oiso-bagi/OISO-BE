@@ -21,7 +21,11 @@ export type SavedRouteDetailRawData = {
 };
 
 export class SavedRouteStopDetailDto {
-  @ApiProperty({ description: '경유지 순서', example: 1, type: Number })
+  @ApiProperty({
+    description: '경유지 순서 (0부터 시작)',
+    example: 0,
+    type: Number,
+  })
   sequence = 0;
 
   @ApiProperty({ description: '여행 일차 번호', example: 1, type: Number })

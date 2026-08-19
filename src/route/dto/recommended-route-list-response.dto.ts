@@ -7,7 +7,11 @@ import type {
 } from '@/route/dto/recommended-route-detail-response.dto';
 
 export class RouteStopLocationDto {
-  @ApiProperty({ description: '경유지 순서', example: 1, type: Number })
+  @ApiProperty({
+    description: '경유지 순서 (0부터 시작)',
+    example: 0,
+    type: Number,
+  })
   sequence!: number;
 
   @ApiProperty({

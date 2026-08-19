@@ -34,7 +34,7 @@ export const ApiCreateAdminRouteDocs = () =>
     ApiOperation({
       summary: '마스터 추천 코스 신규 등록 (관리자)',
       description:
-        '어드민 코스 빌더를 통해 새로운 추천 코스 및 경유 장소(sequence 1부터 시작) 목록을 작성하여 등록합니다.',
+        '어드민 코스 빌더를 통해 새로운 추천 코스 및 경유 장소(sequence 0부터 시작) 목록을 작성하여 등록합니다.',
     }),
     ApiBody({ type: CreateAdminRouteDto }),
     ApiCreatedResponse({
@@ -73,7 +73,7 @@ export const ApiUpdateAdminRouteDocs = () =>
     ApiOperation({
       summary: '마스터 추천 코스 수정 (관리자)',
       description:
-        '선택한 코스의 이름, 테마, 일수, 게시 상태 및 경유 장소(stops) 전체를 수정/갱신합니다.',
+        '선택한 코스의 이름, 테마, 게시 상태 및 경유 장소(sequence 0부터 시작) 목록 전체를 수정/갱신합니다.',
     }),
     ApiParam({
       name: 'routeId',
