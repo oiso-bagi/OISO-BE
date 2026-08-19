@@ -109,6 +109,27 @@ describe('AuthService', () => {
       );
     });
 
+    it('rejects Kakao login when an existing account is suspended', async () => {
+      mockAuthRepository.findUserByProvider.mockResolvedValue({
+        id: 'user-id',
+      });
+      mockAuthRepository.updateSocialUser.mockResolvedValue({
+        id: 'user-id',
+        email: 'user@example.com',
+        nickname: 'user',
+        provider: 'kakao',
+        isActive: false,
+      });
+
+      await expect(
+        service.loginWithKakao({
+          providerId: '123',
+          email: 'user@example.com',
+          nickname: 'user',
+        }),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
     it('reloads and updates an existing Kakao user after a create race', async () => {
       const createdByConcurrentCallback = {
         id: 'user-id',
@@ -452,6 +473,18 @@ describe('AuthService', () => {
     );
   });
 
+  it('rejects current user requests when the account is suspended', async () => {
+    mockAuthTokenService.verifyAccessToken.mockReturnValue({ sub: 'user-id' });
+    mockAuthRepository.findUserById.mockResolvedValue({
+      id: 'user-id',
+      isActive: false,
+    });
+
+    await expect(service.getCurrentUser('access-token')).rejects.toThrow(
+      UnauthorizedException,
+    );
+  });
+
   it('refreshes access tokens from a refresh token', async () => {
     const user = {
       id: 'user-id',
@@ -483,6 +516,19 @@ describe('AuthService', () => {
     );
   });
 
+  it('rejects refresh requests when the account is suspended', async () => {
+    mockAuthTokenService.verifyRefreshToken.mockReturnValue({ sub: 'user-id' });
+    mockAuthRepository.findUserById.mockResolvedValue({
+      id: 'user-id',
+      provider: 'kakao',
+      isActive: false,
+    });
+
+    await expect(service.refreshAccessToken('refresh-token')).rejects.toThrow(
+      UnauthorizedException,
+    );
+  });
+
   it('returns true when a refresh token belongs to an existing user', async () => {
     mockAuthTokenService.verifyRefreshToken.mockReturnValue({ sub: 'user-id' });
     mockAuthRepository.findUserById.mockResolvedValue({
@@ -503,6 +549,18 @@ describe('AuthService', () => {
   it('returns false when a refresh token user does not exist', async () => {
     mockAuthTokenService.verifyRefreshToken.mockReturnValue({ sub: 'user-id' });
     mockAuthRepository.findUserById.mockResolvedValue(undefined);
+
+    await expect(
+      service.hasAuthenticatedSession('refresh-token'),
+    ).resolves.toBe(false);
+  });
+
+  it('returns false when a refresh token user is suspended', async () => {
+    mockAuthTokenService.verifyRefreshToken.mockReturnValue({ sub: 'user-id' });
+    mockAuthRepository.findUserById.mockResolvedValue({
+      id: 'user-id',
+      isActive: false,
+    });
 
     await expect(
       service.hasAuthenticatedSession('refresh-token'),
