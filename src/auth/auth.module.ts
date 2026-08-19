@@ -10,6 +10,7 @@ import { KakaoAuthService } from '@/auth/services/kakao-auth.service';
 import { OAuthFlowService } from '@/auth/services/oauth-flow.service';
 import { SocialAuthService } from '@/auth/services/social-auth.service';
 import { AuthGuard } from '@/common/guards/auth.guard';
+import { RolesGuard } from '@/common/guards/roles.guard';
 
 @Module({
   imports: [JwtModule.register({})],
@@ -24,7 +25,8 @@ import { AuthGuard } from '@/common/guards/auth.guard';
     KakaoAuthService,
     GoogleAuthService,
     AuthGuard,
+    RolesGuard,
   ],
-  exports: [AuthService, AuthCookieService, AuthGuard],
+  exports: [AuthService, AuthCookieService, AuthGuard, RolesGuard],
 })
 export class AuthModule {}
