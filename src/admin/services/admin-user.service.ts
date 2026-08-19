@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { UserRole } from '@prisma/client';
+import { Prisma, UserRole } from '@prisma/client';
 import { AdminUserListQueryDto } from '@/admin/dto/admin-list-query.dto';
 import {
   AdminToggleUserActiveDto,
@@ -29,17 +29,23 @@ export class AdminUserService {
     userId: string,
     body: AdminToggleUserActiveDto,
   ): Promise<AdminUserListItemDto> {
-    const existing = await this.findExistingUser(userId);
+    return this.runUserMutationInTransaction(async (tx) => {
+      const existing = await this.findExistingUser(userId, tx);
 
-    if (
-      existing.role === UserRole.ADMIN &&
-      existing.isActive &&
-      !body.isActive
-    ) {
-      await this.assertAnotherActiveAdminExists();
-    }
+      if (
+        existing.role === UserRole.ADMIN &&
+        existing.isActive &&
+        !body.isActive
+      ) {
+        await this.assertAnotherActiveAdminExists(tx);
+      }
 
-    return this.adminUserRepository.updateActiveStatus(userId, body.isActive);
+      return this.adminUserRepository.updateActiveStatus(
+        userId,
+        body.isActive,
+        tx,
+      );
+    });
   }
 
   async updateUserRole(
@@ -47,27 +53,30 @@ export class AdminUserService {
     currentUserId: string,
     body: AdminUpdateUserRoleDto,
   ): Promise<AdminUserListItemDto> {
-    const existing = await this.findExistingUser(userId);
+    return this.runUserMutationInTransaction(async (tx) => {
+      const existing = await this.findExistingUser(userId, tx);
 
-    if (userId === currentUserId) {
-      throw new ConflictException('Admins cannot change their own role.');
-    }
+      if (userId === currentUserId) {
+        throw new ConflictException('Admins cannot change their own role.');
+      }
 
-    if (
-      existing.role === UserRole.ADMIN &&
-      existing.isActive &&
-      body.role !== UserRole.ADMIN
-    ) {
-      await this.assertAnotherActiveAdminExists();
-    }
+      if (
+        existing.role === UserRole.ADMIN &&
+        existing.isActive &&
+        body.role !== UserRole.ADMIN
+      ) {
+        await this.assertAnotherActiveAdminExists(tx);
+      }
 
-    return this.adminUserRepository.updateRole(userId, body.role);
+      return this.adminUserRepository.updateRole(userId, body.role, tx);
+    });
   }
 
   private async findExistingUser(
     userId: string,
+    tx?: Prisma.TransactionClient,
   ): Promise<AdminUserListItemDto> {
-    const existing = await this.adminUserRepository.findById(userId);
+    const existing = await this.adminUserRepository.findById(userId, tx);
     if (!existing) {
       throw new NotFoundException('User not found.');
     }
@@ -75,11 +84,60 @@ export class AdminUserService {
     return existing;
   }
 
-  private async assertAnotherActiveAdminExists(): Promise<void> {
-    const activeAdminCount = await this.adminUserRepository.countActiveAdmins();
+  private async assertAnotherActiveAdminExists(
+    tx?: Prisma.TransactionClient,
+  ): Promise<void> {
+    const activeAdminCount =
+      await this.adminUserRepository.countActiveAdmins(tx);
 
     if (activeAdminCount <= 1) {
       throw new ConflictException('At least one active admin is required.');
     }
+  }
+
+  private async runUserMutationInTransaction<T>(
+    operation: (tx: Prisma.TransactionClient) => Promise<T>,
+  ): Promise<T> {
+    const maxAttempts = 2;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      try {
+        return await this.adminUserRepository.runInSerializableTransaction(
+          operation,
+        );
+      } catch (error) {
+        if (!this.isSerializationFailure(error)) {
+          throw error;
+        }
+
+        if (attempt === maxAttempts) {
+          throw new ConflictException(
+            'Concurrent admin user update conflict. Please retry.',
+          );
+        }
+      }
+    }
+
+    throw new ConflictException(
+      'Concurrent admin user update conflict. Please retry.',
+    );
+  }
+
+  private isSerializationFailure(error: unknown): boolean {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === 'P2034'
+    ) {
+      return true;
+    }
+
+    if (!(error instanceof Error)) {
+      return false;
+    }
+
+    return (
+      error.message.includes('could not serialize access') ||
+      error.message.includes('Serialization failure')
+    );
   }
 }

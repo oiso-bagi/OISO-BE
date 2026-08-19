@@ -4,6 +4,7 @@ import {
   ApiBody,
   ApiConflictResponse,
   ApiCookieAuth,
+  ApiForbiddenResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
@@ -29,6 +30,9 @@ const applyAdminAuthDocs = () =>
     ApiCookieAuth(ACCESS_TOKEN_COOKIE),
     ApiUnauthorizedResponse({
       description: '인증 토큰이 없거나 유효하지 않거나 정지된 계정입니다.',
+    }),
+    ApiForbiddenResponse({
+      description: '관리자 권한이 필요합니다.',
     }),
   );
 

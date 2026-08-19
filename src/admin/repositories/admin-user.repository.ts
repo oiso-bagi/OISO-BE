@@ -15,6 +15,12 @@ const adminUserSelect = {
   updatedAt: true,
 } satisfies Prisma.UserSelect;
 
+type AdminUserSelected = Prisma.UserGetPayload<{
+  select: typeof adminUserSelect;
+}>;
+
+type UserTransactionClient = Pick<Prisma.TransactionClient, 'user'>;
+
 @Injectable()
 export class AdminUserRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -56,15 +62,25 @@ export class AdminUserRepository {
     };
   }
 
-  async findById(id: string) {
-    return this.prisma.user.findUnique({
+  runInSerializableTransaction<T>(
+    operation: (tx: Prisma.TransactionClient) => Promise<T>,
+  ): Promise<T> {
+    return this.prisma.$transaction(operation, {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+    });
+  }
+
+  async findById(id: string, tx: UserTransactionClient = this.prisma) {
+    return tx.user.findUnique({
       where: { id },
       select: adminUserSelect,
     });
   }
 
-  async countActiveAdmins(): Promise<number> {
-    return this.prisma.user.count({
+  async countActiveAdmins(
+    tx: UserTransactionClient = this.prisma,
+  ): Promise<number> {
+    return tx.user.count({
       where: {
         role: UserRole.ADMIN,
         isActive: true,
@@ -75,8 +91,9 @@ export class AdminUserRepository {
   async updateActiveStatus(
     id: string,
     isActive: boolean,
+    tx: UserTransactionClient = this.prisma,
   ): Promise<AdminUserListItemDto> {
-    const updated = await this.prisma.user.update({
+    const updated = await tx.user.update({
       where: { id },
       data: { isActive },
       select: adminUserSelect,
@@ -85,8 +102,12 @@ export class AdminUserRepository {
     return this.toListItem(updated);
   }
 
-  async updateRole(id: string, role: UserRole): Promise<AdminUserListItemDto> {
-    const updated = await this.prisma.user.update({
+  async updateRole(
+    id: string,
+    role: UserRole,
+    tx: UserTransactionClient = this.prisma,
+  ): Promise<AdminUserListItemDto> {
+    const updated = await tx.user.update({
       where: { id },
       data: { role },
       select: adminUserSelect,
@@ -95,7 +116,7 @@ export class AdminUserRepository {
     return this.toListItem(updated);
   }
 
-  private toListItem(user: AdminUserListItemDto): AdminUserListItemDto {
+  private toListItem(user: AdminUserSelected): AdminUserListItemDto {
     return {
       id: user.id,
       email: user.email,

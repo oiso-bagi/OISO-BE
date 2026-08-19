@@ -112,12 +112,6 @@ describe('AuthService', () => {
     it('rejects Kakao login when an existing account is suspended', async () => {
       mockAuthRepository.findUserByProvider.mockResolvedValue({
         id: 'user-id',
-      });
-      mockAuthRepository.updateSocialUser.mockResolvedValue({
-        id: 'user-id',
-        email: 'user@example.com',
-        nickname: 'user',
-        provider: 'kakao',
         isActive: false,
       });
 
@@ -128,6 +122,32 @@ describe('AuthService', () => {
           nickname: 'user',
         }),
       ).rejects.toThrow(UnauthorizedException);
+      expect(mockAuthRepository.updateSocialUser).not.toHaveBeenCalled();
+    });
+
+    it('rejects a suspended Kakao account found after a create race before updating profile', async () => {
+      mockAuthRepository.findUserByProvider
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ id: 'user-id', isActive: false });
+      mockAuthRepository.findUserByNickname.mockResolvedValue(null);
+      mockAuthRepository.createSocialUser.mockRejectedValue(
+        new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+          code: 'P2002',
+          clientVersion: '5.22.0',
+          meta: {
+            target: ['email'],
+          },
+        }),
+      );
+
+      await expect(
+        service.loginWithKakao({
+          providerId: '123',
+          email: 'user@example.com',
+          nickname: 'user',
+        }),
+      ).rejects.toThrow(UnauthorizedException);
+      expect(mockAuthRepository.updateSocialUser).not.toHaveBeenCalled();
     });
 
     it('reloads and updates an existing Kakao user after a create race', async () => {
