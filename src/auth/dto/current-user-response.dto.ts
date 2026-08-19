@@ -22,7 +22,7 @@ export class CurrentUserResponseDto {
 
   @ApiProperty({
     description: '가입 또는 로그인에 사용한 OAuth 제공자',
-    example: 'kakao',
+    example: 'LOCAL',
   })
   provider!: string;
 
