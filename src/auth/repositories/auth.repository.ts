@@ -2,7 +2,11 @@ import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { User } from '@prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
-import type { SocialAuthUser, UserIdOnly } from '@/auth/types/auth-user.types';
+import type {
+  SocialAuthLookupUser,
+  SocialAuthUser,
+  UserIdOnly,
+} from '@/auth/types/auth-user.types';
 import type {
   SocialProvider,
   SocialUserProfile,
@@ -35,7 +39,7 @@ export class AuthRepository {
   findUserByProvider(
     provider: SocialProvider,
     providerId: string,
-  ): Promise<UserIdOnly | null> {
+  ): Promise<SocialAuthLookupUser | null> {
     return this.prisma.user.findUnique({
       where: {
         provider_providerId: {
@@ -45,6 +49,7 @@ export class AuthRepository {
       },
       select: {
         id: true,
+        isActive: true,
       },
     });
   }

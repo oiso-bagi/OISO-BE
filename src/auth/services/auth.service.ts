@@ -41,6 +41,10 @@ export class AuthService {
       throw new UnauthorizedException('인증된 사용자를 찾을 수 없습니다.');
     }
 
+    if (user.isActive === false) {
+      throw new UnauthorizedException('Account is suspended.');
+    }
+
     return user;
   }
 
@@ -54,6 +58,10 @@ export class AuthService {
 
     if (!user) {
       throw new UnauthorizedException('인증된 사용자를 찾을 수 없습니다.');
+    }
+
+    if (user.isActive === false) {
+      throw new UnauthorizedException('Account is suspended.');
     }
 
     return this.authTokenService.issueAccessToken(user.id, user.provider);
@@ -70,7 +78,7 @@ export class AuthService {
       const payload = this.authTokenService.verifyRefreshToken(refreshToken);
       const user = await this.authRepository.findUserById(payload.sub);
 
-      return user !== null && user !== undefined;
+      return user !== null && user !== undefined && user.isActive !== false;
     } catch (error: unknown) {
       if (error instanceof UnauthorizedException) {
         return false;

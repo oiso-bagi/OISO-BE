@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { AuthRepository } from '@/auth/repositories/auth.repository';
@@ -10,7 +11,7 @@ import type {
   AuthTokens,
   SocialLoginResult,
 } from '@/auth/types/auth-result.types';
-import type { SocialAuthUser, UserIdOnly } from '@/auth/types/auth-user.types';
+import type { SocialAuthUser } from '@/auth/types/auth-user.types';
 import type {
   SocialProvider,
   SocialUserProfile,
@@ -35,6 +36,8 @@ export class SocialAuthService {
     );
 
     if (existingUser) {
+      this.assertActiveUser(existingUser);
+
       const user = await this.updateSocialUserHandlingEmailConflict(
         existingUser.id,
         profile,
@@ -66,27 +69,30 @@ export class SocialAuthService {
 
         return this.toSocialLoginResult(user, true);
       } catch (error: unknown) {
+        if (this.isUniqueConstraintError(error)) {
+          const existingUser = await this.authRepository.findUserByProvider(
+            provider,
+            profile.providerId,
+          );
+
+          if (existingUser) {
+            this.assertActiveUser(existingUser);
+
+            const user = await this.updateSocialUserHandlingEmailConflict(
+              existingUser.id,
+              profile,
+            );
+
+            return this.toSocialLoginResult(user, false);
+          }
+        }
+
         if (this.isUniqueConstraintError(error, 'email')) {
           throw new ConflictException('이미 다른 계정에 연결된 이메일입니다.');
         }
 
         if (!this.isUniqueConstraintError(error)) {
           throw this.toError(error, 'creating social user');
-        }
-
-        const existingUser: UserIdOnly | null =
-          await this.authRepository.findUserByProvider(
-            provider,
-            profile.providerId,
-          );
-
-        if (existingUser) {
-          const user = await this.updateSocialUserHandlingEmailConflict(
-            existingUser.id,
-            profile,
-          );
-
-          return this.toSocialLoginResult(user, false);
         }
       }
     }
@@ -174,10 +180,18 @@ export class SocialAuthService {
     user: SocialAuthUser,
     isNewUser: boolean,
   ): SocialLoginResult {
+    this.assertActiveUser(user);
+
     return {
       user,
       tokens: this.issueTokens(user),
       isNewUser,
     };
+  }
+
+  private assertActiveUser(user: Pick<SocialAuthUser, 'isActive'>): void {
+    if (user.isActive === false) {
+      throw new UnauthorizedException('Account is suspended.');
+    }
   }
 }
