@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { AuthRepository } from '@/auth/repositories/auth.repository';
@@ -174,6 +175,10 @@ export class SocialAuthService {
     user: SocialAuthUser,
     isNewUser: boolean,
   ): SocialLoginResult {
+    if (user.isActive === false) {
+      throw new UnauthorizedException('Account is suspended.');
+    }
+
     return {
       user,
       tokens: this.issueTokens(user),
