@@ -22,11 +22,15 @@ import {
   AdminStatsOverviewResponseDto,
 } from '@/admin/dto/admin-stats-response.dto';
 import { AdminStatsService } from '@/admin/services/admin-stats.service';
+import { Roles } from '@/common/decorators/roles.decorator';
 import { AuthGuard } from '@/common/guards/auth.guard';
+import { RolesGuard } from '@/common/guards/roles.guard';
+import { UserRole } from '@prisma/client';
 
 @ApiAdminStatsControllerDocs()
 @Controller('admin')
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, RolesGuard)
+@Roles(UserRole.ADMIN)
 export class AdminStatsController {
   constructor(private readonly adminStatsService: AdminStatsService) {}
 

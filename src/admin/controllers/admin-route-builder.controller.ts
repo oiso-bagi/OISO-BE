@@ -21,11 +21,15 @@ import {
   UpdateAdminRouteDto,
 } from '@/admin/dto/admin-route-builder.dto';
 import { AdminRouteBuilderService } from '@/admin/services/admin-route-builder.service';
+import { Roles } from '@/common/decorators/roles.decorator';
 import { AuthGuard } from '@/common/guards/auth.guard';
+import { RolesGuard } from '@/common/guards/roles.guard';
+import { UserRole } from '@prisma/client';
 
 @ApiAdminContentControllerDocs()
 @Controller('admin/routes')
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, RolesGuard)
+@Roles(UserRole.ADMIN)
 export class AdminRouteBuilderController {
   constructor(
     private readonly adminRouteBuilderService: AdminRouteBuilderService,

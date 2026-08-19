@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import type { ExecutionContext } from '@nestjs/common';
+import { Prisma, UserRole } from '@prisma/client';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from '@/app.module';
@@ -54,6 +55,131 @@ describe('AdminRouteBuilderController (e2e)', () => {
         .put('/api/v1/admin/routes/some-id')
         .send({ name: '미인증', themeSlug: 'local-food', stops: [] })
         .expect(401);
+    });
+  });
+
+  describe('관리자 권한 인가 요청 (AuthGuard mock + real RolesGuard)', () => {
+    let app: INestApplication<App>;
+    let currentRole: UserRole;
+    let routeFindUnique: jest.Mock;
+
+    const MOCK_ROUTE_ID = 'route-role-check';
+    const MOCK_PLACE_ID = 'place-role-check';
+
+    const mockRouteDetailRow = {
+      id: MOCK_ROUTE_ID,
+      name: '권한 검증 코스',
+      description: null,
+      isPublished: true,
+      totalDistanceMeters: 1200,
+      createdAt: new Date('2026-08-01T00:00:00.000Z'),
+      themes: [{ theme: { slug: 'local-food', name: '부산 로컬 맛집' } }],
+      stops: [
+        {
+          orderIndex: 0,
+          stayMinutes: 60,
+          travelMinutesFromPrev: null,
+          transitType: null,
+          place: {
+            id: MOCK_PLACE_ID,
+            name: '권한 검증 장소',
+            address: '부산 해운대구',
+            category: 'FOOD',
+            latitude: new Prisma.Decimal('35.1532'),
+            longitude: new Prisma.Decimal('129.1187'),
+          },
+        },
+      ],
+    };
+
+    beforeAll(async () => {
+      currentRole = UserRole.USER;
+      routeFindUnique = jest.fn();
+
+      const moduleFixture: TestingModule = await Test.createTestingModule({
+        imports: [AppModule],
+      })
+        .overrideGuard(AuthGuard)
+        .useValue({
+          canActivate: (context: ExecutionContext) => {
+            const request = context.switchToHttp().getRequest<{
+              user?: { id: string; role: UserRole };
+            }>();
+
+            request.user = { id: 'mock-user-id', role: currentRole };
+
+            return true;
+          },
+        })
+        .overrideProvider(PrismaService)
+        .useValue({
+          onModuleInit: jest.fn(),
+          $connect: jest.fn(),
+          $disconnect: jest.fn(),
+          route: {
+            findUnique: routeFindUnique,
+            findFirst: jest.fn().mockResolvedValue(null),
+            aggregate: jest.fn().mockResolvedValue({
+              _sum: { estimatedSavingsWon: 0 },
+              _avg: { localContributionScore: null },
+            }),
+          },
+          place: {
+            findMany: jest.fn().mockResolvedValue([]),
+            findUnique: jest.fn(),
+            count: jest.fn().mockResolvedValue(0),
+          },
+          routeStop: { groupBy: jest.fn().mockResolvedValue([]) },
+          savedRoute: {
+            count: jest.fn().mockResolvedValue(0),
+            findMany: jest.fn().mockResolvedValue([]),
+          },
+          user: { count: jest.fn().mockResolvedValue(0) },
+        })
+        .compile();
+
+      app = moduleFixture.createNestApplication();
+      app.setGlobalPrefix('api/v1');
+      app.useGlobalPipes(
+        new ValidationPipe({ transform: true, whitelist: true }),
+      );
+      await app.init();
+    });
+
+    afterAll(async () => {
+      await app.close();
+    });
+
+    beforeEach(() => {
+      currentRole = UserRole.USER;
+      routeFindUnique.mockReset();
+    });
+
+    it('USER 권한이면 403 Forbidden을 반환한다', async () => {
+      currentRole = UserRole.USER;
+
+      await request(app.getHttpServer())
+        .get(`/api/v1/admin/routes/${MOCK_ROUTE_ID}`)
+        .expect(403);
+
+      expect(routeFindUnique).not.toHaveBeenCalled();
+    });
+
+    it('ADMIN 권한이면 요청을 통과시켜 관리자 API 응답을 반환한다', async () => {
+      currentRole = UserRole.ADMIN;
+      routeFindUnique.mockResolvedValue(mockRouteDetailRow);
+
+      const response = await request(app.getHttpServer())
+        .get(`/api/v1/admin/routes/${MOCK_ROUTE_ID}`)
+        .expect(200);
+
+      expect(response.body).toMatchObject({
+        id: MOCK_ROUTE_ID,
+        name: '권한 검증 코스',
+        themeSlug: 'local-food',
+        isPublished: true,
+      });
+      expect(routeFindUnique).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -112,7 +238,17 @@ describe('AdminRouteBuilderController (e2e)', () => {
         imports: [AppModule],
       })
         .overrideGuard(AuthGuard)
-        .useValue({ canActivate: () => true })
+        .useValue({
+          canActivate: (context: ExecutionContext) => {
+            const request = context.switchToHttp().getRequest<{
+              user?: { id: string; role: UserRole };
+            }>();
+
+            request.user = { id: 'mock-admin-id', role: UserRole.ADMIN };
+
+            return true;
+          },
+        })
         .overrideProvider(PrismaService)
         .useValue({
           onModuleInit: jest.fn(),

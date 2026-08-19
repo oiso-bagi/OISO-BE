@@ -1,5 +1,6 @@
-import type { User } from '@prisma/client';
 import { ApiProperty } from '@nestjs/swagger';
+import { UserRole } from '@prisma/client';
+import type { User } from '@prisma/client';
 
 export class CurrentUserResponseDto {
   @ApiProperty({
@@ -26,12 +27,20 @@ export class CurrentUserResponseDto {
   })
   provider!: string;
 
+  @ApiProperty({
+    description: 'User role',
+    enum: UserRole,
+    example: UserRole.USER,
+  })
+  role!: UserRole;
+
   static from(user: User): CurrentUserResponseDto {
     return {
       id: user.id,
       email: user.email,
       nickname: user.nickname,
       provider: user.provider,
+      role: user.role,
     };
   }
 }

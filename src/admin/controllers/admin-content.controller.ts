@@ -30,11 +30,15 @@ import {
   AdminToggleRoutePublishedDto,
 } from '@/admin/dto/admin-toggle.dto';
 import { AdminContentService } from '@/admin/services/admin-content.service';
+import { Roles } from '@/common/decorators/roles.decorator';
 import { AuthGuard } from '@/common/guards/auth.guard';
+import { RolesGuard } from '@/common/guards/roles.guard';
+import { UserRole } from '@prisma/client';
 
 @ApiAdminContentControllerDocs()
 @Controller('admin')
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, RolesGuard)
+@Roles(UserRole.ADMIN)
 export class AdminContentController {
   constructor(private readonly adminContentService: AdminContentService) {}
 
