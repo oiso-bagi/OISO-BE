@@ -356,7 +356,10 @@ async function seedRecommendRoutes() {
         .substring(0, 16);
       const routeId = `route-${hash}`;
 
-      const routeName = `부산 ${theme.name} - ${anchor.name} 릴레이 ${courseIdx + 1}호 코스`;
+      const formattedThemeName = theme.name.startsWith('부산')
+        ? theme.name
+        : `부산 ${theme.name}`;
+      const routeName = `${formattedThemeName} - ${anchor.name} 릴레이 ${courseIdx + 1}호 코스`;
       const summary = `${anchor.name}을(를) 거점으로 ${theme.name}의 매력을 만끽하는 ${uniqueStops.length}스팟 맞춤 동선`;
 
       let foodCostWon = 0;

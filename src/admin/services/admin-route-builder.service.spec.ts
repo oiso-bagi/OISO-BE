@@ -49,7 +49,7 @@ describe('AdminRouteBuilderService', () => {
         stops: [
           {
             placeId: 'place_1',
-            sequence: 1,
+            sequence: 0,
             stayTimeMinutes: 60,
           },
         ],
@@ -77,7 +77,7 @@ describe('AdminRouteBuilderService', () => {
       );
     });
 
-    it('sequence가 1부터 연속되지 않으면 BadRequestException을 던져야 한다', async () => {
+    it('sequence가 0부터 연속되지 않으면 BadRequestException을 던져야 한다', async () => {
       builderRepository.findThemeIdBySlug.mockResolvedValue('theme_1');
 
       const dto = {
@@ -87,7 +87,7 @@ describe('AdminRouteBuilderService', () => {
         stops: [
           {
             placeId: 'place_1',
-            sequence: 2, // 1부터 시작해야 함
+            sequence: 1, // 0부터 시작해야 함
             stayTimeMinutes: 60,
           },
         ],
@@ -109,7 +109,7 @@ describe('AdminRouteBuilderService', () => {
         stops: [
           {
             placeId: 'invalid_id',
-            sequence: 1,
+            sequence: 0,
             stayTimeMinutes: 60,
           },
         ],
@@ -140,7 +140,7 @@ describe('AdminRouteBuilderService', () => {
         stops: [
           {
             placeId: 'place_1',
-            sequence: 1,
+            sequence: 0,
             stayTimeMinutes: 60,
           },
         ],
@@ -259,7 +259,7 @@ describe('AdminRouteBuilderService', () => {
       expect(builderRepository.updateRoute).not.toHaveBeenCalled();
     });
 
-    it('sequence가 1부터 연속되지 않으면 BadRequestException을 던져야 한다', async () => {
+    it('sequence가 0부터 연속되지 않으면 BadRequestException을 던져야 한다', async () => {
       const mockDetail = {
         id: 'route_1',
         name: '테스트 코스',
@@ -283,7 +283,7 @@ describe('AdminRouteBuilderService', () => {
         stops: [
           {
             placeId: 'place_1',
-            sequence: 2, // 1부터 시작해야 함
+            sequence: 1, // 0부터 시작해야 함
             stayTimeMinutes: 60,
           },
         ],

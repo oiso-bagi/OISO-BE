@@ -54,7 +54,7 @@ describe('AdminRouteBuilderController', () => {
       durationDays: 1,
       isPublished: true,
       stops: [
-        { placeId: 'place_1', dayNumber: 1, sequence: 1, stayTimeMinutes: 60 },
+        { placeId: 'place_1', dayNumber: 1, sequence: 0, stayTimeMinutes: 60 },
       ],
     };
 
@@ -106,7 +106,7 @@ describe('AdminRouteBuilderController', () => {
       durationDays: 1,
       isPublished: true,
       stops: [
-        { placeId: 'place_1', dayNumber: 1, sequence: 1, stayTimeMinutes: 60 },
+        { placeId: 'place_1', dayNumber: 1, sequence: 0, stayTimeMinutes: 60 },
       ],
     };
 
