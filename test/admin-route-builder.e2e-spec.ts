@@ -75,7 +75,7 @@ describe('AdminRouteBuilderController (e2e)', () => {
       themes: [{ theme: { slug: 'local-food', name: '부산 로컬 맛집' } }],
       stops: [
         {
-          orderIndex: 1,
+          orderIndex: 0,
           stayMinutes: 60,
           travelMinutesFromPrev: null,
           transitType: null,
@@ -182,7 +182,7 @@ describe('AdminRouteBuilderController (e2e)', () => {
             themeSlug: 'local-food',
             isPublished: true,
             stops: [
-              { placeId: MOCK_PLACE_ID, sequence: 1, stayTimeMinutes: 60 },
+              { placeId: MOCK_PLACE_ID, sequence: 0, stayTimeMinutes: 60 },
             ],
           })
           .expect(201);
@@ -205,7 +205,7 @@ describe('AdminRouteBuilderController (e2e)', () => {
         expect(body.stops[0]).toMatchObject({
           placeId: MOCK_PLACE_ID,
           dayNumber: 1,
-          sequence: 1,
+          sequence: 0,
         });
       });
 
@@ -221,7 +221,7 @@ describe('AdminRouteBuilderController (e2e)', () => {
           .expect(400);
       });
 
-      it('sequence가 1부터 연속되지 않으면 400을 반환해야 한다', async () => {
+      it('sequence가 0부터 연속되지 않으면 400을 반환해야 한다', async () => {
         themeFindUnique.mockResolvedValue({ id: MOCK_THEME_ID });
         placeFindMany.mockResolvedValue([mockPlaceRow]);
 
@@ -232,7 +232,7 @@ describe('AdminRouteBuilderController (e2e)', () => {
             themeSlug: 'local-food',
             isPublished: true,
             stops: [
-              { placeId: MOCK_PLACE_ID, sequence: 2, stayTimeMinutes: 60 },
+              { placeId: MOCK_PLACE_ID, sequence: 1, stayTimeMinutes: 60 },
             ],
           })
           .expect(400);
@@ -249,7 +249,7 @@ describe('AdminRouteBuilderController (e2e)', () => {
             themeSlug: 'local-food',
             isPublished: true,
             stops: [
-              { placeId: 'invalid-place-id', sequence: 1, stayTimeMinutes: 60 },
+              { placeId: 'invalid-place-id', sequence: 0, stayTimeMinutes: 60 },
             ],
           })
           .expect(400);
@@ -323,7 +323,7 @@ describe('AdminRouteBuilderController (e2e)', () => {
             themeSlug: 'local-food',
             isPublished: true,
             stops: [
-              { placeId: MOCK_PLACE_ID, sequence: 1, stayTimeMinutes: 60 },
+              { placeId: MOCK_PLACE_ID, sequence: 0, stayTimeMinutes: 60 },
             ],
           })
           .expect(200);
@@ -345,7 +345,7 @@ describe('AdminRouteBuilderController (e2e)', () => {
             themeSlug: 'local-food',
             isPublished: true,
             stops: [
-              { placeId: MOCK_PLACE_ID, sequence: 1, stayTimeMinutes: 60 },
+              { placeId: MOCK_PLACE_ID, sequence: 0, stayTimeMinutes: 60 },
             ],
           })
           .expect(404);

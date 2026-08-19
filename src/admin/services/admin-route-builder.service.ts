@@ -66,12 +66,12 @@ export class AdminRouteBuilderService {
       );
     }
 
-    // 3. sequence 연속성 검증 (1, 2, 3...)
+    // 3. sequence 연속성 검증 (0, 1, 2...)
     const sortedSequences = stops.map((s) => s.sequence).sort((a, b) => a - b);
     for (let i = 0; i < sortedSequences.length; i++) {
-      if (sortedSequences[i] !== i + 1) {
+      if (sortedSequences[i] !== i) {
         throw new BadRequestException(
-          '경유 장소의 순서(sequence)는 1부터 시작하여 1씩 증가하는 연속된 정수여야 합니다.',
+          '경유 장소의 순서(sequence)는 0부터 시작하여 1씩 증가하는 연속된 정수여야 합니다.',
         );
       }
     }

@@ -22,12 +22,12 @@ export class AdminRouteStopInputDto {
   placeId!: string;
 
   @ApiProperty({
-    description: '코스 내 경유 순서 (1부터 시작하는 연속 정수)',
-    example: 1,
+    description: '코스 내 경유 순서 (0부터 시작하는 연속 정수)',
+    example: 0,
   })
   @Type(() => Number)
   @IsInt()
-  @Min(1)
+  @Min(0)
   sequence!: number;
 
   @ApiPropertyOptional({
@@ -97,19 +97,19 @@ export class CreateAdminRouteDto {
   isPublished: boolean = true;
 
   @ApiProperty({
-    description: '경유 장소 목록 (sequence는 1부터 시작하는 연속 정수)',
+    description: '경유 장소 목록 (sequence는 0부터 시작하는 연속 정수)',
     type: [AdminRouteStopInputDto],
     example: [
       {
         placeId: 'place_001',
-        sequence: 1,
+        sequence: 0,
         stayTimeMinutes: 60,
         nextTravelTimeMinutes: 20,
         nextTransportType: TransitType.WALKING,
       },
       {
         placeId: 'place_002',
-        sequence: 2,
+        sequence: 1,
         stayTimeMinutes: 45,
       },
     ],
@@ -125,7 +125,7 @@ export class CreateAdminRouteDto {
 export class UpdateAdminRouteDto extends CreateAdminRouteDto {}
 
 export class AdminRouteDetailStopDto {
-  @ApiProperty({ description: '경유지 순서 (1부터 시작)', example: 1 })
+  @ApiProperty({ description: '경유지 순서 (0부터 시작)', example: 0 })
   sequence!: number;
 
   @ApiProperty({ description: '여행 일차', example: 1 })
@@ -211,7 +211,7 @@ export class AdminRouteDetailResponseDto {
     type: [AdminRouteDetailStopDto],
     example: [
       {
-        sequence: 1,
+        sequence: 0,
         dayNumber: 1,
         placeId: 'place_001',
         placeName: '가야포차선지국',
