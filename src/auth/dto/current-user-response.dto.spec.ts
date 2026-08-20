@@ -8,7 +8,7 @@ describe('CurrentUserResponseDto', () => {
       id: 'user-id',
       email: 'user@example.com',
       passwordHash: null,
-      provider: 'google',
+      provider: 'GOOGLE',
       providerId: 'google-user-id',
       nickname: 'traveler',
       phone: null,
@@ -23,7 +23,7 @@ describe('CurrentUserResponseDto', () => {
       id: 'user-id',
       email: 'user@example.com',
       nickname: 'traveler',
-      provider: 'google',
+      provider: 'GOOGLE',
       role: UserRole.ADMIN,
     });
   });

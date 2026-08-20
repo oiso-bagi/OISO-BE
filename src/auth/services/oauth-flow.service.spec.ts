@@ -80,7 +80,7 @@ describe('OAuthFlowService', () => {
         nickname: 'user',
       }),
       login: jest.fn().mockResolvedValue({
-        user: { id: 'user-id', provider: 'kakao' },
+        user: { id: 'user-id', provider: 'KAKAO' },
         tokens: { refreshToken: 'refresh-token' },
         isNewUser: true,
       }),
@@ -119,7 +119,7 @@ describe('OAuthFlowService', () => {
         nickname: 'user',
       }),
       login: jest.fn().mockResolvedValue({
-        user: { id: 'user-id', provider: 'google' },
+        user: { id: 'user-id', provider: 'GOOGLE' },
         tokens: { refreshToken: 'refresh-token' },
         isNewUser: false,
       }),
@@ -146,7 +146,7 @@ describe('OAuthFlowService', () => {
         nickname: 'user',
       }),
       login: jest.fn().mockResolvedValue({
-        user: { id: 'user-id', provider: 'google' },
+        user: { id: 'user-id', provider: 'GOOGLE' },
         tokens: { refreshToken: 'refresh-token' },
         isNewUser: false,
       }),

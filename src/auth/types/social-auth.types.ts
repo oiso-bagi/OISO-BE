@@ -5,4 +5,10 @@ export interface SocialUserProfile {
   nickname: string;
 }
 
-export type SocialProvider = 'kakao' | 'google';
+export const SOCIAL_PROVIDER = {
+  KAKAO: 'KAKAO',
+  GOOGLE: 'GOOGLE',
+} as const;
+
+export type SocialProvider =
+  (typeof SOCIAL_PROVIDER)[keyof typeof SOCIAL_PROVIDER];
