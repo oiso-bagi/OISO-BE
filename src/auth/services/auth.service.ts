@@ -6,6 +6,7 @@ import { AuthTokenService } from '@/auth/services/auth-token.service';
 import type { SocialLoginResult } from '@/auth/types/auth-result.types';
 import type { GoogleUserProfile } from '@/auth/types/google-auth.types';
 import type { KakaoUserProfile } from '@/auth/types/kakao-auth.types';
+import { SOCIAL_PROVIDER } from '@/auth/types/social-auth.types';
 import type {
   SocialProvider,
   SocialUserProfile,
@@ -20,13 +21,13 @@ export class AuthService {
   ) {}
 
   async loginWithKakao(profile: KakaoUserProfile): Promise<SocialLoginResult> {
-    return this.loginWithSocialProvider('kakao', profile);
+    return this.loginWithSocialProvider(SOCIAL_PROVIDER.KAKAO, profile);
   }
 
   async loginWithGoogle(
     profile: GoogleUserProfile,
   ): Promise<SocialLoginResult> {
-    return this.loginWithSocialProvider('google', profile);
+    return this.loginWithSocialProvider(SOCIAL_PROVIDER.GOOGLE, profile);
   }
 
   async getCurrentUser(accessToken: string | undefined): Promise<User> {

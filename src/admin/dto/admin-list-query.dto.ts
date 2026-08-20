@@ -9,7 +9,7 @@ import {
   Max,
   Min,
 } from 'class-validator';
-import { UserRole } from '@prisma/client';
+import { UserProvider, UserRole } from '@prisma/client';
 
 const toStrictBoolean = ({ value }: { value: unknown }) => {
   if (value === 'true') return true;
@@ -75,12 +75,16 @@ export class AdminPlaceListQueryDto extends AdminPageQueryDto {
 
 export class AdminUserListQueryDto extends AdminPageQueryDto {
   @ApiPropertyOptional({
-    description: 'OAuth 제공자 필터',
-    example: 'google',
+    description: '가입 또는 로그인 제공자 필터',
+    enum: UserProvider,
+    example: 'GOOGLE',
   })
   @IsOptional()
-  @IsString()
-  provider?: string;
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim().toUpperCase() : value,
+  )
+  @IsEnum(UserProvider)
+  provider?: UserProvider;
 
   @ApiPropertyOptional({ description: '계정 활성 상태 필터 (true/false)' })
   @IsOptional()

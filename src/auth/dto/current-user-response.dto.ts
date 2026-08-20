@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { UserRole } from '@prisma/client';
+import { UserProvider, UserRole } from '@prisma/client';
 import type { User } from '@prisma/client';
 
 export class CurrentUserResponseDto {
@@ -22,10 +22,11 @@ export class CurrentUserResponseDto {
   nickname!: string;
 
   @ApiProperty({
-    description: '가입 또는 로그인에 사용한 OAuth 제공자',
+    description: '가입 또는 로그인에 사용한 제공자',
+    enum: UserProvider,
     example: 'LOCAL',
   })
-  provider!: string;
+  provider!: UserProvider;
 
   @ApiProperty({
     description: 'User role',

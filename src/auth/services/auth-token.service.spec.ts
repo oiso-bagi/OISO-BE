@@ -31,19 +31,19 @@ describe('AuthTokenService', () => {
   });
 
   it('issues and verifies access tokens', () => {
-    const token = service.issueAccessToken('user-id', 'kakao');
+    const token = service.issueAccessToken('user-id', 'KAKAO');
 
     expect(service.verifyAccessToken(token)).toEqual(
       expect.objectContaining({
         sub: 'user-id',
-        provider: 'kakao',
+        provider: 'KAKAO',
         type: 'access',
       }),
     );
   });
 
   it('rejects refresh tokens when verifying an access token', () => {
-    const token = service.issueRefreshToken('user-id', 'kakao');
+    const token = service.issueRefreshToken('user-id', 'KAKAO');
 
     expect(() => service.verifyAccessToken(token)).toThrow(
       UnauthorizedException,
@@ -51,19 +51,19 @@ describe('AuthTokenService', () => {
   });
 
   it('issues and verifies refresh tokens', () => {
-    const token = service.issueRefreshToken('user-id', 'kakao');
+    const token = service.issueRefreshToken('user-id', 'KAKAO');
 
     expect(service.verifyRefreshToken(token)).toEqual(
       expect.objectContaining({
         sub: 'user-id',
-        provider: 'kakao',
+        provider: 'KAKAO',
         type: 'refresh',
       }),
     );
   });
 
   it('rejects access tokens when verifying a refresh token', () => {
-    const token = service.issueAccessToken('user-id', 'kakao');
+    const token = service.issueAccessToken('user-id', 'KAKAO');
 
     expect(() => service.verifyRefreshToken(token)).toThrow(
       UnauthorizedException,
@@ -73,7 +73,7 @@ describe('AuthTokenService', () => {
   it('rejects expired access tokens', () => {
     jest.useFakeTimers().setSystemTime(new Date('2026-01-01T00:00:00.000Z'));
     process.env.JWT_ACCESS_EXPIRES_IN = '1s';
-    const token = service.issueAccessToken('user-id', 'kakao');
+    const token = service.issueAccessToken('user-id', 'KAKAO');
 
     jest.setSystemTime(new Date('2026-01-01T00:00:02.000Z'));
 
@@ -85,7 +85,7 @@ describe('AuthTokenService', () => {
   it('rejects expired refresh tokens', () => {
     jest.useFakeTimers().setSystemTime(new Date('2026-01-01T00:00:00.000Z'));
     process.env.JWT_REFRESH_EXPIRES_IN = '1s';
-    const token = service.issueRefreshToken('user-id', 'kakao');
+    const token = service.issueRefreshToken('user-id', 'KAKAO');
 
     jest.setSystemTime(new Date('2026-01-01T00:00:02.000Z'));
 
@@ -102,7 +102,7 @@ describe('AuthTokenService', () => {
     let thrownError: unknown;
 
     try {
-      service.issueAccessToken('user-id', 'kakao');
+      service.issueAccessToken('user-id', 'KAKAO');
     } catch (error) {
       thrownError = error;
     }

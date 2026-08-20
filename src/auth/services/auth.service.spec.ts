@@ -49,7 +49,7 @@ describe('AuthService', () => {
         id: 'user-id',
         email: 'user@example.com',
         nickname: 'user',
-        provider: 'kakao',
+        provider: 'KAKAO',
       };
       mockAuthRepository.findUserByProvider.mockResolvedValue(null);
       mockAuthRepository.findUserByNickname.mockResolvedValue(null);
@@ -69,7 +69,7 @@ describe('AuthService', () => {
         isNewUser: true,
       });
       expect(mockAuthRepository.createSocialUser).toHaveBeenCalledWith(
-        'kakao',
+        'KAKAO',
         expect.objectContaining({ providerId: '123' }),
         'user',
       );
@@ -80,7 +80,7 @@ describe('AuthService', () => {
         id: 'user-id',
         email: 'old@example.com',
         nickname: 'user',
-        provider: 'kakao',
+        provider: 'KAKAO',
       };
       const updatedUser = {
         ...user,
@@ -155,7 +155,7 @@ describe('AuthService', () => {
         id: 'user-id',
         email: 'user@example.com',
         nickname: 'user',
-        provider: 'kakao',
+        provider: 'KAKAO',
       };
       mockAuthRepository.findUserByProvider
         .mockResolvedValueOnce(null)
@@ -195,7 +195,7 @@ describe('AuthService', () => {
         id: 'user-id',
         email: 'user@example.com',
         nickname: 'user_123',
-        provider: 'kakao',
+        provider: 'KAKAO',
       };
       mockAuthRepository.findUserByProvider.mockResolvedValue(null);
       mockAuthRepository.findUserByNickname
@@ -230,7 +230,7 @@ describe('AuthService', () => {
         id: 'user-id',
         email: 'user@example.com',
         nickname: 'user_123_1',
-        provider: 'kakao',
+        provider: 'KAKAO',
       };
       mockAuthRepository.findUserByProvider.mockResolvedValue(null);
       mockAuthRepository.findUserByNickname
@@ -287,7 +287,7 @@ describe('AuthService', () => {
     it('rejects existing Kakao relogin when nickname is blank', async () => {
       mockAuthRepository.findUserByProvider.mockResolvedValue({
         id: 'user-id',
-        provider: 'kakao',
+        provider: 'KAKAO',
       });
 
       await expect(
@@ -307,7 +307,7 @@ describe('AuthService', () => {
         id: 'user-id',
         email: 'user@example.com',
         nickname: 'user',
-        provider: 'google',
+        provider: 'GOOGLE',
       };
       mockAuthRepository.findUserByProvider.mockResolvedValue(null);
       mockAuthRepository.findUserByNickname.mockResolvedValue(null);
@@ -327,7 +327,7 @@ describe('AuthService', () => {
         isNewUser: true,
       });
       expect(mockAuthRepository.createSocialUser).toHaveBeenCalledWith(
-        'google',
+        'GOOGLE',
         expect.objectContaining({ providerId: 'google-123' }),
         'user',
       );
@@ -338,7 +338,7 @@ describe('AuthService', () => {
         id: 'user-id',
         email: 'old@example.com',
         nickname: 'user',
-        provider: 'google',
+        provider: 'GOOGLE',
       };
       const updatedUser = {
         ...user,
@@ -362,7 +362,7 @@ describe('AuthService', () => {
       });
 
       expect(mockAuthRepository.findUserByProvider).toHaveBeenCalledWith(
-        'google',
+        'GOOGLE',
         'google-123',
       );
       expect(mockAuthRepository.updateSocialUser).toHaveBeenCalledWith(
@@ -399,7 +399,7 @@ describe('AuthService', () => {
         id: 'user-id',
         email: 'user@example.com',
         nickname: 'user_google-123',
-        provider: 'google',
+        provider: 'GOOGLE',
       };
       mockAuthRepository.findUserByProvider.mockResolvedValue(null);
       mockAuthRepository.findUserByNickname
@@ -470,7 +470,7 @@ describe('AuthService', () => {
       id: 'user-id',
       email: 'user@example.com',
       nickname: 'user',
-      provider: 'kakao',
+      provider: 'KAKAO',
     };
     mockAuthTokenService.verifyAccessToken.mockReturnValue({ sub: 'user-id' });
     mockAuthRepository.findUserById.mockResolvedValue(user);
@@ -510,7 +510,7 @@ describe('AuthService', () => {
       id: 'user-id',
       email: 'user@example.com',
       nickname: 'user',
-      provider: 'kakao',
+      provider: 'KAKAO',
     };
     mockAuthTokenService.verifyRefreshToken.mockReturnValue({ sub: 'user-id' });
     mockAuthRepository.findUserById.mockResolvedValue(user);
@@ -540,7 +540,7 @@ describe('AuthService', () => {
     mockAuthTokenService.verifyRefreshToken.mockReturnValue({ sub: 'user-id' });
     mockAuthRepository.findUserById.mockResolvedValue({
       id: 'user-id',
-      provider: 'kakao',
+      provider: 'KAKAO',
       isActive: false,
     });
 

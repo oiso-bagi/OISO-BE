@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import type { ExecutionContext } from '@nestjs/common';
-import { UserRole } from '@prisma/client';
+import { Prisma, UserRole } from '@prisma/client';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from '@/app.module';
@@ -21,7 +21,7 @@ type PrismaMock = {
   >;
   user: {
     count: jest.Mock;
-    findMany: jest.Mock;
+    findMany: jest.Mock<Promise<unknown[]>, [Prisma.UserFindManyArgs]>;
     findUnique: jest.Mock;
     update: jest.Mock;
   };
@@ -144,12 +144,23 @@ describe('AdminUserController (e2e)', () => {
             id: 'user-id',
             email: 'user@example.com',
             nickname: 'user',
-            provider: 'google',
+            provider: 'GOOGLE',
             role: UserRole.USER,
             isActive: true,
           },
         ],
       });
+      const findManyArgs = prismaMock.user.findMany.mock.calls[0][0];
+      expect(findManyArgs.where).toMatchObject({ provider: 'GOOGLE' });
+    });
+
+    it('returns 400 for invalid provider filters', async () => {
+      await request(app.getHttpServer())
+        .get('/api/v1/admin/users')
+        .query({ provider: 'twitter' })
+        .expect(400);
+
+      expect(prismaMock.user.findMany).not.toHaveBeenCalled();
     });
 
     it('updates active status for admins', async () => {
@@ -232,7 +243,7 @@ function createPrismaMock(): PrismaMock {
     >(),
     user: {
       count: jest.fn(),
-      findMany: jest.fn(),
+      findMany: jest.fn<Promise<unknown[]>, [Prisma.UserFindManyArgs]>(),
       findUnique: jest.fn(),
       update: jest.fn(),
     },
@@ -248,7 +259,7 @@ function createUserRow(overrides = {}) {
     id: 'user-id',
     email: 'user@example.com',
     nickname: 'user',
-    provider: 'google',
+    provider: 'GOOGLE',
     role: UserRole.USER,
     isActive: true,
     createdAt: new Date('2026-08-01T00:00:00.000Z'),

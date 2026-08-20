@@ -28,11 +28,10 @@ export class AdminUserRepository {
   async findUsers(params: AdminUserListQueryDto) {
     const { page, size, q, provider, isActive, role } = params;
     const trimmedQuery = q?.trim();
-    const trimmedProvider = provider?.trim();
     const skip = (page - 1) * size;
 
     const where: Prisma.UserWhereInput = {
-      ...(trimmedProvider ? { provider: trimmedProvider } : {}),
+      ...(provider ? { provider } : {}),
       ...(typeof isActive === 'boolean' ? { isActive } : {}),
       ...(role ? { role } : {}),
       ...(trimmedQuery

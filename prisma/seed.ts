@@ -19,7 +19,7 @@ async function main() {
     data: {
       email: 'test@oiso.com',
       nickname: '부산여행러',
-      provider: 'local',
+      provider: 'LOCAL',
       role: 'USER',
     },
   });
