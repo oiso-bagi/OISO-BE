@@ -151,7 +151,7 @@ function createUser(overrides = {}) {
     id: 'user-id',
     email: 'user@example.com',
     nickname: 'user',
-    provider: 'google',
+    provider: 'GOOGLE',
     role: UserRole.USER,
     isActive: true,
     createdAt: new Date('2026-08-01T00:00:00.000Z'),

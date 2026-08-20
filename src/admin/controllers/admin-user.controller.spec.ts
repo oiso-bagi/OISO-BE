@@ -87,7 +87,7 @@ function createUser(overrides = {}) {
     id: 'user-id',
     email: 'user@example.com',
     nickname: 'user',
-    provider: 'google',
+    provider: 'GOOGLE',
     passwordHash: null,
     phone: null,
     role: UserRole.USER,

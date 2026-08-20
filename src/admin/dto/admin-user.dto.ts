@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsBoolean, IsEnum } from 'class-validator';
-import { UserRole } from '@prisma/client';
+import { UserProvider, UserRole } from '@prisma/client';
 import { AdminPageResponseDto } from '@/admin/dto/admin-page-response.dto';
 
 export class AdminUserListItemDto {
@@ -13,7 +13,11 @@ export class AdminUserListItemDto {
   @ApiProperty({ description: '회원 닉네임', example: 'oiso_user' })
   nickname: string;
 
-  @ApiProperty({ description: 'OAuth 제공자', example: 'google' })
+  @ApiProperty({
+    description: '가입 또는 로그인에 사용한 제공자',
+    enum: UserProvider,
+    example: 'GOOGLE',
+  })
   provider: string;
 
   @ApiProperty({

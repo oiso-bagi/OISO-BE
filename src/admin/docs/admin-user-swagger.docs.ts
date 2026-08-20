@@ -13,7 +13,7 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import { UserRole } from '@prisma/client';
+import { UserProvider, UserRole } from '@prisma/client';
 import { ACCESS_TOKEN_COOKIE } from '@/auth/auth.constants';
 import {
   AdminToggleUserActiveDto,
@@ -58,8 +58,9 @@ export const ApiGetAdminUsersDocs = () =>
     ApiQuery({
       name: 'provider',
       required: false,
-      description: 'OAuth 제공자 필터',
-      example: 'google',
+      description: '가입 또는 로그인 제공자 필터',
+      enum: UserProvider,
+      example: 'GOOGLE',
     }),
     ApiQuery({
       name: 'isActive',

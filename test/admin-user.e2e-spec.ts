@@ -144,12 +144,19 @@ describe('AdminUserController (e2e)', () => {
             id: 'user-id',
             email: 'user@example.com',
             nickname: 'user',
-            provider: 'google',
+            provider: 'GOOGLE',
             role: UserRole.USER,
             isActive: true,
           },
         ],
       });
+      expect(prismaMock.user.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            provider: 'GOOGLE',
+          }),
+        }),
+      );
     });
 
     it('updates active status for admins', async () => {
@@ -248,7 +255,7 @@ function createUserRow(overrides = {}) {
     id: 'user-id',
     email: 'user@example.com',
     nickname: 'user',
-    provider: 'google',
+    provider: 'GOOGLE',
     role: UserRole.USER,
     isActive: true,
     createdAt: new Date('2026-08-01T00:00:00.000Z'),
