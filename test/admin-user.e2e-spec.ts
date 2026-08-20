@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import type { ExecutionContext } from '@nestjs/common';
-import { UserRole } from '@prisma/client';
+import { Prisma, UserRole } from '@prisma/client';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from '@/app.module';
@@ -21,7 +21,7 @@ type PrismaMock = {
   >;
   user: {
     count: jest.Mock;
-    findMany: jest.Mock;
+    findMany: jest.Mock<Promise<unknown[]>, [Prisma.UserFindManyArgs]>;
     findUnique: jest.Mock;
     update: jest.Mock;
   };
@@ -150,13 +150,8 @@ describe('AdminUserController (e2e)', () => {
           },
         ],
       });
-      expect(prismaMock.user.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({
-            provider: 'GOOGLE',
-          }),
-        }),
-      );
+      const findManyArgs = prismaMock.user.findMany.mock.calls[0][0];
+      expect(findManyArgs.where).toMatchObject({ provider: 'GOOGLE' });
     });
 
     it('updates active status for admins', async () => {
@@ -239,7 +234,7 @@ function createPrismaMock(): PrismaMock {
     >(),
     user: {
       count: jest.fn(),
-      findMany: jest.fn(),
+      findMany: jest.fn<Promise<unknown[]>, [Prisma.UserFindManyArgs]>(),
       findUnique: jest.fn(),
       update: jest.fn(),
     },
