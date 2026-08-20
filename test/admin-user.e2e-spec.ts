@@ -154,6 +154,15 @@ describe('AdminUserController (e2e)', () => {
       expect(findManyArgs.where).toMatchObject({ provider: 'GOOGLE' });
     });
 
+    it('returns 400 for invalid provider filters', async () => {
+      await request(app.getHttpServer())
+        .get('/api/v1/admin/users')
+        .query({ provider: 'twitter' })
+        .expect(400);
+
+      expect(prismaMock.user.findMany).not.toHaveBeenCalled();
+    });
+
     it('updates active status for admins', async () => {
       const updated = { ...userRow, isActive: false };
       prismaMock.user.findUnique.mockResolvedValue(userRow);

@@ -18,7 +18,7 @@ export class AdminUserListItemDto {
     enum: UserProvider,
     example: 'GOOGLE',
   })
-  provider: string;
+  provider: UserProvider;
 
   @ApiProperty({
     description: '회원 권한',

@@ -26,7 +26,7 @@ export class CurrentUserResponseDto {
     enum: UserProvider,
     example: 'LOCAL',
   })
-  provider!: string;
+  provider!: UserProvider;
 
   @ApiProperty({
     description: 'User role',

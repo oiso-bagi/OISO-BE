@@ -18,6 +18,28 @@ BEGIN
     AND a.attnum > 0
     AND NOT a.attisdropped;
 
+  IF EXISTS (
+    SELECT 1
+    FROM "User"
+    WHERE "provider" IS NULL
+      OR UPPER("provider"::text) NOT IN ('LOCAL', 'KAKAO', 'GOOGLE')
+  ) THEN
+    RAISE EXCEPTION 'Cannot convert User.provider to UserProvider: unsupported provider values exist. Back up data and correct provider values before applying this migration.';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM (
+      SELECT UPPER("provider"::text), "providerId", COUNT(*)
+      FROM "User"
+      WHERE "providerId" IS NOT NULL
+      GROUP BY UPPER("provider"::text), "providerId"
+      HAVING COUNT(*) > 1
+    ) duplicate_provider_accounts
+  ) THEN
+    RAISE EXCEPTION 'Cannot convert User.provider to UserProvider: duplicate provider/providerId pairs would be created. Back up data and merge or correct duplicates before applying this migration.';
+  END IF;
+
   IF provider_type IS DISTINCT FROM 'UserProvider' THEN
     UPDATE "User"
     SET "provider" = UPPER("provider"::text)
