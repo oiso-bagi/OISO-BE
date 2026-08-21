@@ -62,7 +62,7 @@ export class AdminStatsRepository {
     };
   }
 
-  async getSavingsBreakdownByCategory(): Promise<{
+  async getSavingsBreakdown(): Promise<{
     totalSavingsCostWon: number;
     breakdown: Array<{
       category: PlaceCategory;
@@ -70,22 +70,24 @@ export class AdminStatsRepository {
       amountWon: number;
       percentage: number;
     }>;
+    regionBreakdown: Array<{
+      region: string;
+      label: string;
+      amountWon: number;
+      percentage: number;
+    }>;
   }> {
-    // 1단계: 저장된 routeId 목록을 distinct하게 조회
     const savedRouteIds = await this.prisma.savedRoute.findMany({
       select: { routeId: true },
       distinct: ['routeId'],
     });
 
     if (savedRouteIds.length === 0) {
-      return { totalSavingsCostWon: 0, breakdown: [] };
+      return { totalSavingsCostWon: 0, breakdown: [], regionBreakdown: [] };
     }
 
     const routeIds = savedRouteIds.map((r) => r.routeId);
 
-    // 2단계: 해당 route의 stops를 placeId 기준으로 groupBy하여 DB에서 savingsWon 집계
-    // Prisma groupBy는 relation 필드 기준 groupBy를 지원하지 않으므로
-    // placeId별 합계를 먼저 구한 뒤 place.category를 별도 조회하여 재집계
     const stopAggregates = await this.prisma.routeStop.groupBy({
       by: ['placeId'],
       where: { routeId: { in: routeIds } },
@@ -93,29 +95,43 @@ export class AdminStatsRepository {
     });
 
     if (stopAggregates.length === 0) {
-      return { totalSavingsCostWon: 0, breakdown: [] };
+      return { totalSavingsCostWon: 0, breakdown: [], regionBreakdown: [] };
     }
 
-    // 3단계: placeId 목록으로 category 일괄 조회
     const placeIds = stopAggregates.map((s) => s.placeId);
     const places = await this.prisma.place.findMany({
       where: { id: { in: placeIds } },
-      select: { id: true, category: true },
+      select: { id: true, category: true, address: true },
     });
-    const placeCategoryMap = new Map(places.map((p) => [p.id, p.category]));
+    const placeMap = new Map(places.map((p) => [p.id, p]));
 
-    // 4단계: category 기준으로 재집계
     const categoryMap = new Map<PlaceCategory, number>();
+    const regionMap = new Map<string, number>();
     let totalSavingsCostWon = 0;
 
     for (const stopAgg of stopAggregates) {
-      const category = placeCategoryMap.get(stopAgg.placeId);
-      if (!category) continue;
+      const place = placeMap.get(stopAgg.placeId);
+      if (!place) continue;
 
       const amount = stopAgg._sum.savingsWon ?? 0;
-      const current = categoryMap.get(category) ?? 0;
-      categoryMap.set(category, current + amount);
       totalSavingsCostWon += amount;
+
+      if (place.category) {
+        const currentCategoryAmount = categoryMap.get(place.category) ?? 0;
+        categoryMap.set(place.category, currentCategoryAmount + amount);
+      }
+
+      // 주소에서 구 단위 파싱 (예: "부산광역시 해운대구 ..." -> "해운대구")
+      let regionName = '기타 상권';
+      if (place.address) {
+        const districtMatch = place.address.match(/([가-힣]+구)/);
+        if (districtMatch && districtMatch[1]) {
+          regionName = districtMatch[1];
+        }
+      }
+
+      const currentRegionAmount = regionMap.get(regionName) ?? 0;
+      regionMap.set(regionName, currentRegionAmount + amount);
     }
 
     const breakdown: Array<{
@@ -141,9 +157,33 @@ export class AdminStatsRepository {
 
     breakdown.sort((a, b) => b.amountWon - a.amountWon);
 
+    const regionBreakdown: Array<{
+      region: string;
+      label: string;
+      amountWon: number;
+      percentage: number;
+    }> = [];
+
+    regionMap.forEach((amountWon, region) => {
+      const percentage =
+        totalSavingsCostWon > 0
+          ? Number(((amountWon / totalSavingsCostWon) * 100).toFixed(1))
+          : 0;
+
+      regionBreakdown.push({
+        region,
+        label: region,
+        amountWon,
+        percentage,
+      });
+    });
+
+    regionBreakdown.sort((a, b) => b.amountWon - a.amountWon);
+
     return {
       totalSavingsCostWon,
       breakdown,
+      regionBreakdown,
     };
   }
 

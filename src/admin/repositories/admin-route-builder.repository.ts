@@ -31,6 +31,7 @@ type RouteDetailSelectResult = {
     stayMinutes: number | null;
     travelMinutesFromPrev: number | null;
     transitType: TransitType | null;
+    fareWon: number | null;
     place: {
       id: string;
       name: string;
@@ -60,8 +61,12 @@ export class AdminRouteBuilderRepository {
   ): Promise<AdminRouteDetailResponseDto> {
     const { name, description, isPublished, stops } = dto;
 
-    const { totalDistanceMeters, totalDurationMin, stopData } =
-      await this.buildRouteAggregates(stops);
+    const {
+      totalDistanceMeters,
+      totalDurationMin,
+      totalTransportCostWon,
+      stopData,
+    } = await this.buildRouteAggregates(stops);
 
     const createdRouteId = await this.prisma.$transaction(async (tx) => {
       const newRoute = await tx.route.create({
@@ -74,7 +79,8 @@ export class AdminRouteBuilderRepository {
           isPublished,
           totalDistanceMeters,
           estimatedDurationMin: totalDurationMin,
-          estimatedCostWon: 0,
+          transportCostWon: totalTransportCostWon,
+          estimatedCostWon: totalTransportCostWon,
         },
       });
 
@@ -134,6 +140,7 @@ export class AdminRouteBuilderRepository {
               stayMinutes: true,
               travelMinutesFromPrev: true,
               transitType: true,
+              fareWon: true,
               place: {
                 select: {
                   id: true,
@@ -172,6 +179,7 @@ export class AdminRouteBuilderRepository {
         stayTimeMinutes: stop.stayMinutes ?? 60,
         nextTravelTimeMinutes: nextStop?.travelMinutesFromPrev ?? null,
         nextTransportType: nextStop?.transitType ?? null,
+        nextTravelCostWon: nextStop?.fareWon ?? null,
         latitude: stop.place?.latitude ? Number(stop.place.latitude) : 0,
         longitude: stop.place?.longitude ? Number(stop.place.longitude) : 0,
       };
@@ -199,8 +207,12 @@ export class AdminRouteBuilderRepository {
   ): Promise<AdminRouteDetailResponseDto> {
     const { name, description, isPublished, stops } = dto;
 
-    const { totalDistanceMeters, totalDurationMin, stopData } =
-      await this.buildRouteAggregates(stops);
+    const {
+      totalDistanceMeters,
+      totalDurationMin,
+      totalTransportCostWon,
+      stopData,
+    } = await this.buildRouteAggregates(stops);
 
     try {
       await this.prisma.$transaction(async (tx) => {
@@ -213,6 +225,8 @@ export class AdminRouteBuilderRepository {
             isPublished,
             totalDistanceMeters,
             estimatedDurationMin: totalDurationMin,
+            transportCostWon: totalTransportCostWon,
+            estimatedCostWon: totalTransportCostWon,
           },
         });
 
@@ -284,6 +298,11 @@ export class AdminRouteBuilderRepository {
       return acc + stay + travel;
     }, 0);
 
+    const totalTransportCostWon = sortedStops.reduce(
+      (acc, s) => acc + (s.nextTravelCostWon ?? 0),
+      0,
+    );
+
     const stopData = sortedStops.map((stop, index) => {
       const prevStop = index > 0 ? sortedStops[index - 1] : null;
       return {
@@ -292,12 +311,14 @@ export class AdminRouteBuilderRepository {
         stayMinutes: stop.stayTimeMinutes,
         travelMinutesFromPrev: prevStop?.nextTravelTimeMinutes ?? null,
         transitType: prevStop?.nextTransportType ?? null,
+        fareWon: prevStop?.nextTravelCostWon ?? null,
       };
     });
 
     return {
       totalDistanceMeters,
       totalDurationMin,
+      totalTransportCostWon,
       stopData,
     };
   }

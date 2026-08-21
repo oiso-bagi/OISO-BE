@@ -21,6 +21,8 @@ export class AdminStatsService {
   private lastCollectedAt: Date | null = null;
   private isCollecting = false;
   private dailyApiUsage = 0;
+  private lastResult: 'SUCCESS' | 'FAILURE' | null = null;
+  private lastMessage: string | null = null;
 
   constructor(
     private readonly adminStatsRepository: AdminStatsRepository,
@@ -46,12 +48,13 @@ export class AdminStatsService {
   }
 
   async getSavingsBreakdown(): Promise<AdminSavingsBreakdownResponseDto> {
-    const { totalSavingsCostWon, breakdown } =
-      await this.adminStatsRepository.getSavingsBreakdownByCategory();
+    const { totalSavingsCostWon, breakdown, regionBreakdown } =
+      await this.adminStatsRepository.getSavingsBreakdown();
 
     return {
       totalSavingsCostWon,
       breakdown,
+      regionBreakdown,
     };
   }
 
@@ -64,6 +67,8 @@ export class AdminStatsService {
       dailyQuotaLimit: 1000,
       lastCollectedAt: this.lastCollectedAt,
       status: this.isCollecting ? 'RUNNING' : 'IDLE',
+      lastResult: this.lastResult,
+      lastMessage: this.lastMessage,
       targetPlaceCount,
     };
   }
@@ -106,23 +111,35 @@ export class AdminStatsService {
       this.dailyApiUsage = Math.min(1000, this.dailyApiUsage + apiCallCount);
 
       if (updatedCount === 0 && failureCount > 0) {
-        throw new ServiceUnavailableException(
-          'KTO 경로 혼잡도 수동 수집이 실패하였습니다. 잠시 후 다시 시도해 주세요.',
-        );
+        this.lastResult = 'FAILURE';
+        this.lastMessage =
+          'KTO 경로 혼잡도 수동 수집이 실패하였습니다. 잠시 후 다시 시도해 주세요.';
+        throw new ServiceUnavailableException(this.lastMessage);
       }
 
       const completedAt: Date = new Date();
       this.lastCollectedAt = completedAt;
+      this.lastResult = 'SUCCESS';
+      this.lastMessage =
+        failureCount > 0
+          ? `KTO 경로 혼잡도 수동 수집이 부분 완료되었습니다. (성공: ${updatedCount}건, 실패: ${failureCount}건)`
+          : 'KTO 경로 혼잡도 수동 수집이 성공적으로 완료되었습니다.';
 
       return {
-        message:
-          failureCount > 0
-            ? `KTO 경로 혼잡도 수동 수집이 부분 완료되었습니다. (성공: ${updatedCount}건, 실패: ${failureCount}건)`
-            : 'KTO 경로 혼잡도 수동 수집이 성공적으로 완료되었습니다.',
+        message: this.lastMessage,
         collectedAt: completedAt,
         updatedPlaceCount: updatedCount,
         failureCount,
       };
+    } catch (err) {
+      if (!(err instanceof ServiceUnavailableException)) {
+        this.lastResult = 'FAILURE';
+        this.lastMessage =
+          err instanceof Error
+            ? err.message
+            : 'KTO 수동 수집 도중 예외가 발생했습니다.';
+      }
+      throw err;
     } finally {
       this.isCollecting = false;
     }

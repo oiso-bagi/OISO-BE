@@ -24,7 +24,7 @@ describe('AdminStatsService', () => {
             getUserCount: jest.fn(),
             getSavedRouteCount: jest.fn(),
             getSavingsCostAndContribution: jest.fn(),
-            getSavingsBreakdownByCategory: jest.fn(),
+            getSavingsBreakdown: jest.fn(),
             getTargetPlaceCount: jest.fn(),
           },
         },
@@ -65,12 +65,20 @@ describe('AdminStatsService', () => {
   });
 
   describe('getSavingsBreakdown', () => {
-    it('카테고리별 절약 지출액 분해 정보를 정상 반환해야 한다', async () => {
-      repository.getSavingsBreakdownByCategory.mockResolvedValue({
+    it('카테고리 및 상권별 절약 지출액 분해 정보를 정상 반환해야 한다', async () => {
+      (repository.getSavingsBreakdown as jest.Mock).mockResolvedValue({
         totalSavingsCostWon: 10000,
         breakdown: [
           { category: 'FOOD', label: '식당', amountWon: 6000, percentage: 60 },
           { category: 'CAFE', label: '카페', amountWon: 4000, percentage: 40 },
+        ],
+        regionBreakdown: [
+          {
+            region: '해운대구',
+            label: '해운대구',
+            amountWon: 10000,
+            percentage: 100,
+          },
         ],
       });
 
@@ -78,6 +86,7 @@ describe('AdminStatsService', () => {
 
       expect(result.totalSavingsCostWon).toBe(10000);
       expect(result.breakdown).toHaveLength(2);
+      expect(result.regionBreakdown).toHaveLength(1);
     });
   });
 
