@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, TransitType } from '@prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
 
 const savedRouteListSelect = Prisma.validator<Prisma.SavedRouteSelect>()({
@@ -123,6 +123,80 @@ export class SavedRouteRepository {
         routeId: true,
       },
     });
+  }
+
+  async ensureRouteExistsFromStitched(
+    stitchedId: string,
+    stitchedDetail: {
+      name: string;
+      totalDistanceMeters: number;
+      estimatedSavingsWon: number;
+      score: number;
+      stops: Array<{
+        placeName: string;
+        orderIndex?: number;
+        sequence?: number;
+        dayNumber?: number;
+        transitType?: TransitType | null;
+        travelMinutesFromPrev?: number | null;
+        stayMinutes?: number | null;
+      }>;
+    },
+  ): Promise<string> {
+    const existing = await this.prisma.route.findUnique({
+      where: { id: stitchedId },
+      select: { id: true },
+    });
+    if (existing) return existing.id;
+
+    const placeNames = stitchedDetail.stops
+      .map((s) => s.placeName)
+      .filter(Boolean);
+    const places = await this.prisma.place.findMany({
+      where: { name: { in: placeNames } },
+      select: { id: true, name: true },
+    });
+    const placeMap = new Map(places.map((p) => [p.name, p.id]));
+
+    const fallbackPlace = await this.prisma.place.findFirst({
+      select: { id: true },
+    });
+
+    const createdRoute = await this.prisma.route.create({
+      data: {
+        id: stitchedId,
+        name: stitchedDetail.name,
+        region: '부산',
+        estimatedCostWon: 0,
+        estimatedDurationMin: 0,
+        totalDistanceMeters: stitchedDetail.totalDistanceMeters,
+        estimatedSavingsWon: stitchedDetail.estimatedSavingsWon,
+        score: new Prisma.Decimal(stitchedDetail.score),
+        routeType: 'RECOMMENDED',
+        isPublished: true,
+        stops: {
+          create: stitchedDetail.stops.map((stop, idx) => {
+            const resolvedPlaceId =
+              placeMap.get(stop.placeName) ?? fallbackPlace?.id;
+            if (!resolvedPlaceId) {
+              throw new Error(
+                `스티칭 루트 저장 중 장소를 찾을 수 없습니다: [${stop.placeName}]`,
+              );
+            }
+            return {
+              orderIndex: stop.sequence ?? stop.orderIndex ?? idx,
+              transitType: stop.transitType ?? null,
+              travelMinutesFromPrev: stop.travelMinutesFromPrev ?? null,
+              stayMinutes: stop.stayMinutes ?? null,
+              placeId: resolvedPlaceId,
+            };
+          }),
+        },
+      },
+      select: { id: true },
+    });
+
+    return createdRoute.id;
   }
 
   async createSavedRoute(userId: string, routeId: string) {

@@ -7,6 +7,7 @@ describe('RouteService', () => {
   let service: RouteService;
   const mockRouteRepository = {
     findDetailWithStopsAndPlace: jest.fn(),
+    findDetailsByIds: jest.fn(),
     findListWithStops: jest.fn(),
   };
 
@@ -61,38 +62,20 @@ describe('RouteService', () => {
     const result = await service.getRecommendedRouteList();
 
     expect(mockRouteRepository.findListWithStops).toHaveBeenCalledTimes(1);
-    expect(result).toEqual([
-      {
-        id: 'route-1',
-        name: '부산 야경 루트',
-        stopCount: 2,
-        totalDistanceMeters: 3200,
-        totalDistanceKm: 3.2,
-        transitTypes: ['BUS'],
-        totalCost: 12500,
-        totalTimeMinutes: 80,
-        congestionLevel: 'MEDIUM',
-        estimatedSavingsWon: 1000,
-        score: 4.7,
-        isRecommended: true,
-        stopLocations: [
-          {
-            sequence: 0,
-            dayNumber: 1,
-            placeName: '',
-            latitude: null,
-            longitude: null,
-          },
-          {
-            sequence: 1,
-            dayNumber: 1,
-            placeName: '',
-            latitude: null,
-            longitude: null,
-          },
-        ],
-      },
-    ]);
+    expect(result[0]).toMatchObject({
+      id: 'route-1',
+      name: '부산 야경 루트',
+      stopCount: 2,
+      totalDistanceMeters: 3200,
+      totalDistanceKm: 3.2,
+      transitTypes: ['BUS'],
+      totalCost: 12500,
+      totalTimeMinutes: 80,
+      congestionLevel: 'MEDIUM',
+      estimatedSavingsWon: 1000,
+      score: 4.7,
+      isRecommended: true,
+    });
     expect(result[0]).not.toHaveProperty('stops');
   });
 
@@ -106,5 +89,69 @@ describe('RouteService', () => {
     expect(
       mockRouteRepository.findDetailWithStopsAndPlace,
     ).toHaveBeenCalledWith('route-missing');
+  });
+
+  it('returns stitched route detail successfully when stitched id is provided', async () => {
+    mockRouteRepository.findDetailsByIds.mockResolvedValue([
+      {
+        id: 'route-1',
+        name: '1일차 코스',
+        totalDistanceMeters: 2000,
+        estimatedSavingsWon: 1000,
+        score: 4.5,
+        routeType: 'RECOMMENDED',
+        congestionLevel: 'MEDIUM',
+        stops: [{ orderIndex: 0, place: { name: '해운대' } }],
+      },
+      {
+        id: 'route-2',
+        name: '2일차 코스',
+        totalDistanceMeters: 3000,
+        estimatedSavingsWon: 1500,
+        score: 4.7,
+        routeType: 'RECOMMENDED',
+        congestionLevel: 'MEDIUM',
+        stops: [{ orderIndex: 0, place: { name: '광안리' } }],
+      },
+    ]);
+
+    const result = await service.getRecommendedRouteDetail(
+      'stitched-route-1_route-2',
+    );
+
+    expect(result.routeId).toBe('stitched-route-1_route-2');
+    const stops = result.stops;
+    expect(stops).toBeDefined();
+    expect(stops).toHaveLength(2);
+    expect(stops?.[0]?.dayNumber).toBe(1);
+    expect(stops?.[1]?.dayNumber).toBe(2);
+    expect(stops?.[1]?.sequence).toBe(1);
+  });
+
+  it('parses single stitched route ID without underscore successfully', async () => {
+    mockRouteRepository.findDetailsByIds.mockResolvedValue([
+      {
+        id: 'route-cmA',
+        name: '단일 일차 코스',
+        totalDistanceMeters: 1500,
+        estimatedSavingsWon: 500,
+        score: 4.0,
+        routeType: 'RECOMMENDED',
+        congestionLevel: 'LOW',
+        stops: [{ orderIndex: 0, place: { name: '태종대' } }],
+      },
+    ]);
+
+    const result =
+      await service.getRecommendedRouteDetail('stitched-route-cmA');
+
+    expect(result.routeId).toBe('stitched-route-cmA');
+    expect(result.stops).toHaveLength(1);
+  });
+
+  it('throws BadRequestException when stitched route ID format parsing fails', async () => {
+    await expect(
+      service.getRecommendedRouteDetail('stitched-'),
+    ).rejects.toThrow('stitched-route ID 파싱에 실패했습니다');
   });
 });

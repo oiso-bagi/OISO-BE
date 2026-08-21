@@ -1,4 +1,4 @@
-import { TransitType, CongestionLevel } from '@prisma/client';
+import { TransitType, CongestionLevel, PlaceCategory } from '@prisma/client';
 import { ApiProperty } from '@nestjs/swagger';
 import { buildRouteMetrics } from '@/route/dto/recommended-route-detail-response.dto';
 import type {
@@ -29,6 +29,56 @@ export class RouteStopLocationDto {
   placeName!: string;
 
   @ApiProperty({
+    description:
+      '장소 카테고리 (FOOD: 식당 | CAFE: 카페 | MARKET: 전통시장 | CULTURE: 문화 | NATURE: 자연 | EXPERIENCE: 체험 | VIEWPOINT: 전망대 | ETC: 기타)',
+    enum: PlaceCategory,
+    example: PlaceCategory.NATURE,
+    nullable: true,
+  })
+  category!: PlaceCategory | null;
+
+  @ApiProperty({
+    description: '장소 영업 시작 시간',
+    example: '09:00',
+    nullable: true,
+    type: String,
+  })
+  openTime!: string | null;
+
+  @ApiProperty({
+    description: '장소 영업 종료 시간',
+    example: '21:00',
+    nullable: true,
+    type: String,
+  })
+  closeTime!: string | null;
+
+  @ApiProperty({
+    description:
+      '다음 경유지로의 이동 수단 (WALKING, BUS, SUBWAY, TAXI, DRIVING 등)',
+    enum: TransitType,
+    example: TransitType.BUS,
+    nullable: true,
+  })
+  nextTransportType!: TransitType | null;
+
+  @ApiProperty({
+    description: '다음 경유지로의 이동 소요 시간(분)',
+    example: 20,
+    nullable: true,
+    type: Number,
+  })
+  nextTravelTimeMinutes!: number | null;
+
+  @ApiProperty({
+    description: '장소 체류 소요 시간(분)',
+    example: 60,
+    nullable: true,
+    type: Number,
+  })
+  stayMinutes!: number | null;
+
+  @ApiProperty({
     description: '장소 위도',
     example: 35.1532,
     nullable: true,
@@ -54,6 +104,12 @@ export class RouteStopLocationDto {
         ? stop.dayNumber
         : 1;
     dto.placeName = stop.place?.name ?? '';
+    dto.category = stop.place?.category ?? null;
+    dto.openTime = stop.place?.openTime ?? null;
+    dto.closeTime = stop.place?.closeTime ?? null;
+    dto.nextTransportType = stop.transitType ?? null;
+    dto.nextTravelTimeMinutes = stop.travelMinutesFromPrev ?? null;
+    dto.stayMinutes = stop.stayMinutes ?? null;
     dto.latitude =
       stop.place?.latitude != null ? Number(stop.place.latitude) : null;
     dto.longitude =

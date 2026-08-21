@@ -10,6 +10,7 @@ import request from 'supertest';
 import { AuthGuard } from '@/common/guards/auth.guard';
 import { SavedRouteController } from '@/route/controllers/saved-route.controller';
 import { SavedRouteRepository } from '@/route/repositories/saved-route.repository';
+import { RouteService } from '@/route/services/route.service';
 import { SavedRouteService } from '@/route/services/saved-route.service';
 
 type App = Parameters<typeof request>[0];
@@ -25,6 +26,9 @@ describe('SavedRouteController (e2e)', () => {
     findListByUserId: jest.fn(),
     findDetailByRouteId: jest.fn(),
   };
+  const routeService = {
+    getRecommendedRouteDetail: jest.fn(),
+  };
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -32,6 +36,7 @@ describe('SavedRouteController (e2e)', () => {
       providers: [
         SavedRouteService,
         { provide: SavedRouteRepository, useValue: savedRouteRepository },
+        { provide: RouteService, useValue: routeService },
       ],
     })
       .overrideGuard(AuthGuard)

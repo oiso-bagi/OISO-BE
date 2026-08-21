@@ -1,3 +1,4 @@
+import { TransitType } from '@prisma/client';
 import {
   BadRequestException,
   Injectable,
@@ -9,9 +10,14 @@ import { SavedRouteListResponseDto } from '@/route/dto/saved-route-list-response
 import { ToggleSavedRouteCompletionDto } from '@/route/dto/toggle-saved-route-completion.dto';
 import { SavedRouteRepository } from '@/route/repositories/saved-route.repository';
 
+import { RouteService } from '@/route/services/route.service';
+
 @Injectable()
 export class SavedRouteService {
-  constructor(private readonly savedRouteRepository: SavedRouteRepository) {}
+  constructor(
+    private readonly savedRouteRepository: SavedRouteRepository,
+    private readonly routeService: RouteService,
+  ) {}
 
   async getSavedRouteList(userId: string): Promise<SavedRouteListResponseDto> {
     const normalizedUserId = this.validateUserId(userId);
@@ -52,14 +58,60 @@ export class SavedRouteService {
 
   async saveRoute(userId: string, routeId: string): Promise<void> {
     const normalizedUserId = this.validateUserId(userId);
-    const normalizedRouteId = this.validateRouteId(routeId);
+    let normalizedRouteId = this.validateRouteId(routeId);
 
-    const routeExists =
-      await this.savedRouteRepository.findRouteById(normalizedRouteId);
-    if (!routeExists) {
-      throw new NotFoundException(
-        `추천 루트 ID [${normalizedRouteId}]를 찾을 수 없습니다.`,
-      );
+    if (normalizedRouteId.startsWith('stitched-')) {
+      const stitchedDetail = (await this.routeService.getRecommendedRouteDetail(
+        normalizedRouteId,
+      )) as unknown as {
+        name: string;
+        totalDistanceMeters: number;
+        estimatedSavingsWon: number;
+        score: number;
+        stops?: Array<{
+          placeName?: string;
+          sequence?: number;
+          dayNumber?: number;
+          nextTransportType?: TransitType | null;
+          nextTravelTimeMinutes?: number | null;
+        }>;
+      };
+      try {
+        normalizedRouteId =
+          await this.savedRouteRepository.ensureRouteExistsFromStitched(
+            normalizedRouteId,
+            {
+              name: stitchedDetail.name || '',
+              totalDistanceMeters: stitchedDetail.totalDistanceMeters || 0,
+              estimatedSavingsWon: stitchedDetail.estimatedSavingsWon || 0,
+              score: stitchedDetail.score || 0,
+              stops: (stitchedDetail.stops || []).map((stop) => ({
+                placeName: stop.placeName || '',
+                sequence: stop.sequence || 0,
+                dayNumber: stop.dayNumber || 1,
+                transitType: stop.nextTransportType ?? null,
+                travelMinutesFromPrev: stop.nextTravelTimeMinutes ?? null,
+                stayMinutes: null,
+              })),
+            },
+          );
+      } catch (err) {
+        if (
+          err instanceof Error &&
+          err.message.includes('장소를 찾을 수 없습니다')
+        ) {
+          throw new NotFoundException(err.message);
+        }
+        throw err;
+      }
+    } else {
+      const routeExists =
+        await this.savedRouteRepository.findRouteById(normalizedRouteId);
+      if (!routeExists) {
+        throw new NotFoundException(
+          `추천 루트 ID [${normalizedRouteId}]를 찾을 수 없습니다.`,
+        );
+      }
     }
 
     const alreadySaved = await this.savedRouteRepository.findSavedRoute(

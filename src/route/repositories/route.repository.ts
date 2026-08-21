@@ -56,9 +56,13 @@ const routeListSelect = Prisma.validator<Prisma.RouteSelect>()({
       estimatedPriceWon: true,
       place: {
         select: {
+          id: true,
           name: true,
+          category: true,
           latitude: true,
           longitude: true,
+          openTime: true,
+          closeTime: true,
         },
       },
     },
@@ -72,6 +76,14 @@ export class RouteRepository {
   async findDetailWithStopsAndPlace(id: string) {
     return this.prisma.route.findUnique({
       where: { id },
+      select: routeWithStopsAndPlaceSelect,
+    });
+  }
+
+  async findDetailsByIds(ids: string[]) {
+    if (ids.length === 0) return [];
+    return this.prisma.route.findMany({
+      where: { id: { in: ids } },
       select: routeWithStopsAndPlaceSelect,
     });
   }

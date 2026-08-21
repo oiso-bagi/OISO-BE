@@ -35,6 +35,8 @@ const recommendedRouteSelect = Prisma.validator<Prisma.RouteSelect>()({
           category: true,
           latitude: true,
           longitude: true,
+          openTime: true,
+          closeTime: true,
         },
       },
     },
