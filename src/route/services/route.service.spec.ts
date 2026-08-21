@@ -149,6 +149,21 @@ describe('RouteService', () => {
     expect(result.stops).toHaveLength(1);
   });
 
+  it('throws NotFoundException when any component route is missing', async () => {
+    mockRouteRepository.findDetailsByIds.mockResolvedValue([
+      {
+        id: 'route-1',
+        name: '루트 1',
+        totalDistanceMeters: 1000,
+        stops: [],
+      },
+    ]);
+
+    await expect(
+      service.getRecommendedRouteDetail('stitched-route-1_missing-route'),
+    ).rejects.toThrow(NotFoundException);
+  });
+
   it('throws BadRequestException when stitched route ID format parsing fails', async () => {
     await expect(
       service.getRecommendedRouteDetail('stitched-'),

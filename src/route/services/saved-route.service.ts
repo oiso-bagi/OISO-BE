@@ -1,9 +1,9 @@
-import { TransitType } from '@prisma/client';
 import {
   BadRequestException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { RecommendedRouteDetailResponseDto } from '@/route/dto/recommended-route-detail-response.dto';
 import { SavedRouteCompletionResponseDto } from '@/route/dto/saved-route-completion-response.dto';
 import { SavedRouteDetailResponseDto } from '@/route/dto/saved-route-detail-response.dto';
 import { SavedRouteListResponseDto } from '@/route/dto/saved-route-list-response.dto';
@@ -49,7 +49,7 @@ export class SavedRouteService {
 
     if (!rawData) {
       throw new NotFoundException(
-        `저장된 루트 ID [${normalizedRouteId}]를 찾을 수 없습니다.`,
+        `추천 루트 ID [${normalizedRouteId}]를 찾을 수 없습니다.`,
       );
     }
 
@@ -61,37 +61,25 @@ export class SavedRouteService {
     let normalizedRouteId = this.validateRouteId(routeId);
 
     if (normalizedRouteId.startsWith('stitched-')) {
-      const stitchedDetail = (await this.routeService.getRecommendedRouteDetail(
-        normalizedRouteId,
-      )) as unknown as {
-        name: string;
-        totalDistanceMeters: number;
-        estimatedSavingsWon: number;
-        score: number;
-        stops?: Array<{
-          placeName?: string;
-          sequence?: number;
-          dayNumber?: number;
-          nextTransportType?: TransitType | null;
-          nextTravelTimeMinutes?: number | null;
-        }>;
-      };
+      const stitchedDetail: RecommendedRouteDetailResponseDto =
+        await this.routeService.getRecommendedRouteDetail(normalizedRouteId);
       try {
         normalizedRouteId =
           await this.savedRouteRepository.ensureRouteExistsFromStitched(
             normalizedRouteId,
             {
-              name: stitchedDetail.name || '',
-              totalDistanceMeters: stitchedDetail.totalDistanceMeters || 0,
-              estimatedSavingsWon: stitchedDetail.estimatedSavingsWon || 0,
-              score: stitchedDetail.score || 0,
+              name: stitchedDetail.routeName || '',
+              totalDistanceMeters:
+                Math.round((stitchedDetail.totalDistanceKm || 0) * 1000) || 0,
+              estimatedSavingsWon: stitchedDetail.savedCost || 0,
+              score: stitchedDetail.recommendScore || 0,
               stops: (stitchedDetail.stops || []).map((stop) => ({
                 placeName: stop.placeName || '',
                 sequence: stop.sequence || 0,
                 dayNumber: stop.dayNumber || 1,
                 transitType: stop.nextTransportType ?? null,
                 travelMinutesFromPrev: stop.nextTravelTimeMinutes ?? null,
-                stayMinutes: null,
+                stayMinutes: stop.stayMinutes ?? null,
               })),
             },
           );

@@ -70,6 +70,11 @@ export class RecommendationRepository {
       where: {
         routeType: 'RECOMMENDED',
         isPublished: true,
+        id: {
+          not: {
+            startsWith: 'stitched-',
+          },
+        },
         estimatedCostWon: {
           lte: filter.dailyBudgetWon,
         },

@@ -65,13 +65,19 @@ export class RouteService {
       );
     }
 
-    // ID 순서대로 정렬
+    // ID 순서대로 정렬 및 모든 Component ID 존재 여부 검증
     const routeMap = new Map(routes.map((r) => [r.id, r]));
     const orderedRoutes = componentIds
       .map((cid) => routeMap.get(cid))
       .filter((r): r is NonNullable<typeof r> => r != null);
 
-    const targetRoutes = orderedRoutes.length > 0 ? orderedRoutes : routes;
+    if (orderedRoutes.length !== componentIds.length) {
+      throw new NotFoundException(
+        `추천 루트 ID [${stitchedId}]를 구성하는 일부 루트를 찾을 수 없습니다.`,
+      );
+    }
+
+    const targetRoutes = orderedRoutes;
 
     let cumulativeSequence = 0;
     const combinedStops: Array<

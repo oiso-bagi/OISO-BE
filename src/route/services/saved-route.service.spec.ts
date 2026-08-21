@@ -242,14 +242,31 @@ describe('SavedRouteService', () => {
       );
     });
 
-    it('creates saved route for stitched route id successfully', async () => {
+    it('saves stitched route successfully by creating route entity first if not exists', async () => {
       const stitchedId = 'stitched-route-1_route-2';
       const mockStitchedDetail = {
-        name: '통합 코스',
-        totalDistanceMeters: 5000,
-        estimatedSavingsWon: 2000,
-        score: 4.5,
-        stops: [{ placeName: '해운대', orderIndex: 0, dayNumber: 1 }],
+        routeName: '통합 코스',
+        totalDistanceKm: 5.0,
+        savedCost: 2000,
+        recommendScore: 4.5,
+        stops: [
+          {
+            placeName: '해운대',
+            sequence: 0,
+            dayNumber: 1,
+            nextTransportType: 'BUS',
+            nextTravelTimeMinutes: 20,
+            stayMinutes: 60,
+          },
+          {
+            placeName: '광안리',
+            sequence: 1,
+            dayNumber: 2,
+            nextTransportType: null,
+            nextTravelTimeMinutes: null,
+            stayMinutes: 0,
+          },
+        ],
       } as unknown as RecommendedRouteDetailResponseDto;
 
       (
@@ -278,6 +295,24 @@ describe('SavedRouteService', () => {
           totalDistanceMeters: 5000,
           estimatedSavingsWon: 2000,
           score: 4.5,
+          stops: [
+            {
+              placeName: '해운대',
+              sequence: 0,
+              dayNumber: 1,
+              transitType: 'BUS',
+              travelMinutesFromPrev: 20,
+              stayMinutes: 60,
+            },
+            {
+              placeName: '광안리',
+              sequence: 1,
+              dayNumber: 2,
+              transitType: null,
+              travelMinutesFromPrev: null,
+              stayMinutes: 0,
+            },
+          ],
         }),
       );
       expect(mockSavedRouteRepository.createSavedRoute).toHaveBeenCalledWith(

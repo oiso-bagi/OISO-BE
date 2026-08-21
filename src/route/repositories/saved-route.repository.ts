@@ -158,45 +158,54 @@ export class SavedRouteRepository {
     });
     const placeMap = new Map(places.map((p) => [p.name, p.id]));
 
-    const fallbackPlace = await this.prisma.place.findFirst({
-      select: { id: true },
-    });
-
-    const createdRoute = await this.prisma.route.create({
-      data: {
-        id: stitchedId,
-        name: stitchedDetail.name,
-        region: '부산',
-        estimatedCostWon: 0,
-        estimatedDurationMin: 0,
-        totalDistanceMeters: stitchedDetail.totalDistanceMeters,
-        estimatedSavingsWon: stitchedDetail.estimatedSavingsWon,
-        score: new Prisma.Decimal(stitchedDetail.score),
-        routeType: 'RECOMMENDED',
-        isPublished: true,
-        stops: {
-          create: stitchedDetail.stops.map((stop, idx) => {
-            const resolvedPlaceId =
-              placeMap.get(stop.placeName) ?? fallbackPlace?.id;
-            if (!resolvedPlaceId) {
-              throw new Error(
-                `스티칭 루트 저장 중 장소를 찾을 수 없습니다: [${stop.placeName}]`,
-              );
-            }
-            return {
-              orderIndex: stop.sequence ?? stop.orderIndex ?? idx,
-              transitType: stop.transitType ?? null,
-              travelMinutesFromPrev: stop.travelMinutesFromPrev ?? null,
-              stayMinutes: stop.stayMinutes ?? null,
-              placeId: resolvedPlaceId,
-            };
-          }),
+    try {
+      const createdRoute = await this.prisma.route.create({
+        data: {
+          id: stitchedId,
+          name: stitchedDetail.name,
+          region: '부산',
+          estimatedCostWon: 0,
+          estimatedDurationMin: 0,
+          totalDistanceMeters: stitchedDetail.totalDistanceMeters,
+          estimatedSavingsWon: stitchedDetail.estimatedSavingsWon,
+          score: new Prisma.Decimal(stitchedDetail.score),
+          routeType: 'RECOMMENDED',
+          isPublished: true,
+          stops: {
+            create: stitchedDetail.stops.map((stop, idx) => {
+              const resolvedPlaceId = placeMap.get(stop.placeName);
+              if (!resolvedPlaceId) {
+                throw new Error(
+                  `스티칭 루트 저장 중 장소를 찾을 수 없습니다: [${stop.placeName}]`,
+                );
+              }
+              return {
+                orderIndex: stop.sequence ?? stop.orderIndex ?? idx,
+                transitType: stop.transitType ?? null,
+                travelMinutesFromPrev: stop.travelMinutesFromPrev ?? null,
+                stayMinutes: stop.stayMinutes ?? null,
+                placeId: resolvedPlaceId,
+              };
+            }),
+          },
         },
-      },
-      select: { id: true },
-    });
+        select: { id: true },
+      });
 
-    return createdRoute.id;
+      return createdRoute.id;
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        const reFetched = await this.prisma.route.findUnique({
+          where: { id: stitchedId },
+          select: { id: true },
+        });
+        if (reFetched) return reFetched.id;
+      }
+      throw error;
+    }
   }
 
   async createSavedRoute(userId: string, routeId: string) {

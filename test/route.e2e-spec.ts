@@ -139,12 +139,19 @@ describe('RouteController (e2e)', () => {
   });
 
   it('returns 400 for invalid stitched route id format', async () => {
-    routeService.getRecommendedRouteDetail.mockRejectedValue(
-      new BadRequestException('stitched-route ID 파싱에 실패했습니다'),
-    );
+    routeService.getRecommendedRouteDetail.mockImplementation((id: string) => {
+      if (id.trim() === 'stitched-') {
+        throw new BadRequestException('stitched-route ID 파싱에 실패했습니다');
+      }
+      return Promise.resolve({} as any);
+    });
 
     await request(app.getHttpServer() as App)
       .get('/api/v1/recommended-routes/stitched-%20')
       .expect(400);
+
+    expect(routeService.getRecommendedRouteDetail).toHaveBeenCalledWith(
+      'stitched-',
+    );
   });
 });
