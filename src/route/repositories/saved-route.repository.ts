@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, TransitType } from '@prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
 
 const savedRouteListSelect = Prisma.validator<Prisma.SavedRouteSelect>()({
@@ -123,6 +123,89 @@ export class SavedRouteRepository {
         routeId: true,
       },
     });
+  }
+
+  async findPlacesByIdsOrNames(
+    placeIds: string[],
+    placeNames: string[],
+  ): Promise<Array<{ id: string; name: string }>> {
+    if (placeIds.length === 0 && placeNames.length === 0) {
+      return [];
+    }
+
+    return this.prisma.place.findMany({
+      where: {
+        OR: [
+          ...(placeIds.length > 0 ? [{ id: { in: placeIds } }] : []),
+          ...(placeNames.length > 0 ? [{ name: { in: placeNames } }] : []),
+        ],
+      },
+      select: { id: true, name: true },
+    });
+  }
+
+  async ensureRouteExistsFromStitched(
+    stitchedId: string,
+    stitchedDetail: {
+      name: string;
+      totalDistanceMeters: number;
+      estimatedSavingsWon: number;
+      score: number;
+      stops: Array<{
+        placeId: string;
+        orderIndex: number;
+        transitType?: TransitType | null;
+        travelMinutesFromPrev?: number | null;
+        stayMinutes?: number | null;
+      }>;
+    },
+  ): Promise<string> {
+    const existing = await this.prisma.route.findUnique({
+      where: { id: stitchedId },
+      select: { id: true },
+    });
+    if (existing) return existing.id;
+
+    try {
+      const createdRoute = await this.prisma.route.create({
+        data: {
+          id: stitchedId,
+          name: stitchedDetail.name,
+          region: '부산',
+          estimatedCostWon: 0,
+          estimatedDurationMin: 0,
+          totalDistanceMeters: stitchedDetail.totalDistanceMeters,
+          estimatedSavingsWon: stitchedDetail.estimatedSavingsWon,
+          score: new Prisma.Decimal(stitchedDetail.score),
+          routeType: 'RECOMMENDED',
+          isPublished: true,
+          stops: {
+            create: stitchedDetail.stops.map((stop) => ({
+              orderIndex: stop.orderIndex,
+              transitType: stop.transitType ?? null,
+              travelMinutesFromPrev: stop.travelMinutesFromPrev ?? null,
+              stayMinutes: stop.stayMinutes ?? null,
+              placeId: stop.placeId,
+            })),
+          },
+        },
+        select: { id: true },
+      });
+
+      return createdRoute.id;
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        const reFetched = await this.prisma.route.findUnique({
+          where: { id: stitchedId },
+          select: { id: true },
+        });
+        if (reFetched) return reFetched.id;
+      }
+      throw error;
+    }
   }
 
   async createSavedRoute(userId: string, routeId: string) {

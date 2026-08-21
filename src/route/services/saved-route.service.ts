@@ -3,15 +3,21 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { RecommendedRouteDetailResponseDto } from '@/route/dto/recommended-route-detail-response.dto';
 import { SavedRouteCompletionResponseDto } from '@/route/dto/saved-route-completion-response.dto';
 import { SavedRouteDetailResponseDto } from '@/route/dto/saved-route-detail-response.dto';
 import { SavedRouteListResponseDto } from '@/route/dto/saved-route-list-response.dto';
 import { ToggleSavedRouteCompletionDto } from '@/route/dto/toggle-saved-route-completion.dto';
 import { SavedRouteRepository } from '@/route/repositories/saved-route.repository';
 
+import { RouteService } from '@/route/services/route.service';
+
 @Injectable()
 export class SavedRouteService {
-  constructor(private readonly savedRouteRepository: SavedRouteRepository) {}
+  constructor(
+    private readonly savedRouteRepository: SavedRouteRepository,
+    private readonly routeService: RouteService,
+  ) {}
 
   async getSavedRouteList(userId: string): Promise<SavedRouteListResponseDto> {
     const normalizedUserId = this.validateUserId(userId);
@@ -52,14 +58,83 @@ export class SavedRouteService {
 
   async saveRoute(userId: string, routeId: string): Promise<void> {
     const normalizedUserId = this.validateUserId(userId);
-    const normalizedRouteId = this.validateRouteId(routeId);
+    let normalizedRouteId = this.validateRouteId(routeId);
 
-    const routeExists =
-      await this.savedRouteRepository.findRouteById(normalizedRouteId);
-    if (!routeExists) {
-      throw new NotFoundException(
-        `추천 루트 ID [${normalizedRouteId}]를 찾을 수 없습니다.`,
+    if (normalizedRouteId.startsWith('stitched-')) {
+      const stitchedDetail: RecommendedRouteDetailResponseDto =
+        await this.routeService.getRecommendedRouteDetail(normalizedRouteId);
+
+      const rawStops = stitchedDetail.stops || [];
+      const providedPlaceIds = rawStops
+        .map((s) => (s as { placeId?: string }).placeId)
+        .filter((id): id is string => Boolean(id));
+      const placeNames = rawStops.map((s) => s.placeName).filter(Boolean);
+
+      const places = await this.savedRouteRepository.findPlacesByIdsOrNames(
+        providedPlaceIds,
+        placeNames,
       );
+      const placeIdSet = new Set(places.map((p) => p.id));
+
+      // placeName 매핑 시 중복 이름으로 인한 잘못된 매핑 방지
+      const placeNameCountMap = new Map<string, number>();
+      const placeNameMap = new Map<string, string>();
+      for (const p of places) {
+        placeNameCountMap.set(p.name, (placeNameCountMap.get(p.name) ?? 0) + 1);
+        placeNameMap.set(p.name, p.id);
+      }
+
+      const resolvedStops = rawStops.map((stop, idx) => {
+        const stopPlaceId = (stop as { placeId?: string }).placeId;
+        let resolvedPlaceId: string | undefined;
+
+        if (stopPlaceId && placeIdSet.has(stopPlaceId)) {
+          resolvedPlaceId = stopPlaceId;
+        } else if (stop.placeName) {
+          const nameCount = placeNameCountMap.get(stop.placeName) ?? 0;
+          if (nameCount > 1) {
+            throw new BadRequestException(
+              `장소명 [${stop.placeName}]이(가) 여러 개 존재하여 명확하게 식별할 수 없습니다.`,
+            );
+          }
+          resolvedPlaceId = placeNameMap.get(stop.placeName);
+        }
+
+        if (!resolvedPlaceId) {
+          throw new NotFoundException(
+            `스티칭 루트 저장 중 장소를 찾을 수 없습니다: [${stop.placeName || stopPlaceId}]`,
+          );
+        }
+
+        return {
+          placeId: resolvedPlaceId,
+          orderIndex: stop.sequence ?? idx,
+          transitType: stop.nextTransportType ?? null,
+          travelMinutesFromPrev: stop.nextTravelTimeMinutes ?? null,
+          stayMinutes: stop.stayMinutes ?? null,
+        };
+      });
+
+      normalizedRouteId =
+        await this.savedRouteRepository.ensureRouteExistsFromStitched(
+          normalizedRouteId,
+          {
+            name: stitchedDetail.routeName || '',
+            totalDistanceMeters:
+              Math.round((stitchedDetail.totalDistanceKm || 0) * 1000) || 0,
+            estimatedSavingsWon: stitchedDetail.savedCost || 0,
+            score: stitchedDetail.recommendScore || 0,
+            stops: resolvedStops,
+          },
+        );
+    } else {
+      const routeExists =
+        await this.savedRouteRepository.findRouteById(normalizedRouteId);
+      if (!routeExists) {
+        throw new NotFoundException(
+          `추천 루트 ID [${normalizedRouteId}]를 찾을 수 없습니다.`,
+        );
+      }
     }
 
     const alreadySaved = await this.savedRouteRepository.findSavedRoute(

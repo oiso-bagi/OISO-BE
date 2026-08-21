@@ -35,6 +35,8 @@ const recommendedRouteSelect = Prisma.validator<Prisma.RouteSelect>()({
           category: true,
           latitude: true,
           longitude: true,
+          openTime: true,
+          closeTime: true,
         },
       },
     },
@@ -68,6 +70,11 @@ export class RecommendationRepository {
       where: {
         routeType: 'RECOMMENDED',
         isPublished: true,
+        id: {
+          not: {
+            startsWith: 'stitched-',
+          },
+        },
         estimatedCostWon: {
           lte: filter.dailyBudgetWon,
         },

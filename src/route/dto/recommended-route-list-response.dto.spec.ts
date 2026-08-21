@@ -52,10 +52,16 @@ describe('RecommendedRouteListResponseDto', () => {
     expect(dto.estimatedSavingsWon).toBe(1000);
     expect(dto.score).toBe(4.7);
     expect(dto.isRecommended).toBe(true);
-    expect(dto.stopLocations[0]).toEqual({
+    expect(dto.stopLocations[0]).toMatchObject({
       sequence: 0,
       dayNumber: 1,
       placeName: '해운대 해수욕장',
+      category: null,
+      openTime: null,
+      closeTime: null,
+      nextTransportType: 'BUS',
+      nextTravelTimeMinutes: 20,
+      stayMinutes: 10,
       latitude: 35.1587,
       longitude: 129.1604,
     });

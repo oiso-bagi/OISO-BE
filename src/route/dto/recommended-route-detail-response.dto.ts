@@ -185,6 +185,14 @@ export class RouteStopResponseDto {
   })
   nextTravelTimeMinutes!: number | null;
 
+  @ApiProperty({
+    description: '장소 체류 소요 시간(분)',
+    example: 60,
+    nullable: true,
+    type: Number,
+  })
+  stayMinutes!: number | null;
+
   static from(stop: RouteStopWithPlace): RouteStopResponseDto {
     const dto = new RouteStopResponseDto();
 
@@ -211,6 +219,7 @@ export class RouteStopResponseDto {
       stop.place?.longitude != null ? Number(stop.place.longitude) : null;
     dto.nextTransportType = stop.transitType ?? null;
     dto.nextTravelTimeMinutes = stop.travelMinutesFromPrev ?? null;
+    dto.stayMinutes = stop.stayMinutes ?? null;
 
     return dto;
   }

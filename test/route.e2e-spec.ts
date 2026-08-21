@@ -1,4 +1,4 @@
-import { INestApplication } from '@nestjs/common';
+import { BadRequestException, INestApplication } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { RouteController } from '@/route/controllers/route.controller';
@@ -100,6 +100,58 @@ describe('RouteController (e2e)', () => {
 
     expect(routeService.getRecommendedRouteDetail).toHaveBeenCalledWith(
       'route-1',
+    );
+  });
+
+  it('returns 200 for a stitched route id', async () => {
+    const payload = {
+      routeId: 'stitched-route-1_route-2',
+      routeName: '[1박 2일] 부산 여행 패키지 코스',
+      stopCount: 2,
+      totalDistanceKm: 5.0,
+      transportType: 'BUS',
+      congestionLevel: 'MEDIUM',
+      savedCost: 2000,
+      recommendScore: 4.6,
+      isRecommended: true,
+      isSaved: false,
+      totalCost: 2000,
+      totalTimeMinutes: 60,
+      totalTimeDisplay: '1h 0m',
+      metaCost: { transportCost: 1000, placeCost: 1000 },
+      metaTime: { pureTravelTime: 40, stayTime: 20 },
+      stops: [
+        { sequence: 0, dayNumber: 1, placeName: '해운대' },
+        { sequence: 1, dayNumber: 2, placeName: '광안리' },
+      ],
+    };
+
+    routeService.getRecommendedRouteDetail.mockResolvedValue(payload);
+
+    await request(app.getHttpServer() as App)
+      .get('/api/v1/recommended-routes/stitched-route-1_route-2')
+      .expect(200)
+      .expect(payload);
+
+    expect(routeService.getRecommendedRouteDetail).toHaveBeenCalledWith(
+      'stitched-route-1_route-2',
+    );
+  });
+
+  it('returns 400 for invalid stitched route id format', async () => {
+    routeService.getRecommendedRouteDetail.mockImplementation((id: string) => {
+      if (id.trim() === 'stitched-') {
+        throw new BadRequestException('stitched-route ID 파싱에 실패했습니다');
+      }
+      return Promise.resolve({} as any);
+    });
+
+    await request(app.getHttpServer() as App)
+      .get('/api/v1/recommended-routes/stitched-%20')
+      .expect(400);
+
+    expect(routeService.getRecommendedRouteDetail).toHaveBeenCalledWith(
+      'stitched-',
     );
   });
 });

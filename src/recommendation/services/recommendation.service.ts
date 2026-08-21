@@ -455,8 +455,13 @@ export class RecommendationService {
       Math.max(0, avgScore - chainingCostPenalty * 0.1).toFixed(2),
     );
 
+    const routeIdsKey = routes
+      .map((r) => r.id)
+      .filter(Boolean)
+      .join('_');
+
     return {
-      id: `stitched-${String(routes[0]?.id || 'multi')}-${packageIdx}`,
+      id: `stitched-${routeIdsKey || String(routes[0]?.id || 'multi')}`,
       name: `[${durationText}] ${leadRouteName} 패키지 ${packageIdx}호`,
       totalDistanceMeters,
       estimatedSavingsWon,

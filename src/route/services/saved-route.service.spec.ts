@@ -1,7 +1,9 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { RecommendedRouteDetailResponseDto } from '@/route/dto/recommended-route-detail-response.dto';
 import { SavedRouteRawData } from '@/route/dto/saved-route-list-response.dto';
 import { SavedRouteRepository } from '@/route/repositories/saved-route.repository';
+import { RouteService } from '@/route/services/route.service';
 import { SavedRouteService } from '@/route/services/saved-route.service';
 
 describe('SavedRouteService', () => {
@@ -14,6 +16,11 @@ describe('SavedRouteService', () => {
     createSavedRoute: jest.fn(),
     deleteSavedRoute: jest.fn(),
     upsertRouteTripCompletion: jest.fn(),
+    ensureRouteExistsFromStitched: jest.fn(),
+    findPlacesByIdsOrNames: jest.fn(),
+  };
+  const mockRouteService: Partial<Record<keyof RouteService, jest.Mock>> = {
+    getRecommendedRouteDetail: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -21,6 +28,7 @@ describe('SavedRouteService', () => {
       providers: [
         SavedRouteService,
         { provide: SavedRouteRepository, useValue: mockSavedRouteRepository },
+        { provide: RouteService, useValue: mockRouteService },
       ],
     }).compile();
 
@@ -138,7 +146,7 @@ describe('SavedRouteService', () => {
 
     await expect(
       service.getSavedRouteDetail('route-999', 'user-1'),
-    ).rejects.toThrow(NotFoundException);
+    ).rejects.toThrow('저장된 루트 ID [route-999]를 찾을 수 없습니다.');
   });
 
   it('returns SavedRouteDetailResponseDto for valid routeId', async () => {
@@ -225,7 +233,6 @@ describe('SavedRouteService', () => {
       mockSavedRouteRepository.createSavedRoute.mockResolvedValue({
         userId: 'user-1',
         routeId: 'route-1',
-        savedAt: new Date(),
       });
 
       await service.saveRoute('user-1', 'route-1');
@@ -233,6 +240,100 @@ describe('SavedRouteService', () => {
       expect(mockSavedRouteRepository.createSavedRoute).toHaveBeenCalledWith(
         'user-1',
         'route-1',
+      );
+    });
+
+    it('saves stitched route successfully by creating route entity first if not exists', async () => {
+      const stitchedId = 'stitched-route-1_route-2';
+      const mockStitchedDetail = {
+        routeName: '통합 코스',
+        totalDistanceKm: 5.0,
+        savedCost: 2000,
+        recommendScore: 4.5,
+        stops: [
+          {
+            placeName: '해운대',
+            sequence: 0,
+            dayNumber: 1,
+            nextTransportType: 'BUS',
+            nextTravelTimeMinutes: 20,
+            stayMinutes: 60,
+          },
+          {
+            placeName: '광안리',
+            sequence: 1,
+            dayNumber: 2,
+            nextTransportType: null,
+            nextTravelTimeMinutes: null,
+            stayMinutes: 0,
+          },
+        ],
+      } as unknown as RecommendedRouteDetailResponseDto;
+
+      (
+        mockRouteService.getRecommendedRouteDetail as jest.Mock
+      ).mockResolvedValue(mockStitchedDetail);
+      mockSavedRouteRepository.findPlacesByIdsOrNames.mockResolvedValue([
+        { id: 'place-1', name: '해운대' },
+        { id: 'place-2', name: '광안리' },
+      ]);
+      mockSavedRouteRepository.ensureRouteExistsFromStitched.mockResolvedValue(
+        stitchedId,
+      );
+      mockSavedRouteRepository.findSavedRoute.mockResolvedValue(null);
+      mockSavedRouteRepository.createSavedRoute.mockResolvedValue({
+        userId: 'user-1',
+        routeId: stitchedId,
+      });
+
+      await service.saveRoute('user-1', stitchedId);
+
+      expect(mockRouteService.getRecommendedRouteDetail).toHaveBeenCalledWith(
+        stitchedId,
+      );
+      expect(
+        mockSavedRouteRepository.ensureRouteExistsFromStitched,
+      ).toHaveBeenCalledWith(
+        stitchedId,
+        expect.objectContaining({
+          name: '통합 코스',
+          totalDistanceMeters: 5000,
+          estimatedSavingsWon: 2000,
+          score: 4.5,
+          stops: [
+            {
+              placeId: 'place-1',
+              orderIndex: 0,
+              transitType: 'BUS',
+              travelMinutesFromPrev: 20,
+              stayMinutes: 60,
+            },
+            {
+              placeId: 'place-2',
+              orderIndex: 1,
+              transitType: null,
+              travelMinutesFromPrev: null,
+              stayMinutes: 0,
+            },
+          ],
+        }),
+      );
+      expect(mockSavedRouteRepository.createSavedRoute).toHaveBeenCalledWith(
+        'user-1',
+        stitchedId,
+      );
+    });
+
+    it('throws NotFoundException when place in stitched route is not found in DB', async () => {
+      const stitchedId = 'stitched-route-invalid-place';
+      mockRouteService.getRecommendedRouteDetail.mockResolvedValue({
+        name: '오류 코스',
+        stops: [{ placeName: '존재하지 않는 장소' }],
+      });
+      mockSavedRouteRepository.findPlacesByIdsOrNames.mockResolvedValue([]);
+
+      await expect(service.saveRoute('user-1', stitchedId)).rejects.toThrow(
+        NotFoundException,
       );
     });
 
