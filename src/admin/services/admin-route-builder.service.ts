@@ -22,7 +22,12 @@ export class AdminRouteBuilderService {
     dto: CreateAdminRouteDto,
   ): Promise<AdminRouteDetailResponseDto> {
     const themeId = await this.validateRouteContext(dto.themeSlug, dto.stops);
-    return this.adminRouteBuilderRepository.createRoute(dto, themeId);
+    const aggregates = await this.calculateRouteAggregates(dto.stops);
+    return this.adminRouteBuilderRepository.createRoute(
+      dto,
+      themeId,
+      aggregates,
+    );
   }
 
   async getRouteDetail(id: string): Promise<AdminRouteDetailResponseDto> {
@@ -43,7 +48,91 @@ export class AdminRouteBuilderService {
     }
 
     const themeId = await this.validateRouteContext(dto.themeSlug, dto.stops);
-    return this.adminRouteBuilderRepository.updateRoute(id, dto, themeId);
+    const aggregates = await this.calculateRouteAggregates(dto.stops);
+    return this.adminRouteBuilderRepository.updateRoute(
+      id,
+      dto,
+      themeId,
+      aggregates,
+    );
+  }
+
+  private async calculateRouteAggregates(stops: CreateAdminRouteDto['stops']) {
+    const sortedStops = [...stops].sort((a, b) => a.sequence - b.sequence);
+    const placeIds = Array.from(new Set(sortedStops.map((s) => s.placeId)));
+
+    const places =
+      await this.adminRouteBuilderRepository.findPlacesCoordinates(placeIds);
+    const placeMap = new Map(places.map((p) => [p.id, p]));
+
+    let totalDistanceMeters = 0;
+    for (let i = 0; i < sortedStops.length - 1; i++) {
+      const s1 = sortedStops[i];
+      const s2 = sortedStops[i + 1];
+
+      const p1 = placeMap.get(s1.placeId);
+      const p2 = placeMap.get(s2.placeId);
+      if (p1?.latitude && p1?.longitude && p2?.latitude && p2?.longitude) {
+        totalDistanceMeters += this.calculateDistanceMeters(
+          Number(p1.latitude),
+          Number(p1.longitude),
+          Number(p2.latitude),
+          Number(p2.longitude),
+        );
+      }
+    }
+
+    const totalDurationMin = sortedStops.reduce((acc, s, idx) => {
+      const stay = s.stayTimeMinutes ?? 60;
+      const travel =
+        idx < sortedStops.length - 1 ? (s.nextTravelTimeMinutes ?? 0) : 0;
+      return acc + stay + travel;
+    }, 0);
+
+    // 마지막 stop의 nextTravelCostWon은 합산에서 제외 (0부터 sortedStops.length - 2까지만 합산)
+    let totalTransportCostWon = 0;
+    for (let i = 0; i < sortedStops.length - 1; i++) {
+      totalTransportCostWon += sortedStops[i].nextTravelCostWon ?? 0;
+    }
+
+    const stopData = sortedStops.map((stop, index) => {
+      const prevStop = index > 0 ? sortedStops[index - 1] : null;
+      return {
+        placeId: stop.placeId,
+        orderIndex: stop.sequence,
+        stayMinutes: stop.stayTimeMinutes,
+        travelMinutesFromPrev: prevStop?.nextTravelTimeMinutes ?? null,
+        transitType: prevStop?.nextTransportType ?? null,
+        fareWon: prevStop?.nextTravelCostWon ?? null,
+        transitDetails: { dayNumber: stop.dayNumber },
+      };
+    });
+
+    return {
+      totalDistanceMeters,
+      totalDurationMin,
+      totalTransportCostWon,
+      stopData,
+    };
+  }
+
+  private calculateDistanceMeters(
+    lat1: number,
+    lon1: number,
+    lat2: number,
+    lon2: number,
+  ): number {
+    const R = 6371000;
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLon = ((lon2 - lon1) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((lat1 * Math.PI) / 180) *
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return Math.round(R * c);
   }
 
   private async validateRouteContext(

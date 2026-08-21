@@ -18,6 +18,7 @@ describe('AdminRouteBuilderService', () => {
           provide: AdminRouteBuilderRepository,
           useValue: {
             findThemeIdBySlug: jest.fn(),
+            findPlacesCoordinates: jest.fn(),
             createRoute: jest.fn(),
             findRouteDetail: jest.fn(),
             updateRoute: jest.fn(),
@@ -132,6 +133,15 @@ describe('AdminRouteBuilderService', () => {
           longitude: '129.11',
         },
       ]);
+      (
+        builderRepository.findPlacesCoordinates as jest.Mock
+      ).mockResolvedValue([
+        {
+          id: 'place_1',
+          latitude: '35.15',
+          longitude: '129.11',
+        },
+      ]);
 
       const dto = {
         name: '테스트 코스',
@@ -166,6 +176,7 @@ describe('AdminRouteBuilderService', () => {
       expect(builderRepository.createRoute).toHaveBeenCalledWith(
         dto,
         'theme_1',
+        expect.any(Object),
       );
       expect(result).toEqual(mockResult);
     });

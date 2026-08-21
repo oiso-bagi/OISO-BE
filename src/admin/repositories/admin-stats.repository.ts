@@ -62,19 +62,15 @@ export class AdminStatsRepository {
     };
   }
 
-  async getSavingsBreakdown(): Promise<{
-    totalSavingsCostWon: number;
-    breakdown: Array<{
-      category: PlaceCategory;
-      label: string;
-      amountWon: number;
-      percentage: number;
+  async getRawSavingsBreakdown(): Promise<{
+    stopAggregates: Array<{
+      placeId: string;
+      _sum: { savingsWon: number | null };
     }>;
-    regionBreakdown: Array<{
-      region: string;
-      label: string;
-      amountWon: number;
-      percentage: number;
+    places: Array<{
+      id: string;
+      category: PlaceCategory | null;
+      address: string | null;
     }>;
   }> {
     const savedRouteIds = await this.prisma.savedRoute.findMany({
@@ -83,7 +79,7 @@ export class AdminStatsRepository {
     });
 
     if (savedRouteIds.length === 0) {
-      return { totalSavingsCostWon: 0, breakdown: [], regionBreakdown: [] };
+      return { stopAggregates: [], places: [] };
     }
 
     const routeIds = savedRouteIds.map((r) => r.routeId);
@@ -95,7 +91,7 @@ export class AdminStatsRepository {
     });
 
     if (stopAggregates.length === 0) {
-      return { totalSavingsCostWon: 0, breakdown: [], regionBreakdown: [] };
+      return { stopAggregates: [], places: [] };
     }
 
     const placeIds = stopAggregates.map((s) => s.placeId);
@@ -103,87 +99,10 @@ export class AdminStatsRepository {
       where: { id: { in: placeIds } },
       select: { id: true, category: true, address: true },
     });
-    const placeMap = new Map(places.map((p) => [p.id, p]));
-
-    const categoryMap = new Map<PlaceCategory, number>();
-    const regionMap = new Map<string, number>();
-    let totalSavingsCostWon = 0;
-
-    for (const stopAgg of stopAggregates) {
-      const place = placeMap.get(stopAgg.placeId);
-      if (!place) continue;
-
-      const amount = stopAgg._sum.savingsWon ?? 0;
-      totalSavingsCostWon += amount;
-
-      if (place.category) {
-        const currentCategoryAmount = categoryMap.get(place.category) ?? 0;
-        categoryMap.set(place.category, currentCategoryAmount + amount);
-      }
-
-      // 주소에서 구 단위 파싱 (예: "부산광역시 해운대구 ..." -> "해운대구")
-      let regionName = '기타 상권';
-      if (place.address) {
-        const districtMatch = place.address.match(/([가-힣]+구)/);
-        if (districtMatch && districtMatch[1]) {
-          regionName = districtMatch[1];
-        }
-      }
-
-      const currentRegionAmount = regionMap.get(regionName) ?? 0;
-      regionMap.set(regionName, currentRegionAmount + amount);
-    }
-
-    const breakdown: Array<{
-      category: PlaceCategory;
-      label: string;
-      amountWon: number;
-      percentage: number;
-    }> = [];
-
-    categoryMap.forEach((amountWon, category) => {
-      const percentage =
-        totalSavingsCostWon > 0
-          ? Number(((amountWon / totalSavingsCostWon) * 100).toFixed(1))
-          : 0;
-
-      breakdown.push({
-        category,
-        label: CATEGORY_LABEL_MAP[category] ?? category,
-        amountWon,
-        percentage,
-      });
-    });
-
-    breakdown.sort((a, b) => b.amountWon - a.amountWon);
-
-    const regionBreakdown: Array<{
-      region: string;
-      label: string;
-      amountWon: number;
-      percentage: number;
-    }> = [];
-
-    regionMap.forEach((amountWon, region) => {
-      const percentage =
-        totalSavingsCostWon > 0
-          ? Number(((amountWon / totalSavingsCostWon) * 100).toFixed(1))
-          : 0;
-
-      regionBreakdown.push({
-        region,
-        label: region,
-        amountWon,
-        percentage,
-      });
-    });
-
-    regionBreakdown.sort((a, b) => b.amountWon - a.amountWon);
 
     return {
-      totalSavingsCostWon,
-      breakdown,
-      regionBreakdown,
+      stopAggregates,
+      places,
     };
   }
 

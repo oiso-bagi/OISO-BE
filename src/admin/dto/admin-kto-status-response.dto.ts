@@ -24,11 +24,12 @@ export class AdminKtoStatusResponseDto {
   status!: 'IDLE' | 'RUNNING';
 
   @ApiProperty({
-    description: '마지막 수집 실행 결과 상태 (SUCCESS | FAILURE)',
+    description:
+      '마지막 수집 실행 결과 상태 (SUCCESS | PARTIAL_SUCCESS | FAILURE)',
     example: 'SUCCESS',
     nullable: true,
   })
-  lastResult!: 'SUCCESS' | 'FAILURE' | null;
+  lastResult!: 'SUCCESS' | 'PARTIAL_SUCCESS' | 'FAILURE' | null;
 
   @ApiProperty({
     description: '마지막 수집 실행 결과 메시지',
