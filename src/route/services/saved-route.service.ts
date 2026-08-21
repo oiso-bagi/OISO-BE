@@ -49,7 +49,7 @@ export class SavedRouteService {
 
     if (!rawData) {
       throw new NotFoundException(
-        `추천 루트 ID [${normalizedRouteId}]를 찾을 수 없습니다.`,
+        `저장된 루트 ID [${normalizedRouteId}]를 찾을 수 없습니다.`,
       );
     }
 
@@ -63,35 +63,44 @@ export class SavedRouteService {
     if (normalizedRouteId.startsWith('stitched-')) {
       const stitchedDetail: RecommendedRouteDetailResponseDto =
         await this.routeService.getRecommendedRouteDetail(normalizedRouteId);
-      try {
-        normalizedRouteId =
-          await this.savedRouteRepository.ensureRouteExistsFromStitched(
-            normalizedRouteId,
-            {
-              name: stitchedDetail.routeName || '',
-              totalDistanceMeters:
-                Math.round((stitchedDetail.totalDistanceKm || 0) * 1000) || 0,
-              estimatedSavingsWon: stitchedDetail.savedCost || 0,
-              score: stitchedDetail.recommendScore || 0,
-              stops: (stitchedDetail.stops || []).map((stop) => ({
-                placeName: stop.placeName || '',
-                sequence: stop.sequence || 0,
-                dayNumber: stop.dayNumber || 1,
-                transitType: stop.nextTransportType ?? null,
-                travelMinutesFromPrev: stop.nextTravelTimeMinutes ?? null,
-                stayMinutes: stop.stayMinutes ?? null,
-              })),
-            },
+
+      const rawStops = stitchedDetail.stops || [];
+      const placeNames = rawStops.map((s) => s.placeName).filter(Boolean);
+
+      const places =
+        await this.savedRouteRepository.findPlacesByNames(placeNames);
+      const placeNameMap = new Map(places.map((p) => [p.name, p.id]));
+
+      const resolvedStops = rawStops.map((stop, idx) => {
+        const resolvedPlaceId = placeNameMap.get(stop.placeName);
+
+        if (!resolvedPlaceId) {
+          throw new NotFoundException(
+            `스티칭 루트 저장 중 장소를 찾을 수 없습니다: [${stop.placeName}]`,
           );
-      } catch (err) {
-        if (
-          err instanceof Error &&
-          err.message.includes('장소를 찾을 수 없습니다')
-        ) {
-          throw new NotFoundException(err.message);
         }
-        throw err;
-      }
+
+        return {
+          placeId: resolvedPlaceId,
+          orderIndex: stop.sequence ?? idx,
+          transitType: stop.nextTransportType ?? null,
+          travelMinutesFromPrev: stop.nextTravelTimeMinutes ?? null,
+          stayMinutes: stop.stayMinutes ?? null,
+        };
+      });
+
+      normalizedRouteId =
+        await this.savedRouteRepository.ensureRouteExistsFromStitched(
+          normalizedRouteId,
+          {
+            name: stitchedDetail.routeName || '',
+            totalDistanceMeters:
+              Math.round((stitchedDetail.totalDistanceKm || 0) * 1000) || 0,
+            estimatedSavingsWon: stitchedDetail.savedCost || 0,
+            score: stitchedDetail.recommendScore || 0,
+            stops: resolvedStops,
+          },
+        );
     } else {
       const routeExists =
         await this.savedRouteRepository.findRouteById(normalizedRouteId);

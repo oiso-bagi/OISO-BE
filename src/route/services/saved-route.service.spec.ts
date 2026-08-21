@@ -17,6 +17,7 @@ describe('SavedRouteService', () => {
     deleteSavedRoute: jest.fn(),
     upsertRouteTripCompletion: jest.fn(),
     ensureRouteExistsFromStitched: jest.fn(),
+    findPlacesByNames: jest.fn(),
   };
   const mockRouteService: Partial<Record<keyof RouteService, jest.Mock>> = {
     getRecommendedRouteDetail: jest.fn(),
@@ -145,7 +146,7 @@ describe('SavedRouteService', () => {
 
     await expect(
       service.getSavedRouteDetail('route-999', 'user-1'),
-    ).rejects.toThrow(NotFoundException);
+    ).rejects.toThrow('저장된 루트 ID [route-999]를 찾을 수 없습니다.');
   });
 
   it('returns SavedRouteDetailResponseDto for valid routeId', async () => {
@@ -272,6 +273,10 @@ describe('SavedRouteService', () => {
       (
         mockRouteService.getRecommendedRouteDetail as jest.Mock
       ).mockResolvedValue(mockStitchedDetail);
+      mockSavedRouteRepository.findPlacesByNames.mockResolvedValue([
+        { id: 'place-1', name: '해운대' },
+        { id: 'place-2', name: '광안리' },
+      ]);
       mockSavedRouteRepository.ensureRouteExistsFromStitched.mockResolvedValue(
         stitchedId,
       );
@@ -297,17 +302,15 @@ describe('SavedRouteService', () => {
           score: 4.5,
           stops: [
             {
-              placeName: '해운대',
-              sequence: 0,
-              dayNumber: 1,
+              placeId: 'place-1',
+              orderIndex: 0,
               transitType: 'BUS',
               travelMinutesFromPrev: 20,
               stayMinutes: 60,
             },
             {
-              placeName: '광안리',
-              sequence: 1,
-              dayNumber: 2,
+              placeId: 'place-2',
+              orderIndex: 1,
               transitType: null,
               travelMinutesFromPrev: null,
               stayMinutes: 0,
@@ -327,11 +330,7 @@ describe('SavedRouteService', () => {
         name: '오류 코스',
         stops: [{ placeName: '존재하지 않는 장소' }],
       });
-      mockSavedRouteRepository.ensureRouteExistsFromStitched.mockRejectedValue(
-        new Error(
-          '스티칭 루트 저장 중 장소를 찾을 수 없습니다: [존재하지 않는 장소]',
-        ),
-      );
+      mockSavedRouteRepository.findPlacesByNames.mockResolvedValue([]);
 
       await expect(service.saveRoute('user-1', stitchedId)).rejects.toThrow(
         NotFoundException,

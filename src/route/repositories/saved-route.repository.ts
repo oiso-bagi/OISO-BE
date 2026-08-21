@@ -125,6 +125,19 @@ export class SavedRouteRepository {
     });
   }
 
+  async findPlacesByNames(
+    placeNames: string[],
+  ): Promise<Array<{ id: string; name: string }>> {
+    if (placeNames.length === 0) {
+      return [];
+    }
+
+    return this.prisma.place.findMany({
+      where: { name: { in: placeNames } },
+      select: { id: true, name: true },
+    });
+  }
+
   async ensureRouteExistsFromStitched(
     stitchedId: string,
     stitchedDetail: {
@@ -133,10 +146,8 @@ export class SavedRouteRepository {
       estimatedSavingsWon: number;
       score: number;
       stops: Array<{
-        placeName: string;
-        orderIndex?: number;
-        sequence?: number;
-        dayNumber?: number;
+        placeId: string;
+        orderIndex: number;
         transitType?: TransitType | null;
         travelMinutesFromPrev?: number | null;
         stayMinutes?: number | null;
@@ -148,15 +159,6 @@ export class SavedRouteRepository {
       select: { id: true },
     });
     if (existing) return existing.id;
-
-    const placeNames = stitchedDetail.stops
-      .map((s) => s.placeName)
-      .filter(Boolean);
-    const places = await this.prisma.place.findMany({
-      where: { name: { in: placeNames } },
-      select: { id: true, name: true },
-    });
-    const placeMap = new Map(places.map((p) => [p.name, p.id]));
 
     try {
       const createdRoute = await this.prisma.route.create({
@@ -172,21 +174,13 @@ export class SavedRouteRepository {
           routeType: 'RECOMMENDED',
           isPublished: true,
           stops: {
-            create: stitchedDetail.stops.map((stop, idx) => {
-              const resolvedPlaceId = placeMap.get(stop.placeName);
-              if (!resolvedPlaceId) {
-                throw new Error(
-                  `스티칭 루트 저장 중 장소를 찾을 수 없습니다: [${stop.placeName}]`,
-                );
-              }
-              return {
-                orderIndex: stop.sequence ?? stop.orderIndex ?? idx,
-                transitType: stop.transitType ?? null,
-                travelMinutesFromPrev: stop.travelMinutesFromPrev ?? null,
-                stayMinutes: stop.stayMinutes ?? null,
-                placeId: resolvedPlaceId,
-              };
-            }),
+            create: stitchedDetail.stops.map((stop) => ({
+              orderIndex: stop.orderIndex,
+              transitType: stop.transitType ?? null,
+              travelMinutesFromPrev: stop.travelMinutesFromPrev ?? null,
+              stayMinutes: stop.stayMinutes ?? null,
+              placeId: stop.placeId,
+            })),
           },
         },
         select: { id: true },
