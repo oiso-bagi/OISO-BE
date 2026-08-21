@@ -17,7 +17,7 @@ describe('SavedRouteService', () => {
     deleteSavedRoute: jest.fn(),
     upsertRouteTripCompletion: jest.fn(),
     ensureRouteExistsFromStitched: jest.fn(),
-    findPlacesByNames: jest.fn(),
+    findPlacesByIdsOrNames: jest.fn(),
   };
   const mockRouteService: Partial<Record<keyof RouteService, jest.Mock>> = {
     getRecommendedRouteDetail: jest.fn(),
@@ -273,7 +273,7 @@ describe('SavedRouteService', () => {
       (
         mockRouteService.getRecommendedRouteDetail as jest.Mock
       ).mockResolvedValue(mockStitchedDetail);
-      mockSavedRouteRepository.findPlacesByNames.mockResolvedValue([
+      mockSavedRouteRepository.findPlacesByIdsOrNames.mockResolvedValue([
         { id: 'place-1', name: '해운대' },
         { id: 'place-2', name: '광안리' },
       ]);
@@ -330,7 +330,7 @@ describe('SavedRouteService', () => {
         name: '오류 코스',
         stops: [{ placeName: '존재하지 않는 장소' }],
       });
-      mockSavedRouteRepository.findPlacesByNames.mockResolvedValue([]);
+      mockSavedRouteRepository.findPlacesByIdsOrNames.mockResolvedValue([]);
 
       await expect(service.saveRoute('user-1', stitchedId)).rejects.toThrow(
         NotFoundException,

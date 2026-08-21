@@ -65,18 +65,44 @@ export class SavedRouteService {
         await this.routeService.getRecommendedRouteDetail(normalizedRouteId);
 
       const rawStops = stitchedDetail.stops || [];
+      const providedPlaceIds = rawStops
+        .map((s) => (s as { placeId?: string }).placeId)
+        .filter((id): id is string => Boolean(id));
       const placeNames = rawStops.map((s) => s.placeName).filter(Boolean);
 
-      const places =
-        await this.savedRouteRepository.findPlacesByNames(placeNames);
-      const placeNameMap = new Map(places.map((p) => [p.name, p.id]));
+      const places = await this.savedRouteRepository.findPlacesByIdsOrNames(
+        providedPlaceIds,
+        placeNames,
+      );
+      const placeIdSet = new Set(places.map((p) => p.id));
+
+      // placeName 매핑 시 중복 이름으로 인한 잘못된 매핑 방지
+      const placeNameCountMap = new Map<string, number>();
+      const placeNameMap = new Map<string, string>();
+      for (const p of places) {
+        placeNameCountMap.set(p.name, (placeNameCountMap.get(p.name) ?? 0) + 1);
+        placeNameMap.set(p.name, p.id);
+      }
 
       const resolvedStops = rawStops.map((stop, idx) => {
-        const resolvedPlaceId = placeNameMap.get(stop.placeName);
+        const stopPlaceId = (stop as { placeId?: string }).placeId;
+        let resolvedPlaceId: string | undefined;
+
+        if (stopPlaceId && placeIdSet.has(stopPlaceId)) {
+          resolvedPlaceId = stopPlaceId;
+        } else if (stop.placeName) {
+          const nameCount = placeNameCountMap.get(stop.placeName) ?? 0;
+          if (nameCount > 1) {
+            throw new BadRequestException(
+              `장소명 [${stop.placeName}]이(가) 여러 개 존재하여 명확하게 식별할 수 없습니다.`,
+            );
+          }
+          resolvedPlaceId = placeNameMap.get(stop.placeName);
+        }
 
         if (!resolvedPlaceId) {
           throw new NotFoundException(
-            `스티칭 루트 저장 중 장소를 찾을 수 없습니다: [${stop.placeName}]`,
+            `스티칭 루트 저장 중 장소를 찾을 수 없습니다: [${stop.placeName || stopPlaceId}]`,
           );
         }
 

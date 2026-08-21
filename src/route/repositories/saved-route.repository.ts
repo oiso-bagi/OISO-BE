@@ -125,15 +125,21 @@ export class SavedRouteRepository {
     });
   }
 
-  async findPlacesByNames(
+  async findPlacesByIdsOrNames(
+    placeIds: string[],
     placeNames: string[],
   ): Promise<Array<{ id: string; name: string }>> {
-    if (placeNames.length === 0) {
+    if (placeIds.length === 0 && placeNames.length === 0) {
       return [];
     }
 
     return this.prisma.place.findMany({
-      where: { name: { in: placeNames } },
+      where: {
+        OR: [
+          ...(placeIds.length > 0 ? [{ id: { in: placeIds } }] : []),
+          ...(placeNames.length > 0 ? [{ name: { in: placeNames } }] : []),
+        ],
+      },
       select: { id: true, name: true },
     });
   }
