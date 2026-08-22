@@ -99,15 +99,24 @@ export class SavedRouteStopDetailDto {
     const dto = new SavedRouteStopDetailDto();
 
     dto.sequence = stop.orderIndex ?? 0;
-    if (
-      typeof stop.dayNumber === 'number' &&
-      Number.isInteger(stop.dayNumber) &&
-      stop.dayNumber > 0
-    ) {
-      dto.dayNumber = stop.dayNumber;
-    } else {
-      dto.dayNumber = 1;
-    }
+    const rawDayNum = stop.dayNumber;
+    const jsonDayNum =
+      stop.transitDetails &&
+      typeof stop.transitDetails === 'object' &&
+      'dayNumber' in stop.transitDetails &&
+      typeof (stop.transitDetails as { dayNumber?: number }).dayNumber ===
+        'number'
+        ? (stop.transitDetails as { dayNumber: number }).dayNumber
+        : undefined;
+
+    const targetDayNumber = rawDayNum ?? jsonDayNum;
+
+    dto.dayNumber =
+      typeof targetDayNumber === 'number' &&
+      Number.isInteger(targetDayNumber) &&
+      targetDayNumber > 0
+        ? targetDayNumber
+        : 1;
     dto.placeName = stop.place?.name ?? '';
     dto.category = (stop.place?.category as PlaceCategory) ?? null;
     dto.openTime = stop.place?.openTime ?? null;

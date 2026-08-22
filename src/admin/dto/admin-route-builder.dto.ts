@@ -124,13 +124,16 @@ export class CreateAdminRouteDto {
       {
         placeId: 'place_001',
         sequence: 0,
+        dayNumber: 1,
         stayTimeMinutes: 60,
         nextTravelTimeMinutes: 20,
         nextTransportType: TransitType.WALKING,
+        nextTravelCostWon: 1500,
       },
       {
         placeId: 'place_002',
         sequence: 1,
+        dayNumber: 1,
         stayTimeMinutes: 45,
       },
     ],
