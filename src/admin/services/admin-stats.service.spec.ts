@@ -82,7 +82,12 @@ describe('AdminStatsService', () => {
       expect(result.totalSavingsCostWon).toBe(10000);
       expect(result.breakdown).toHaveLength(2);
       expect(result.regionBreakdown).toHaveLength(1);
-      expect(result.regionBreakdown[0].region).toBe('해운대구');
+      expect(result.regionBreakdown[0]).toEqual({
+        region: '해운대구',
+        label: '해운대구',
+        amountWon: 10000,
+        percentage: 100,
+      });
     });
 
     it('category가 null인 장소도 ETC 카테고리로 포함시켜 총액과 일치해야 한다', async () => {
@@ -105,7 +110,15 @@ describe('AdminStatsService', () => {
         0,
       );
       expect(sumCategoryAmount).toBe(10000);
-      expect(result.breakdown.find((b) => b.category === 'ETC')).toBeDefined();
+
+      const etcItem = result.breakdown.find((b) => b.category === 'ETC');
+      expect(etcItem).toBeDefined();
+      expect(etcItem).toEqual({
+        category: 'ETC',
+        label: '기타',
+        amountWon: 5000,
+        percentage: 50,
+      });
     });
   });
 
