@@ -254,7 +254,7 @@ describe('SavedRouteService', () => {
           {
             placeName: '해운대',
             sequence: 0,
-            dayNumber: 1,
+            dayNumber: undefined,
             nextTransportType: 'BUS',
             nextTravelTimeMinutes: 20,
             stayMinutes: 60,
