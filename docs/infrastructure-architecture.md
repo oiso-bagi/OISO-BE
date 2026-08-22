@@ -130,6 +130,7 @@ flowchart TD
 | `COOKIE_SECURE` | 쿠키 Secure 옵션 명시 설정 | 운영 시 `true` 고정 (`false`는 로컬 HTTP 전용) |
 | `COOKIE_DOMAIN` | 쿠키 공유 도메인 설정 | 무관한 도메인(vercel.app ↔ railway.app) 간 생략하여 host-only 사용 |
 | `KAKAO_CLIENT_ID` | 카카오 소셜 로그인 REST API 키 | Kakao Developers |
+| `KAKAO_REST_API_KEY` | 카카오모빌리티 Directions API 키 | Kakao Developers (도로 경로 좌표 SEED 수집 및 Fallback용) |
 | `KAKAO_CLIENT_SECRET` | 카카오 Client Secret | Kakao Developers (설정에 따라 선택 사용) |
 | `KAKAO_REDIRECT_URI` | 카카오 OAuth 리다이렉트 URL | Railway 배포 도메인 + `/api/v1/auth/kakao/callback` |
 | `KAKAO_AUTH_SCOPES` | 카카오 동의 항목 스코프 | 기본값 `account_email,profile_nickname` |

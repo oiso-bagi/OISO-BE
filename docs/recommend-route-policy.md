@@ -101,15 +101,23 @@ N박 M일(다일) 추천 코스 응답 시, 프론트엔드 지도(Map Component
   - `dayNumber: 2` ➡️ 2일차 경유지 (스팟 5~9번)
   - `dayNumber: 3` ➡️ 3일차 경유지 (스팟 10~13번)
 
-### 5.2 프론트엔드 지도 렌더링 가이드라인 (Color Palette Standard)
+### 5.2 `pathCoordinates` 실제 도로 굴곡 좌표 규격 및 지도 Polyline 렌더링 가이드라인 🆕
+- **도로 굴곡 좌표 데이터 규격**:
+  - 각 경유지(`RouteStop`) 응답 객체에 해당 스팟부터 다음 스팟까지의 실제 도로 굴곡 좌표점들을 담은 `pathCoordinates: Array<{ latitude: number, longitude: number }>` 배열을 제공합니다.
+  - 카카오모빌리티 Directions API를 통해 SEED 단계에서 사전 적재되므로 런타임 추가 API 호출 없이 즉시 렌더링할 수 있습니다.
+- **프론트엔드 카카오맵 렌더링 (`kakao.maps.Polyline`)**:
+  - 프론트엔드 클라이언트는 `dayNumber` 필드값을 기준으로 일차별 `pathCoordinates` 좌표점들을 모아 카카오맵 SDK의 `kakao.maps.Polyline` 객체를 생성합니다.
+  - 단순 직선이 아닌 실제 도로 곡선과 산복도로 굴곡을 따라 매끄럽게 매칭되는 도로 선(Polyline)을 일차별 테마 색상으로 시각화합니다.
+
+### 5.3 프론트엔드 지도 렌더링 가이드라인 (Color Palette Standard)
 프론트엔드 클라이언트는 `dayNumber` 필드값을 기준으로 지도 UI 렌더링 시 아래 표준 컬러 팔레트를 적용하여 일차별 동선을 시각화합니다.
 
 | 일차 (Day) | 마커 & 동선 테마 색상 (Color Code) | 디자인 렌더링 스타일 |
 | --- | --- | --- |
-| **1일차 (Day 1)** | 🔵 **Ocean Blue** (`#1E88E5`) | 파란색 숫자 마커 & 파란색 Polyline |
-| **2일차 (Day 2)** | 🟠 **Sunset Orange** (`#FB8C00`) | 주황색 숫자 마커 & 주황색 Polyline |
-| **3일차 (Day 3)** | 🟣 **Deep Purple** (`#8E24AA`) | 보라색 숫자 마커 & 보라색 Polyline |
-| **4일차+ (Day 4+)** | 🟢 **Emerald Green** (`#43A047`) | 에메랄드 green 마커 & Green Polyline |
+| **1일차 (Day 1)** | 🔵 **Ocean Blue** (`#1E88E5`) | 파란색 숫자 마커 & 파란색 도로 Polyline |
+| **2일차 (Day 2)** | 🟠 **Sunset Orange** (`#FB8C00`) | 주황색 숫자 마커 & 주황색 도로 Polyline |
+| **3일차 (Day 3)** | 🟣 **Deep Purple** (`#8E24AA`) | 보라색 숫자 마커 & 보라색 도로 Polyline |
+| **4일차+ (Day 4+)** | 🟢 **Emerald Green** (`#43A047`) | 에메랄드 green 마커 & Green 도로 Polyline |
 
 ---
 
