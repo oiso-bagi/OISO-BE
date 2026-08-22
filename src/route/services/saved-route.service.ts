@@ -109,6 +109,7 @@ export class SavedRouteService {
         return {
           placeId: resolvedPlaceId,
           orderIndex: stop.sequence ?? idx,
+          dayNumber: stop.dayNumber ?? 1,
           transitType: stop.nextTransportType ?? null,
           travelMinutesFromPrev: stop.nextTravelTimeMinutes ?? null,
           stayMinutes: stop.stayMinutes ?? null,

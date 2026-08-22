@@ -56,6 +56,7 @@ const getSavedRouteDetailSelect = (userId: string) =>
             stayMinutes: true,
             fareWon: true,
             estimatedPriceWon: true,
+            transitDetails: true,
             place: {
               select: {
                 name: true,
@@ -154,6 +155,7 @@ export class SavedRouteRepository {
       stops: Array<{
         placeId: string;
         orderIndex: number;
+        dayNumber?: number;
         transitType?: TransitType | null;
         travelMinutesFromPrev?: number | null;
         stayMinutes?: number | null;
@@ -186,6 +188,7 @@ export class SavedRouteRepository {
               travelMinutesFromPrev: stop.travelMinutesFromPrev ?? null,
               stayMinutes: stop.stayMinutes ?? null,
               placeId: stop.placeId,
+              transitDetails: { dayNumber: stop.dayNumber ?? 1 },
             })),
           },
         },
@@ -340,4 +343,6 @@ export class SavedRouteRepository {
       'Transaction retries exhausted for upsertRouteTripCompletion',
     );
   }
+
+
 }

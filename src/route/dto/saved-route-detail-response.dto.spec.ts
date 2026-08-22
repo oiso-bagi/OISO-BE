@@ -64,5 +64,15 @@ describe('SavedRouteStopDetailDto', () => {
 
       expect(dto.dayNumber).toBe(1);
     });
+
+    it('restores dayNumber from transitDetails JSON when stop.dayNumber is undefined', () => {
+      const dto = SavedRouteStopDetailDto.from({
+        orderIndex: 3,
+        transitDetails: { dayNumber: 3 },
+        place: { name: '감천문화마을' },
+      });
+
+      expect(dto.dayNumber).toBe(3);
+    });
   });
 });
