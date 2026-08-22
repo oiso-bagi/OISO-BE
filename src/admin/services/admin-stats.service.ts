@@ -17,9 +17,19 @@ import {
   AdminSavingsRegionItemDto,
   AdminStatsOverviewResponseDto,
 } from '@/admin/dto/admin-stats-response.dto';
-import { CATEGORY_LABEL_MAP } from '@/admin/repositories/admin-stats.repository';
 import { AdminStatsRepository } from '@/admin/repositories/admin-stats.repository';
 import { RouteCongestionCronService } from '@/route/services/route-congestion-cron.service';
+
+export const CATEGORY_LABEL_MAP: Record<PlaceCategory, string> = {
+  FOOD: '식당 / 음식점',
+  CAFE: '감성 카페',
+  MARKET: '전통시장 / 쇼핑',
+  CULTURE: '문화시설',
+  NATURE: '자연경관',
+  EXPERIENCE: '체험 / 액티비티',
+  VIEWPOINT: '전망대 / 야경',
+  ETC: '기타',
+};
 
 @Injectable()
 export class AdminStatsService {
@@ -77,10 +87,9 @@ export class AdminStatsService {
       const amount = stopAgg._sum.savingsWon ?? 0;
       totalSavingsCostWon += amount;
 
-      if (place.category) {
-        const currentCategoryAmount = categoryMap.get(place.category) ?? 0;
-        categoryMap.set(place.category, currentCategoryAmount + amount);
-      }
+      const catKey = place.category ?? PlaceCategory.ETC;
+      const currentCategoryAmount = categoryMap.get(catKey) ?? 0;
+      categoryMap.set(catKey, currentCategoryAmount + amount);
 
       let regionName = '기타 상권';
       if (place.address) {
@@ -103,7 +112,7 @@ export class AdminStatsService {
 
       breakdown.push({
         category,
-        label: (CATEGORY_LABEL_MAP && CATEGORY_LABEL_MAP[category]) || category,
+        label: CATEGORY_LABEL_MAP[category] ?? category,
         amountWon,
         percentage,
       });

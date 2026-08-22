@@ -2,17 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { PlaceCategory } from '@prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
 
-const CATEGORY_LABEL_MAP: Record<PlaceCategory, string> = {
-  FOOD: '식당 / 음식점',
-  CAFE: '감성 카페',
-  MARKET: '전통시장 / 쇼핑',
-  CULTURE: '문화시설',
-  NATURE: '자연경관',
-  EXPERIENCE: '체험 / 액티비티',
-  VIEWPOINT: '전망대 / 야경',
-  ETC: '기타',
-};
-
 @Injectable()
 export class AdminStatsRepository {
   constructor(private readonly prisma: PrismaService) {}

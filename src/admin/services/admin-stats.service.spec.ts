@@ -84,6 +84,29 @@ describe('AdminStatsService', () => {
       expect(result.regionBreakdown).toHaveLength(1);
       expect(result.regionBreakdown[0].region).toBe('해운대구');
     });
+
+    it('category가 null인 장소도 ETC 카테고리로 포함시켜 총액과 일치해야 한다', async () => {
+      (repository.getRawSavingsBreakdown as jest.Mock).mockResolvedValue({
+        stopAggregates: [
+          { placeId: 'p1', _sum: { savingsWon: 5000 } },
+          { placeId: 'p2', _sum: { savingsWon: 5000 } },
+        ],
+        places: [
+          { id: 'p1', category: null, address: '부산광역시 수영구 ...' },
+          { id: 'p2', category: 'FOOD', address: '부산광역시 수영구 ...' },
+        ],
+      });
+
+      const result = await service.getSavingsBreakdown();
+
+      expect(result.totalSavingsCostWon).toBe(10000);
+      const sumCategoryAmount = result.breakdown.reduce(
+        (acc, item) => acc + item.amountWon,
+        0,
+      );
+      expect(sumCategoryAmount).toBe(10000);
+      expect(result.breakdown.find((b) => b.category === 'ETC')).toBeDefined();
+    });
   });
 
   describe('triggerKtoCollection', () => {

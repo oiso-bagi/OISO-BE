@@ -26,6 +26,7 @@ export class AdminKtoStatusResponseDto {
   @ApiProperty({
     description:
       '마지막 수집 실행 결과 상태 (SUCCESS | PARTIAL_SUCCESS | FAILURE)',
+    enum: ['SUCCESS', 'PARTIAL_SUCCESS', 'FAILURE'],
     example: 'SUCCESS',
     nullable: true,
   })
