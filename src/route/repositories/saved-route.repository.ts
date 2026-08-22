@@ -343,6 +343,4 @@ export class SavedRouteRepository {
       'Transaction retries exhausted for upsertRouteTripCompletion',
     );
   }
-
-
 }
