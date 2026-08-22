@@ -31,6 +31,17 @@ export class AdminRouteStopInputDto {
   sequence!: number;
 
   @ApiPropertyOptional({
+    description: '여행 일차 번호 (1일차, 2일차 등)',
+    example: 1,
+    default: 1,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  dayNumber: number = 1;
+
+  @ApiPropertyOptional({
     description: '장소 체류 시간 (분)',
     example: 60,
     default: 60,
@@ -59,6 +70,16 @@ export class AdminRouteStopInputDto {
   @IsOptional()
   @IsEnum(TransitType)
   nextTransportType?: TransitType;
+
+  @ApiPropertyOptional({
+    description: '다음 장소까지 이동 비용 (원)',
+    example: 1500,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  nextTravelCostWon?: number;
 }
 
 export class CreateAdminRouteDto {
@@ -160,6 +181,13 @@ export class AdminRouteDetailStopDto {
     nullable: true,
   })
   nextTransportType!: TransitType | null;
+
+  @ApiProperty({
+    description: '다음 이동 비용 (원)',
+    example: 1500,
+    nullable: true,
+  })
+  nextTravelCostWon!: number | null;
 
   @ApiProperty({ description: '위도', example: 35.1532 })
   latitude!: number;

@@ -18,6 +18,7 @@ describe('AdminRouteBuilderService', () => {
           provide: AdminRouteBuilderRepository,
           useValue: {
             findThemeIdBySlug: jest.fn(),
+            findPlacesCoordinates: jest.fn(),
             createRoute: jest.fn(),
             findRouteDetail: jest.fn(),
             updateRoute: jest.fn(),
@@ -131,6 +132,18 @@ describe('AdminRouteBuilderService', () => {
           latitude: '35.15',
           longitude: '129.11',
         },
+        {
+          id: 'place_2',
+          name: '장소2',
+          address: '주소2',
+          category: 'CAFE',
+          latitude: '35.16',
+          longitude: '129.12',
+        },
+      ]);
+      (builderRepository.findPlacesCoordinates as jest.Mock).mockResolvedValue([
+        { id: 'place_1', latitude: '35.15', longitude: '129.11' },
+        { id: 'place_2', latitude: '35.16', longitude: '129.12' },
       ]);
 
       const dto = {
@@ -142,6 +155,13 @@ describe('AdminRouteBuilderService', () => {
             placeId: 'place_1',
             sequence: 0,
             stayTimeMinutes: 60,
+            nextTravelCostWon: 1500,
+          },
+          {
+            placeId: 'place_2',
+            sequence: 1,
+            stayTimeMinutes: 45,
+            nextTravelCostWon: 2000, // 마지막 stop의 이동비용은 제외되어야 함
           },
         ],
       };
@@ -153,7 +173,7 @@ describe('AdminRouteBuilderService', () => {
         themeSlug: 'local-food',
         themeLabel: '부산 로컬 맛집',
         durationDays: 1,
-        stopCount: 1,
+        stopCount: 2,
         totalDistanceKm: 2.1,
         isPublished: true,
         createdAt: new Date(),
@@ -166,6 +186,9 @@ describe('AdminRouteBuilderService', () => {
       expect(builderRepository.createRoute).toHaveBeenCalledWith(
         dto,
         'theme_1',
+        expect.objectContaining({
+          totalTransportCostWon: 1500, // 첫번째 stop 비용만 합산
+        }),
       );
       expect(result).toEqual(mockResult);
     });
@@ -292,6 +315,79 @@ describe('AdminRouteBuilderService', () => {
       await expect(service.updateRoute('route_1', dto)).rejects.toThrow(
         BadRequestException,
       );
+    });
+
+    it('정상적인 DTO 요청 시 updateRoute를 호출하고 집계 결과를 올바르게 전달해야 한다', async () => {
+      const mockDetail = {
+        id: 'route_1',
+        name: '기존 테스트 코스',
+        description: null,
+        themeSlug: 'local-food',
+        themeLabel: '부산 로컬 맛집',
+        durationDays: 1,
+        stopCount: 2,
+        totalDistanceKm: 2.1,
+        isPublished: true,
+        createdAt: new Date(),
+        stops: [],
+      };
+      builderRepository.findRouteDetail.mockResolvedValue(mockDetail);
+      builderRepository.findThemeIdBySlug.mockResolvedValue('theme_1');
+      placeRepository.findManyByIds.mockResolvedValue([
+        {
+          id: 'place_1',
+          name: '장소1',
+          address: '주소1',
+          category: 'FOOD',
+          latitude: '35.15',
+          longitude: '129.11',
+        },
+        {
+          id: 'place_2',
+          name: '장소2',
+          address: '주소2',
+          category: 'CAFE',
+          latitude: '35.16',
+          longitude: '129.12',
+        },
+      ]);
+      (builderRepository.findPlacesCoordinates as jest.Mock).mockResolvedValue([
+        { id: 'place_1', latitude: '35.15', longitude: '129.11' },
+        { id: 'place_2', latitude: '35.16', longitude: '129.12' },
+      ]);
+
+      const dto = {
+        name: '수정된 코스',
+        themeSlug: 'local-food',
+        isPublished: true,
+        stops: [
+          {
+            placeId: 'place_1',
+            sequence: 0,
+            stayTimeMinutes: 60,
+            nextTravelCostWon: 1200,
+          },
+          {
+            placeId: 'place_2',
+            sequence: 1,
+            stayTimeMinutes: 30,
+            nextTravelCostWon: 5000,
+          },
+        ],
+      };
+
+      builderRepository.updateRoute.mockResolvedValue(mockDetail);
+
+      const result = await service.updateRoute('route_1', dto);
+      expect(builderRepository.updateRoute).toHaveBeenCalledWith(
+        'route_1',
+        dto,
+        'theme_1',
+        expect.objectContaining({
+          totalTransportCostWon: 1200, // 마지막 stop 5000원 제외
+        }),
+      );
+      expect(result).toEqual(mockDetail);
     });
   });
 });

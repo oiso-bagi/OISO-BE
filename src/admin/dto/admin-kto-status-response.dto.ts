@@ -23,6 +23,22 @@ export class AdminKtoStatusResponseDto {
   })
   status!: 'IDLE' | 'RUNNING';
 
+  @ApiProperty({
+    description:
+      '마지막 수집 실행 결과 상태 (SUCCESS | PARTIAL_SUCCESS | FAILURE)',
+    enum: ['SUCCESS', 'PARTIAL_SUCCESS', 'FAILURE'],
+    example: 'SUCCESS',
+    nullable: true,
+  })
+  lastResult!: 'SUCCESS' | 'PARTIAL_SUCCESS' | 'FAILURE' | null;
+
+  @ApiProperty({
+    description: '마지막 수집 실행 결과 메시지',
+    example: 'KTO 경로 혼잡도 수동 수집이 성공적으로 완료되었습니다.',
+    nullable: true,
+  })
+  lastMessage!: string | null;
+
   @ApiProperty({ description: '혼잡도 수집 대상 장소 수', example: 85 })
   targetPlaceCount!: number;
 }

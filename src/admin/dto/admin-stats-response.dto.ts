@@ -34,6 +34,23 @@ export class AdminSavingsCategoryItemDto {
   percentage!: number;
 }
 
+export class AdminSavingsRegionItemDto {
+  @ApiProperty({ description: '지역/구 코드 또는 명칭', example: '해운대구' })
+  region!: string;
+
+  @ApiProperty({ description: '지역 한글 라벨', example: '해운대구' })
+  label!: string;
+
+  @ApiProperty({
+    description: '해당 지역/구 절약 금액 (원)',
+    example: 1940000,
+  })
+  amountWon!: number;
+
+  @ApiProperty({ description: '전체 대비 절약 금액 비율 (%)', example: 40.0 })
+  percentage!: number;
+}
+
 export class AdminSavingsBreakdownResponseDto {
   @ApiProperty({ description: '전체 절약 금액 합계 (원)', example: 4850000 })
   totalSavingsCostWon!: number;
@@ -69,4 +86,30 @@ export class AdminSavingsBreakdownResponseDto {
     ],
   })
   breakdown!: AdminSavingsCategoryItemDto[];
+
+  @ApiProperty({
+    description: '부산 구 단위 상권별 절약 요약 목록 (내림차순 정렬)',
+    type: [AdminSavingsRegionItemDto],
+    example: [
+      {
+        region: '해운대구',
+        label: '해운대구',
+        amountWon: 2425000,
+        percentage: 50.0,
+      },
+      {
+        region: '부산진구',
+        label: '부산진구',
+        amountWon: 1455000,
+        percentage: 30.0,
+      },
+      {
+        region: '수영구',
+        label: '수영구',
+        amountWon: 970000,
+        percentage: 20.0,
+      },
+    ],
+  })
+  regionBreakdown!: AdminSavingsRegionItemDto[];
 }
