@@ -9,10 +9,12 @@ import {
 import axios from 'axios';
 import * as dotenv from 'dotenv';
 import * as crypto from 'crypto';
+import { KakaoMobilityService } from '../src/common/services/kakao-mobility.service';
 
 dotenv.config();
 
 const prisma = new PrismaClient();
+const kakaoMobilityService = new KakaoMobilityService();
 
 /**
  * 외부 API 503 / 429 (Rate Limit) 장애 발생 시 Exponential Backoff 기반 3회 재시도 헬퍼 함수
@@ -415,6 +417,19 @@ async function seedRecommendRoutes() {
         totalDistanceMeters += distMeters;
         totalTimeMin += travelMin + stayMin;
 
+        let pathCoordinates: Array<{ latitude: number; longitude: number }> = [];
+        if (i > 0) {
+          const p1 = {
+            latitude: Number(uniqueStops[i - 1].latitude),
+            longitude: Number(uniqueStops[i - 1].longitude),
+          };
+          const p2 = {
+            latitude: Number(place.latitude),
+            longitude: Number(place.longitude),
+          };
+          pathCoordinates = await kakaoMobilityService.fetchPathCoordinates(p1, p2);
+        }
+
         stopCreateInputs.push({
           placeId: place.id,
           orderIndex: i,
@@ -426,6 +441,10 @@ async function seedRecommendRoutes() {
           difficultyScore: new Prisma.Decimal(diffScore),
           fareWon: fare,
           estimatedPriceWon: price,
+          transitDetails: {
+            dayNumber: 1,
+            pathCoordinates,
+          },
         });
       }
 
