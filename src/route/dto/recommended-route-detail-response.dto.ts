@@ -110,9 +110,17 @@ export function buildRouteMetrics(stops: RouteStopWithPlace[]): RouteMetrics {
   };
 }
 
+export class PathCoordinateDto {
+  @ApiProperty({ description: '위도', example: 35.1587, type: Number })
+  latitude!: number;
+
+  @ApiProperty({ description: '경도', example: 129.1604, type: Number })
+  longitude!: number;
+}
+
 export class RouteStopResponseDto {
   @ApiProperty({
-    description: '경유지 순서 (0부터 시작)',
+    description: '경유지 순서 (0부터 시작하는 연속 정수)',
     example: 0,
     type: Number,
   })
@@ -123,7 +131,7 @@ export class RouteStopResponseDto {
 
   @ApiProperty({
     description: '장소 이름',
-    example: '광안리해수욕장',
+    example: '해운대 해수욕장',
     type: String,
   })
   placeName!: string;
@@ -193,6 +201,17 @@ export class RouteStopResponseDto {
   })
   stayMinutes!: number | null;
 
+  @ApiProperty({
+    description:
+      '이 경유지부터 다음 경유지까지의 실제 도로 굴곡 좌표 배열 (카카오맵 Polyline 렌더링용)',
+    type: [PathCoordinateDto],
+    example: [
+      { latitude: 35.1587, longitude: 129.1604 },
+      { latitude: 35.159, longitude: 129.161 },
+    ],
+  })
+  pathCoordinates: PathCoordinateDto[] = [];
+
   static from(stop: RouteStopWithPlace): RouteStopResponseDto {
     const dto = new RouteStopResponseDto();
 
@@ -220,6 +239,20 @@ export class RouteStopResponseDto {
     dto.nextTransportType = stop.transitType ?? null;
     dto.nextTravelTimeMinutes = stop.travelMinutesFromPrev ?? null;
     dto.stayMinutes = stop.stayMinutes ?? null;
+
+    const transitDetailsObj = stop.transitDetails as {
+      pathCoordinates?: PathCoordinateDto[];
+    } | null;
+
+    if (
+      transitDetailsObj &&
+      typeof transitDetailsObj === 'object' &&
+      Array.isArray(transitDetailsObj.pathCoordinates)
+    ) {
+      dto.pathCoordinates = transitDetailsObj.pathCoordinates;
+    } else {
+      dto.pathCoordinates = [];
+    }
 
     return dto;
   }

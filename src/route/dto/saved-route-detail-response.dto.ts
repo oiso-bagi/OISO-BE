@@ -9,6 +9,7 @@ import {
   buildRouteMetrics,
   MetaCostDto,
   MetaTimeDto,
+  PathCoordinateDto,
   RouteStopWithPlace,
   RouteWithStops,
 } from '@/route/dto/recommended-route-detail-response.dto';
@@ -95,6 +96,17 @@ export class SavedRouteStopDetailDto {
   })
   longitude: number | null = null;
 
+  @ApiProperty({
+    description:
+      '이 경유지부터 다음 경유지까지의 실제 도로 굴곡 좌표 배열 (카카오맵 Polyline 렌더링용)',
+    type: [PathCoordinateDto],
+    example: [
+      { latitude: 35.1587, longitude: 129.1604 },
+      { latitude: 35.159, longitude: 129.161 },
+    ],
+  })
+  pathCoordinates: PathCoordinateDto[] = [];
+
   static from(stop: RouteStopWithPlace): SavedRouteStopDetailDto {
     const dto = new SavedRouteStopDetailDto();
 
@@ -127,6 +139,20 @@ export class SavedRouteStopDetailDto {
       stop.place?.latitude != null ? Number(stop.place.latitude) : null;
     dto.longitude =
       stop.place?.longitude != null ? Number(stop.place.longitude) : null;
+
+    const transitDetailsObj = stop.transitDetails as {
+      pathCoordinates?: PathCoordinateDto[];
+    } | null;
+
+    if (
+      transitDetailsObj &&
+      typeof transitDetailsObj === 'object' &&
+      Array.isArray(transitDetailsObj.pathCoordinates)
+    ) {
+      dto.pathCoordinates = transitDetailsObj.pathCoordinates;
+    } else {
+      dto.pathCoordinates = [];
+    }
 
     return dto;
   }

@@ -74,5 +74,23 @@ describe('SavedRouteStopDetailDto', () => {
 
       expect(dto.dayNumber).toBe(3);
     });
+
+    it('restores pathCoordinates from transitDetails JSON when present', () => {
+      const mockPath = [
+        { latitude: 35.1587, longitude: 129.1604 },
+        { latitude: 35.159, longitude: 129.161 },
+      ];
+      const dto = SavedRouteStopDetailDto.from({
+        orderIndex: 1,
+        transitDetails: { dayNumber: 1, pathCoordinates: mockPath },
+        place: { name: '광안대교' },
+      });
+
+      expect(dto.pathCoordinates).toHaveLength(2);
+      expect(dto.pathCoordinates[0]).toEqual({
+        latitude: 35.1587,
+        longitude: 129.1604,
+      });
+    });
   });
 });
