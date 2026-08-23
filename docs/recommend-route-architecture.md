@@ -313,6 +313,7 @@ sequenceDiagram
 ## 9. References (참고자료 및 외부 API 명세)
 
 ### 9.1 외부 Open API 연동 명세 (5개 핵심 API)
+
 1. **한국관광공사 TourAPI 4.0 - 국문 관광정보 서비스 (`KorService2/areaBasedList2`)**
    - **제공기관**: 한국관광공사 (공공데이터포털)
    - **사용목적**: 부산 광역 지자체(areaCode: 6)의 관광지, 식당, 문화시설, 쇼핑 상권 마스터 데이터 수집 (`Place` 테이블 적재)
@@ -337,7 +338,7 @@ sequenceDiagram
 5. **카카오모빌리티 - 길찾기 Directions API (`v1/directions`)**
    - **제공기관**: 카카오모빌리티 (Kakao Developers)
    - **사용목적**: SEED 스크립트 실행 시 추천 코스 경유지 구간별 실제 도로 굴곡 좌표점(`pathCoordinates`) 사전 획득 및 `RouteStop.transitDetails` 역정규화 적재 (런타임 실시간 API 호출 0회 달성)
-   - **공식문서**: [카카오모빌리티 Directions API 개발자 문서](https://developers.kakaomobility.com/docs/navi-api/directions/)
+   - **공식문서**: [카카오모빌리티 Directions API 개발자 문서](https://developers.kakaomobility.com/guide/navi-api/directions/)
 
 ### 9.2 아키텍처 및 알고리즘 참고자료 (Technical References)
 - **OISO 추천 서비스 비즈니스 수치 정책 문서**: [recommend-route-policy.md](./recommend-route-policy.md)

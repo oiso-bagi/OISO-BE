@@ -47,6 +47,7 @@ export class KakaoMobilityService {
         headers: {
           Authorization: `KakaoAK ${this.apiKey}`,
         },
+        signal: AbortSignal.timeout(5000),
       });
 
       if (!response.ok) {
