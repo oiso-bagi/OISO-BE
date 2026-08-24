@@ -40,6 +40,39 @@ async function fetchWithRetry<T>(
 }
 
 /**
+ * 교통수단(TransitType) 6종 및 이동거리(distMeters)에 따른 정밀 이동 소요시간(분) 연산 헬퍼 함수
+ */
+function calculateTravelTimeMinutes(
+  transitType: TransitType | null,
+  distMeters: number,
+): number {
+  if (!transitType || distMeters <= 0) return 0;
+
+  switch (transitType) {
+    case TransitType.WALKING:
+      // 도보 속도 80m/min (4.8km/h)
+      return Math.max(2, Math.round(distMeters / 80));
+    case TransitType.BUS:
+      // 시내버스 속도 350m/min (21km/h) + 대기/승하차 5분
+      return Math.max(5, Math.round(distMeters / 350) + 5);
+    case TransitType.SUBWAY:
+      // 지하철 속도 500m/min (30km/h) + 역사 진출입/환승/대기 7분
+      return Math.max(7, Math.round(distMeters / 500) + 7);
+    case TransitType.DRIVING:
+      // 자차 속도 600m/min (36km/h) + 주차/출차 3분
+      return Math.max(3, Math.round(distMeters / 600) + 3);
+    case TransitType.TAXI:
+      // 택시 속도 550m/min (33km/h) + 호출/승차 2분
+      return Math.max(3, Math.round(distMeters / 550) + 2);
+    case TransitType.BIKING:
+      // 자전거 속도 250m/min (15km/h) + 거치/대여 2분
+      return Math.max(2, Math.round(distMeters / 250) + 2);
+    default:
+      return Math.max(2, Math.round(distMeters / 100));
+  }
+}
+
+/**
  * 한국관광공사 연관 관광지 정보 API (TarRlteTarService1) 수집 헬퍼 함수
  */
 async function fetchRelatedTourPlaces(): Promise<any[]> {
@@ -397,19 +430,29 @@ async function seedRecommendRoutes() {
 
         const isFood = place.category === PlaceCategory.FOOD || place.category === PlaceCategory.CAFE;
         const price = isFood ? 12000 : 5000;
-        const fare = i === 0 ? 0 : 1500;
-        const travelMin = i === 0 ? 0 : Math.max(10, Math.round(distMeters / 100));
+        const transitType: TransitType = (
+          distMeters > 0 && distMeters < 1000
+            ? TransitType.WALKING
+            : TransitType.BUS
+        ) as TransitType;
+        const travelMin =
+          i === 0 ? 0 : calculateTravelTimeMinutes(transitType, distMeters);
         const stayMin = isFood ? 90 : 60;
+
+        // 이동수단별 교통 요금 계산 (BUS/SUBWAY: 1,500원 정액, 그 외 0원)
+        const fareWon: number =
+          (transitType as TransitType) === TransitType.BUS ||
+          (transitType as TransitType) === TransitType.SUBWAY
+            ? 1500
+            : 0;
 
         if (isFood) foodCostWon += price;
         else experienceCostWon += price;
-        transportCostWon += fare;
-
-        const transitType = distMeters > 0 && distMeters < 1000 ? TransitType.WALKING : TransitType.BUS;
+        transportCostWon += fareWon;
         const diffScore = calculateDifficultyScore(
           distMeters,
           elevationGainMeters,
-          fare,
+          fareWon,
           transitType,
         );
 
@@ -427,7 +470,13 @@ async function seedRecommendRoutes() {
             latitude: Number(place.latitude),
             longitude: Number(place.longitude),
           };
-          pathCoordinates = await kakaoMobilityService.fetchPathCoordinates(p1, p2);
+          // transitType을 전달하여 도보 구간은 도보 경로 API로 조회
+          pathCoordinates = await kakaoMobilityService.fetchPathCoordinates(
+            p1,
+            p2,
+            [],
+            transitType,
+          );
         }
 
         stopCreateInputs.push({
@@ -439,7 +488,7 @@ async function seedRecommendRoutes() {
           distanceFromPrevMeters: distMeters,
           elevationGainMeters,
           difficultyScore: new Prisma.Decimal(diffScore),
-          fareWon: fare,
+          fareWon,
           estimatedPriceWon: price,
           transitDetails: {
             dayNumber: 1,
