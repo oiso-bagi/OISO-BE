@@ -101,11 +101,16 @@ N박 M일(다일) 추천 코스 응답 시, 프론트엔드 지도(Map Component
   - `dayNumber: 2` ➡️ 2일차 경유지 (스팟 5~9번)
   - `dayNumber: 3` ➡️ 3일차 경유지 (스팟 10~13번)
 
-### 5.2 `pathCoordinates` 실제 도로 굴곡 좌표 규격 및 지도 Polyline 렌더링 가이드라인 🆕
+### 5.2 `pathCoordinates` 및 이동수단별 요금(`fareWon`) / `placeId` 규격 🆕
 
-- **도로 굴곡 좌표 데이터 규격**:
-  - 각 경유지(`RouteStop`) 응답 객체에 해당 스팟부터 다음 스팟까지의 실제 도로 굴곡 좌표점들을 담은 `pathCoordinates: Array<{ latitude: number, longitude: number }>` 배열을 제공합니다.
-  - 카카오모빌리티 Directions API를 통해 SEED 단계에서 사전 적재되므로 런타임 추가 API 호출 없이 즉시 렌더링할 수 있습니다.
+- **도로 굴곡 좌표 데이터 규격 (`pathCoordinates`)**:
+  - 각 경유지(`RouteStop`) 응답 객체에 이전 스팟부터 현재 스팟까지의 실제 도로 굴곡 좌표점들을 담은 `pathCoordinates: Array<{ latitude: number, longitude: number }>` 배열을 제공합니다. (첫 경유지는 빈 배열)
+  - 카카오모빌리티 Directions API를 통해 SEED 단계에서 사전 적재되며, `WALKING` 도보 구간은 보행 보간 라인이 즉시 매핑됩니다.
+- **이동수단별 요금 정액 정책 (`fareWon`)**:
+  - `BUS` / `SUBWAY`: 1,500원 정액 대중교통 요금 자동 적용
+  - `WALKING` / `BIKING` / `DRIVING` / `TAXI`: 0원 정액 요금 적용
+- **장소 식별자 규격 (`placeId`)**:
+  - 추천 및 저장 경로 상세 조회 경유지 객체에 장소 고유 식별자 `placeId: string`를 100% 제공하여 프론트엔드의 장소 상세 팝업 및 페이지 연동을 지원합니다.
 - **프론트엔드 카카오맵 렌더링 (`kakao.maps.Polyline`)**:
   - 프론트엔드 클라이언트는 `dayNumber` 필드값을 기준으로 일차별 `pathCoordinates` 좌표점들을 모아 카카오맵 SDK의 `kakao.maps.Polyline` 객체를 생성합니다.
   - 단순 직선이 아닌 실제 도로 곡선과 산복도로 굴곡을 따라 매끄럽게 매칭되는 도로 선(Polyline)을 일차별 테마 색상으로 시각화합니다.
