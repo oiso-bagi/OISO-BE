@@ -21,6 +21,7 @@ const routeWithStopsAndPlaceSelect = Prisma.validator<Prisma.RouteSelect>()({
       stayMinutes: true,
       fareWon: true,
       estimatedPriceWon: true,
+      transitDetails: true,
       place: {
         select: {
           name: true,
@@ -54,6 +55,7 @@ const routeListSelect = Prisma.validator<Prisma.RouteSelect>()({
       stayMinutes: true,
       fareWon: true,
       estimatedPriceWon: true,
+      transitDetails: true,
       place: {
         select: {
           id: true,
