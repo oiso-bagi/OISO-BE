@@ -235,7 +235,8 @@ export class RouteStopResponseDto {
       dto.dayNumber = 1;
     }
 
-    dto.placeId = stop.placeId ?? (stop.place as { id?: string } | null)?.id ?? null;
+    dto.placeId =
+      stop.placeId ?? (stop.place as { id?: string } | null)?.id ?? null;
     dto.placeName = stop.place?.name ?? '';
     dto.category = (stop.place?.category as PlaceCategory) ?? null;
 
