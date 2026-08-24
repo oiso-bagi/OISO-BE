@@ -33,6 +33,14 @@ export class SavedRouteStopDetailDto {
   dayNumber = 1;
 
   @ApiProperty({
+    description: '장소 고유 ID',
+    example: 'place_001',
+    nullable: true,
+    type: String,
+  })
+  placeId: string | null = null;
+
+  @ApiProperty({
     description: '장소 이름',
     example: '광안리해수욕장',
     type: String,
@@ -98,7 +106,7 @@ export class SavedRouteStopDetailDto {
 
   @ApiProperty({
     description:
-      '이 경유지부터 다음 경유지까지의 실제 도로 굴곡 좌표 배열 (카카오맵 Polyline 렌더링용)',
+      '이전 경유지부터 현재 경유지까지의 실제 도로 굴곡 좌표 배열 (카카오맵 Polyline 렌더링용, 첫 경유지는 빈 배열)',
     type: [PathCoordinateDto],
     example: [
       { latitude: 35.1587, longitude: 129.1604 },
@@ -129,6 +137,7 @@ export class SavedRouteStopDetailDto {
       targetDayNumber > 0
         ? targetDayNumber
         : 1;
+    dto.placeId = stop.placeId ?? (stop.place as { id?: string } | null)?.id ?? null;
     dto.placeName = stop.place?.name ?? '';
     dto.category = (stop.place?.category as PlaceCategory) ?? null;
     dto.openTime = stop.place?.openTime ?? null;
