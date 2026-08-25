@@ -130,6 +130,14 @@ export class RouteStopResponseDto {
   dayNumber!: number;
 
   @ApiProperty({
+    description: '장소 고유 ID',
+    example: 'place_001',
+    nullable: true,
+    type: String,
+  })
+  placeId!: string | null;
+
+  @ApiProperty({
     description: '장소 이름',
     example: '해운대 해수욕장',
     type: String,
@@ -202,8 +210,24 @@ export class RouteStopResponseDto {
   stayMinutes!: number | null;
 
   @ApiProperty({
+    description: '구간 교통비(원)',
+    example: 1500,
+    nullable: true,
+    type: Number,
+  })
+  fareWon!: number | null;
+
+  @ApiProperty({
+    description: '장소 지출 예상 비용(원)',
+    example: 12000,
+    nullable: true,
+    type: Number,
+  })
+  estimatedPriceWon!: number | null;
+
+  @ApiProperty({
     description:
-      '이 경유지부터 다음 경유지까지의 실제 도로 굴곡 좌표 배열 (카카오맵 Polyline 렌더링용)',
+      '이전 경유지부터 현재 경유지까지의 실제 도로 굴곡 좌표 배열 (카카오맵 Polyline 렌더링용, WALKING 구간은 보행 보간 좌표 generateFallbackPath() 사용, 첫 경유지는 빈 배열)',
     type: [PathCoordinateDto],
     example: [
       { latitude: 35.1587, longitude: 129.1604 },
@@ -227,6 +251,8 @@ export class RouteStopResponseDto {
       dto.dayNumber = 1;
     }
 
+    dto.placeId =
+      stop.placeId ?? (stop.place as { id?: string } | null)?.id ?? null;
     dto.placeName = stop.place?.name ?? '';
     dto.category = (stop.place?.category as PlaceCategory) ?? null;
 
@@ -239,6 +265,9 @@ export class RouteStopResponseDto {
     dto.nextTransportType = stop.transitType ?? null;
     dto.nextTravelTimeMinutes = stop.travelMinutesFromPrev ?? null;
     dto.stayMinutes = stop.stayMinutes ?? null;
+
+    dto.fareWon = stop.fareWon ?? null;
+    dto.estimatedPriceWon = stop.estimatedPriceWon ?? null;
 
     const transitDetailsObj = stop.transitDetails as {
       pathCoordinates?: PathCoordinateDto[];

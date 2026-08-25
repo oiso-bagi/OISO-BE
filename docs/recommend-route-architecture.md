@@ -337,7 +337,7 @@ sequenceDiagram
 
 5. **카카오모빌리티 - 길찾기 Directions API (`v1/directions`)**
    - **제공기관**: 카카오모빌리티 (Kakao Developers)
-   - **사용목적**: SEED 스크립트 실행 시 추천 코스 경유지 구간별 실제 도로 굴곡 좌표점(`pathCoordinates`) 사전 획득 및 `RouteStop.transitDetails` 역정규화 적재 (런타임 실시간 API 호출 0회 달성)
+   - **사용목적**: SEED 스크립트 실행 시 차량 이동 구간의 실제 도로 굴곡 좌표점(`pathCoordinates`) 사전 획득 및 `RouteStop.transitDetails` 역정규화 적재 (`WALKING` 도보 구간은 자동차 U턴 왜곡 방지를 위해 부드러운 보행 보간 연산 `generateFallbackPath()` 즉시 0ms 수행)
    - **공식문서**: [카카오모빌리티 Directions API 개발자 문서](https://developers.kakaomobility.com/guide/navi-api/directions/)
 
 ### 9.2 아키텍처 및 알고리즘 참고자료 (Technical References)

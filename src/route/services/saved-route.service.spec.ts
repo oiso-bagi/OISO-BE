@@ -301,22 +301,22 @@ describe('SavedRouteService', () => {
           estimatedSavingsWon: 2000,
           score: 4.5,
           stops: [
-            {
+            expect.objectContaining({
               placeId: 'place-1',
               orderIndex: 0,
               dayNumber: 1,
               transitType: 'BUS',
               travelMinutesFromPrev: 20,
               stayMinutes: 60,
-            },
-            {
+            }),
+            expect.objectContaining({
               placeId: 'place-2',
               orderIndex: 1,
               dayNumber: 2,
               transitType: null,
               travelMinutesFromPrev: null,
               stayMinutes: 0,
-            },
+            }),
           ],
         }),
       );

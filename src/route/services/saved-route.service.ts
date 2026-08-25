@@ -106,6 +106,7 @@ export class SavedRouteService {
           );
         }
 
+        const anyStop = stop as Record<string, any>;
         return {
           placeId: resolvedPlaceId,
           orderIndex: stop.sequence ?? idx,
@@ -113,6 +114,14 @@ export class SavedRouteService {
           transitType: stop.nextTransportType ?? null,
           travelMinutesFromPrev: stop.nextTravelTimeMinutes ?? null,
           stayMinutes: stop.stayMinutes ?? null,
+          fareWon: typeof anyStop.fareWon === 'number' ? anyStop.fareWon : null,
+          estimatedPriceWon:
+            typeof anyStop.estimatedPriceWon === 'number'
+              ? anyStop.estimatedPriceWon
+              : null,
+          pathCoordinates: Array.isArray(anyStop.pathCoordinates)
+            ? anyStop.pathCoordinates
+            : [],
         };
       });
 

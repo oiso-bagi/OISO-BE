@@ -18,6 +18,7 @@ export class KakaoMobilityService {
     origin: { latitude: number; longitude: number },
     destination: { latitude: number; longitude: number },
     waypoints: Array<{ latitude: number; longitude: number }> = [],
+    transitType: string | null = null,
   ): Promise<PathCoordinate[]> {
     if (!this.apiKey) {
       this.logger.warn(
@@ -27,85 +28,15 @@ export class KakaoMobilityService {
     }
 
     try {
-      const originStr = `${origin.longitude},${origin.latitude}`;
-      const destinationStr = `${destination.longitude},${destination.latitude}`;
-      const waypointsStr = waypoints
-        .map((w) => `${w.longitude},${w.latitude}`)
-        .join('|');
-
-      const url = new URL('https://apis-navi.kakaomobility.com/v1/directions');
-      url.searchParams.append('origin', originStr);
-      url.searchParams.append('destination', destinationStr);
-      if (waypointsStr.length > 0) {
-        url.searchParams.append('waypoints', waypointsStr);
-      }
-      url.searchParams.append('priority', 'RECOMMEND');
-      url.searchParams.append('car_type', '1');
-
-      const response = await fetch(url.toString(), {
-        method: 'GET',
-        headers: {
-          Authorization: `KakaoAK ${this.apiKey}`,
-        },
-        signal: AbortSignal.timeout(5000),
-      });
-
-      if (!response.ok) {
-        this.logger.warn(
-          `카카오모빌리티 API 응답 실패 (Status: ${response.status}). Fallback 좌표를 생성합니다.`,
-        );
+      if (transitType === 'WALKING') {
+        // 카카오모빌리티는 보행자 REST API를 제공하지 않으므로, 자동차 U턴 우회 방지를 위해 부드러운 보행 보간 좌표를 즉시 생성합니다.
         return this.generateFallbackPath(origin, destination, waypoints);
       }
-
-      const data = (await response.json()) as {
-        routes?: Array<{
-          result_code?: number;
-          sections?: Array<{
-            roads?: Array<{
-              vertexes?: number[];
-            }>;
-          }>;
-        }>;
-      };
-
-      const routeData = data.routes?.[0];
-      if (!routeData || routeData.result_code !== 0) {
-        this.logger.warn(
-          `카카오모빌리티 API 결과 코드 이상 (result_code: ${routeData?.result_code}). Fallback 좌표를 생성합니다.`,
-        );
-        return this.generateFallbackPath(origin, destination, waypoints);
-      }
-
-      const coordinates: PathCoordinate[] = [];
-      const sections = routeData.sections || [];
-
-      for (const section of sections) {
-        const roads = section.roads || [];
-        for (const road of roads) {
-          const vertexes = road.vertexes || [];
-          for (let i = 0; i < vertexes.length; i += 2) {
-            const lng = vertexes[i];
-            const lat = vertexes[i + 1];
-            if (typeof lng === 'number' && typeof lat === 'number') {
-              // 중복 연달아 나오는 좌표 제거
-              const prev = coordinates[coordinates.length - 1];
-              if (
-                !prev ||
-                Math.abs(prev.latitude - lat) > 1e-6 ||
-                Math.abs(prev.longitude - lng) > 1e-6
-              ) {
-                coordinates.push({ latitude: lat, longitude: lng });
-              }
-            }
-          }
-        }
-      }
-
-      if (coordinates.length === 0) {
-        return this.generateFallbackPath(origin, destination, waypoints);
-      }
-
-      return coordinates;
+      return await this.fetchDrivingPathCoordinates(
+        origin,
+        destination,
+        waypoints,
+      );
     } catch (error) {
       this.logger.error(
         '카카오모빌리티 길찾기 API 호출 중 예외 발생. Fallback 좌표로 대체합니다.',
@@ -113,6 +44,116 @@ export class KakaoMobilityService {
       );
       return this.generateFallbackPath(origin, destination, waypoints);
     }
+  }
+
+  /**
+   * 카카오모빌리티 자동차 경로 API(/v1/directions, GET)를 호출하여 경로 좌표를 반환합니다.
+   */
+  private async fetchDrivingPathCoordinates(
+    origin: { latitude: number; longitude: number },
+    destination: { latitude: number; longitude: number },
+    waypoints: Array<{ latitude: number; longitude: number }> = [],
+  ): Promise<PathCoordinate[]> {
+    const originStr = `${origin.longitude},${origin.latitude}`;
+    const destinationStr = `${destination.longitude},${destination.latitude}`;
+    const waypointsStr = waypoints
+      .map((w) => `${w.longitude},${w.latitude}`)
+      .join('|');
+
+    const url = new URL('https://apis-navi.kakaomobility.com/v1/directions');
+    url.searchParams.append('origin', originStr);
+    url.searchParams.append('destination', destinationStr);
+    if (waypointsStr.length > 0) {
+      url.searchParams.append('waypoints', waypointsStr);
+    }
+    url.searchParams.append('priority', 'RECOMMEND');
+    url.searchParams.append('car_type', '1');
+
+    const response = await fetch(url.toString(), {
+      method: 'GET',
+      headers: {
+        Authorization: `KakaoAK ${this.apiKey}`,
+      },
+      signal: AbortSignal.timeout(5000),
+    });
+
+    if (!response.ok) {
+      this.logger.warn(
+        `카카오모빌리티 API 응답 실패 (Status: ${response.status}). Fallback 좌표를 생성합니다.`,
+      );
+      return this.generateFallbackPath(origin, destination, waypoints);
+    }
+
+    const data = (await response.json()) as {
+      routes?: Array<{
+        result_code?: number;
+        sections?: Array<{
+          roads?: Array<{
+            vertexes?: number[];
+          }>;
+        }>;
+      }>;
+    };
+
+    const routeData = data.routes?.[0];
+    if (!routeData || routeData.result_code !== 0) {
+      this.logger.warn(
+        `카카오모빌리티 API 결과 코드 이상 (result_code: ${routeData?.result_code}). Fallback 좌표를 생성합니다.`,
+      );
+      return this.generateFallbackPath(origin, destination, waypoints);
+    }
+
+    return this.extractCoordinatesFromRoute(
+      routeData,
+      origin,
+      destination,
+      waypoints,
+    );
+  }
+
+  /**
+   * API 응답의 routes[0]에서 좌표 배열을 추출합니다.
+   */
+  private extractCoordinatesFromRoute(
+    routeData: {
+      sections?: Array<{
+        roads?: Array<{ vertexes?: number[] }>;
+      }>;
+    },
+    origin: { latitude: number; longitude: number },
+    destination: { latitude: number; longitude: number },
+    waypoints: Array<{ latitude: number; longitude: number }>,
+  ): PathCoordinate[] {
+    const coordinates: PathCoordinate[] = [];
+    const sections = routeData.sections || [];
+
+    for (const section of sections) {
+      const roads = section.roads || [];
+      for (const road of roads) {
+        const vertexes = road.vertexes || [];
+        for (let i = 0; i < vertexes.length; i += 2) {
+          const lng = vertexes[i];
+          const lat = vertexes[i + 1];
+          if (typeof lng === 'number' && typeof lat === 'number') {
+            // 중복 연달아 나오는 좌표 제거
+            const prev = coordinates[coordinates.length - 1];
+            if (
+              !prev ||
+              Math.abs(prev.latitude - lat) > 1e-6 ||
+              Math.abs(prev.longitude - lng) > 1e-6
+            ) {
+              coordinates.push({ latitude: lat, longitude: lng });
+            }
+          }
+        }
+      }
+    }
+
+    if (coordinates.length === 0) {
+      return this.generateFallbackPath(origin, destination, waypoints);
+    }
+
+    return coordinates;
   }
 
   /**

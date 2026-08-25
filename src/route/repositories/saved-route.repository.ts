@@ -59,6 +59,7 @@ const getSavedRouteDetailSelect = (userId: string) =>
             transitDetails: true,
             place: {
               select: {
+                id: true,
                 name: true,
                 category: true,
                 openTime: true,
@@ -159,6 +160,9 @@ export class SavedRouteRepository {
         transitType?: TransitType | null;
         travelMinutesFromPrev?: number | null;
         stayMinutes?: number | null;
+        fareWon?: number | null;
+        estimatedPriceWon?: number | null;
+        pathCoordinates?: Array<{ latitude: number; longitude: number }>;
       }>;
     },
   ): Promise<string> {
@@ -187,8 +191,13 @@ export class SavedRouteRepository {
               transitType: stop.transitType ?? null,
               travelMinutesFromPrev: stop.travelMinutesFromPrev ?? null,
               stayMinutes: stop.stayMinutes ?? null,
+              fareWon: stop.fareWon ?? null,
+              estimatedPriceWon: stop.estimatedPriceWon ?? null,
               placeId: stop.placeId,
-              transitDetails: { dayNumber: stop.dayNumber ?? 1 },
+              transitDetails: {
+                dayNumber: stop.dayNumber ?? 1,
+                pathCoordinates: stop.pathCoordinates ?? [],
+              },
             })),
           },
         },
