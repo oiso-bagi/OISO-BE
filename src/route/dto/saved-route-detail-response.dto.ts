@@ -89,6 +89,22 @@ export class SavedRouteStopDetailDto {
   nextTravelTimeMinutes: number | null = null;
 
   @ApiProperty({
+    description: '구간 교통비(원)',
+    example: 1500,
+    nullable: true,
+    type: Number,
+  })
+  fareWon: number | null = null;
+
+  @ApiProperty({
+    description: '장소 지출 예상 비용(원)',
+    example: 12000,
+    nullable: true,
+    type: Number,
+  })
+  estimatedPriceWon: number | null = null;
+
+  @ApiProperty({
     description: '장소 위도',
     example: 35.1532,
     nullable: true,
@@ -106,7 +122,7 @@ export class SavedRouteStopDetailDto {
 
   @ApiProperty({
     description:
-      '이전 경유지부터 현재 경유지까지의 실제 도로 굴곡 좌표 배열 (카카오맵 Polyline 렌더링용, 첫 경유지는 빈 배열)',
+      '이전 경유지부터 현재 경유지까지의 실제 도로 굴곡 좌표 배열 (카카오맵 Polyline 렌더링용, WALKING 구간은 보행 보간 좌표 generateFallbackPath() 사용, 첫 경유지는 빈 배열)',
     type: [PathCoordinateDto],
     example: [
       { latitude: 35.1587, longitude: 129.1604 },
@@ -145,6 +161,8 @@ export class SavedRouteStopDetailDto {
     dto.closeTime = stop.place?.closeTime ?? null;
     dto.nextTransportType = stop.transitType ?? null;
     dto.nextTravelTimeMinutes = stop.travelMinutesFromPrev ?? null;
+    dto.fareWon = stop.fareWon ?? null;
+    dto.estimatedPriceWon = stop.estimatedPriceWon ?? null;
     dto.latitude =
       stop.place?.latitude != null ? Number(stop.place.latitude) : null;
     dto.longitude =
