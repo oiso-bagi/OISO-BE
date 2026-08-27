@@ -6,6 +6,98 @@ dotenv.config();
 
 const prisma = new PrismaClient();
 
+function parseTimeString(text: string): { openTime: string | null; closeTime: string | null } {
+  if (!text) return { openTime: null, closeTime: null };
+  const cleanText = String(text).trim();
+
+  // 0) 상시 개방 / 24시간 / 연중무휴 텍스트 감지
+  if (cleanText.includes('상시') || cleanText.includes('24시간')) {
+    return { openTime: '00:00', closeTime: '24:00' };
+  }
+
+  // 1) 09:00 ~ 21:00 형태 매칭 (한자리 시도 포함: 9:00 -> 09:00)
+  const timeMatch = cleanText.match(/(\d{1,2}:\d{2})/g);
+  if (timeMatch && timeMatch.length >= 2) {
+    const formatTime = (t: string) => (t.length === 4 ? `0${t}` : t);
+    return { openTime: formatTime(timeMatch[0]), closeTime: formatTime(timeMatch[1]) };
+  }
+
+  // 2) 9시 30분 ~ 21시 30분 / 09시~21시 형태 매칭
+  const koreanTimeMatch = Array.from(
+    cleanText.matchAll(/(\d{1,2})\s*시\s*(\d{1,2})?분?/g),
+  );
+  if (koreanTimeMatch && koreanTimeMatch.length >= 2) {
+    const toHHMM = (m: RegExpMatchArray) => {
+      const hour = String(m[1]).padStart(2, '0');
+      const min = m[2] ? String(m[2]).padStart(2, '0') : '00';
+      return `${hour}:${min}`;
+    };
+    return {
+      openTime: toHHMM(koreanTimeMatch[0]),
+      closeTime: toHHMM(koreanTimeMatch[1]),
+    };
+  }
+
+  // 3) 단일 시간 정보 추출시
+  if (timeMatch && timeMatch.length === 1) {
+    const t = timeMatch[0];
+    return { openTime: t.length === 4 ? `0${t}` : t, closeTime: null };
+  }
+
+  return { openTime: null, closeTime: null };
+}
+
+async function fetchTourApiPlaceHours(
+  contentId: string | null,
+  contentTypeId: string | null = '39',
+): Promise<{ openTime: string | null; closeTime: string | null }> {
+  const rawApiKey = process.env.VK_KORSERVICE2_API_KEY;
+  if (!rawApiKey || !contentId) return { openTime: null, closeTime: null };
+
+  try {
+    const serviceKey = decodeURIComponent(rawApiKey);
+    const endpoint = 'https://apis.data.go.kr/B551011/KorService2/detailIntro2';
+
+    const res = await axios.get(endpoint, {
+      params: {
+        serviceKey,
+        contentId,
+        contentTypeId: contentTypeId || '39',
+        MobileOS: 'ETC',
+        MobileApp: 'OISO',
+        _type: 'json',
+      },
+      timeout: 5000,
+    });
+
+    const item = res.data?.response?.body?.items?.item?.[0];
+    if (item) {
+      console.log(`🔍 [TourAPI detailIntro1 실측 데이터] (contentId: ${contentId}):`, JSON.stringify(item));
+      const rawText =
+        item.opentimefood ||
+        item.opentime ||
+        item.usetime ||
+        item.usetimeculture ||
+        item.usetimeleports ||
+        item.usetimefestival ||
+        '';
+
+      const result = parseTimeString(rawText);
+      if (result.openTime) {
+        console.log(`✨ [영업시간 파싱 성공] contentId: ${contentId} => openTime: ${result.openTime}, closeTime: ${result.closeTime}`);
+      } else {
+        console.log(`ℹ️ [영업시간 텍스트 없음/미파싱] contentId: ${contentId}, rawText: "${rawText}"`);
+      }
+      return result;
+    } else {
+      console.log(`⚠️ [TourAPI detailIntro1 응답 빈 item] contentId: ${contentId}, response:`, res.data);
+    }
+  } catch (error: any) {
+    console.error(`❌ [TourAPI detailIntro1 호출 에러] contentId: ${contentId}, error:`, error?.message || error);
+  }
+  return { openTime: null, closeTime: null };
+}
+
 function mapItemToCategory(item: any): PlaceCategory {
   const code = String(item?.contenttypeid ?? '');
   const titleText = String(item?.title ?? '').trim();
@@ -271,6 +363,10 @@ async function seedTourApiTest() {
     const latitude = new Prisma.Decimal(lat);
     const category = mapItemToCategory(item);
     const elevationMeters = elevationsMap[contentId] ?? 15;
+    const { openTime, closeTime } = await fetchTourApiPlaceHours(
+      contentId,
+      String(item.contenttypeid ?? '39'),
+    );
 
     const placeData = {
       name: item.title ? String(item.title).trim() : '이름 없음',
@@ -282,6 +378,8 @@ async function seedTourApiTest() {
       latitude,
       longitude,
       elevationMeters,
+      openTime,
+      closeTime,
       isActive: true,
     };
 

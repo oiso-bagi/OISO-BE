@@ -73,6 +73,16 @@ function calculateTravelTimeMinutes(
 }
 
 /**
+ * 부산 주소지 정규식을 활용한 메인 관광지(TOURIST) vs 외곽 로컬 상권(LOCAL) 판별 헬퍼 함수
+ */
+function classifyDistrictType(address: string | null): 'TOURIST' | 'LOCAL' {
+  const addr = String(address || '').trim();
+  const touristDistricts = ['해운대구', '중구', '영도구', '수영구'];
+  const isTourist = touristDistricts.some((d) => addr.includes(d));
+  return isTourist ? 'TOURIST' : 'LOCAL';
+}
+
+/**
  * 한국관광공사 연관 관광지 정보 API (TarRlteTarService1) 수집 헬퍼 함수
  */
 async function fetchRelatedTourPlaces(): Promise<any[]> {
@@ -108,6 +118,61 @@ async function fetchRelatedTourPlaces(): Promise<any[]> {
     console.warn(`⚠️ 연관 API 수집 지연 (DB 마스터 장소 기반 동적 조립 진행): ${err?.message}`);
   }
   return [];
+}
+
+/**
+ * 한국관광공사 TourAPI 4.0 detailIntro1 (소개정보조회 API) 기반 영업시간(openTime, closeTime) 수집 헬퍼 함수
+ * - VK_KORSERVICE2_API_KEY 환경변수 활용
+ * - contentId 기반으로 opentimefood / opentime / usetime 필드를 조회하여 HH:mm 파싱
+ */
+async function fetchTourApiPlaceHours(
+  contentId: string | null,
+  contentTypeId: string | null = '39',
+): Promise<{ openTime: string | null; closeTime: string | null }> {
+  const rawApiKey = process.env.VK_KORSERVICE2_API_KEY;
+  if (!rawApiKey || !contentId) return { openTime: null, closeTime: null };
+
+  try {
+    const serviceKey = decodeURIComponent(rawApiKey);
+    const endpoint = 'http://apis.data.go.kr/B551011/KorService1/detailIntro1';
+
+    const res = await fetchWithRetry(() =>
+      axios.get(endpoint, {
+        params: {
+          serviceKey,
+          contentId,
+          contentTypeId: contentTypeId || '39',
+          MobileOS: 'ETC',
+          MobileApp: 'OISO',
+          _type: 'json',
+        },
+        timeout: 4000,
+      }),
+    );
+
+    const item = res.data?.response?.body?.items?.item?.[0];
+    if (item) {
+      const rawText =
+        item.opentimefood ||
+        item.opentime ||
+        item.usetime ||
+        item.usetimeculture ||
+        item.usetimeleports ||
+        '';
+
+      if (rawText) {
+        const times = String(rawText).match(/\d{2}:\d{2}/g);
+        if (times && times.length >= 2) {
+          return { openTime: times[0], closeTime: times[1] };
+        } else if (times && times.length === 1) {
+          return { openTime: times[0], closeTime: null };
+        }
+      }
+    }
+  } catch (error) {
+    // API 수집 지연 또는 미제공 시 null 비워둠
+  }
+  return { openTime: null, closeTime: null };
 }
 
 import {
@@ -404,19 +469,24 @@ async function seedRecommendRoutes() {
       let totalDifficultyScore = 0;
       let totalDistanceMeters = 0;
       let totalTimeMin = 0;
+      let localPlaceCount = 0;
 
       let prevElevation = Number(uniqueStops[0].elevationMeters ?? 15);
-      const stopCreateInputs: Prisma.RouteStopUncheckedCreateWithoutRouteInput[] = [];
+      const stopCreateInputs: any[] = [];
 
       for (let i = 0; i < uniqueStops.length; i++) {
         const place = uniqueStops[i];
         const currentElevation = Number(place.elevationMeters ?? 15);
 
+        // 주소지 정규식 기반 외곽 로컬 상권 스팟 판별
+        if (classifyDistrictType(place.address) === 'LOCAL') {
+          localPlaceCount++;
+        }
+
         let elevationGainMeters = 0;
         let distMeters = 0;
 
         if (i > 0) {
-          // 이동 순서 상대 오르막 고도 상승분: 오르막만 저장, 내리막 0m
           elevationGainMeters = Math.max(0, currentElevation - prevElevation);
           distMeters = calculateHaversineDistance(
             Number(uniqueStops[i - 1].latitude),
@@ -428,27 +498,55 @@ async function seedRecommendRoutes() {
         prevElevation = currentElevation;
         totalElevationGainMeters += elevationGainMeters;
 
-        const isFood = place.category === PlaceCategory.FOOD || place.category === PlaceCategory.CAFE;
-        const price = isFood ? 12000 : 5000;
+        const isFoodCategory =
+          place.category === PlaceCategory.FOOD || place.category === PlaceCategory.CAFE;
         const transitType: TransitType = (
           distMeters > 0 && distMeters < 1000
             ? TransitType.WALKING
             : TransitType.BUS
         ) as TransitType;
+
         const travelMin =
           i === 0 ? 0 : calculateTravelTimeMinutes(transitType, distMeters);
-        const stayMin = isFood ? 90 : 60;
+        const stayMin = isFoodCategory ? 90 : 60;
 
-        // 이동수단별 교통 요금 계산 (BUS/SUBWAY: 1,500원 정액, 그 외 0원)
-        const fareWon: number =
-          (transitType as TransitType) === TransitType.BUS ||
-          (transitType as TransitType) === TransitType.SUBWAY
-            ? 1500
-            : 0;
+        // 이동수단별 정밀 요금 연산 (첫번째 경유지 i === 0은 무조건 0원)
+        let fareWon = 0;
+        if (i > 0) {
+          if (transitType === TransitType.BUS) {
+            fareWon = 1500; // 부산 시내버스 정액
+          } else if (transitType === TransitType.SUBWAY) {
+            fareWon = 1400; // 부산 도시철도 정액
+          } else if (transitType === TransitType.TAXI) {
+            fareWon = 4800 + Math.round(Math.max(0, distMeters - 2000) * 1.0); // 택시 기본 4,800원+거리비례
+          }
+        }
 
-        if (isFood) foodCostWon += price;
-        else experienceCostWon += price;
+        // 카테고리별 및 장소 해시 기반 현실적 예상 지출 가격 연산
+        let price = 5000;
+        const placeNameHash = String(place.name || '').length * 500;
+        if (place.category === PlaceCategory.FOOD) {
+          price = 12000 + (placeNameHash % 5000); // 12,000 ~ 16,500원
+        } else if (place.category === PlaceCategory.CAFE) {
+          price = 5500 + (placeNameHash % 2500); // 5,500 ~ 7,500원
+        } else if (
+          place.category === PlaceCategory.CULTURE ||
+          place.category === PlaceCategory.EXPERIENCE
+        ) {
+          price = 4000 + (placeNameHash % 4000); // 4,000 ~ 7,500원
+        } else if (place.category === PlaceCategory.MARKET) {
+          price = 6000 + (placeNameHash % 8000); // 6,000 ~ 13,500원
+        } else {
+          price = (placeNameHash % 3000); // 0 ~ 2,500원 (자연/전망대)
+        }
+
+        if (place.category === PlaceCategory.FOOD || place.category === PlaceCategory.CAFE) {
+          foodCostWon += price;
+        } else {
+          experienceCostWon += price;
+        }
         transportCostWon += fareWon;
+
         const diffScore = calculateDifficultyScore(
           distMeters,
           elevationGainMeters,
@@ -470,7 +568,6 @@ async function seedRecommendRoutes() {
             latitude: Number(place.latitude),
             longitude: Number(place.longitude),
           };
-          // transitType을 전달하여 도보 구간은 도보 경로 API로 조회
           pathCoordinates = await kakaoMobilityService.fetchPathCoordinates(
             p1,
             p2,
@@ -504,8 +601,33 @@ async function seedRecommendRoutes() {
         theme: { connect: { slug } },
       }));
 
-      // 코스 기본 점수 BaseScore 사전 연산 (BaseScore = max(50.0, 95.0 - (0.05 * D)))
-      const calculatedScore = calculateBaseScore(totalDifficultyScore);
+      const hasBusOrSubway = stopCreateInputs.some(
+        (s) => s.transitType === TransitType.BUS || s.transitType === TransitType.SUBWAY,
+      );
+      // 로컬 기여 점수: 로컬 비율 70점 + 가격 합리성 30점 (2축 산출)
+      const localRatio = localPlaceCount / uniqueStops.length;
+      const avgCostPerStop = estimatedCostWon / uniqueStops.length;
+      const localRatioScore = localRatio * 70;
+      const priceRationalityScore = Math.min(
+        30,
+        Math.max(0, (30000 - avgCostPerStop) / 300),
+      );
+      const localContributionScore = Math.round(
+        localRatioScore + priceRationalityScore,
+      );
+      const calculatedScore = calculateBaseScore(
+        totalDifficultyScore,
+        totalDistanceMeters,
+        localContributionScore,
+        hasBusOrSubway,
+      );
+
+      // 절약액: 관광지 기준가(+35%) 대비 로컬 이용 절약 + 대중교통 이용 절약
+      const localSavingsWon = Math.round(estimatedCostWon * 0.35 * localRatio);
+      const transitSavingsWon = hasBusOrSubway
+        ? Math.round(transportCostWon * 2.5)
+        : 0;
+      const estimatedSavingsWon = localSavingsWon + transitSavingsWon;
 
       // 기존 릴레이션 cleanup 후 Upsert
       await prisma.routeStop.deleteMany({ where: { route: { id: routeId } } });
@@ -536,7 +658,8 @@ async function seedRecommendRoutes() {
           ),
           estimatedDurationMin: totalTimeMin,
           totalDistanceMeters,
-          estimatedSavingsWon: 4500,
+          estimatedSavingsWon,
+          localContributionScore,
           stops: {
             create: stopCreateInputs,
           },
@@ -568,7 +691,8 @@ async function seedRecommendRoutes() {
           ),
           estimatedDurationMin: totalTimeMin,
           totalDistanceMeters,
-          estimatedSavingsWon: 4500,
+          estimatedSavingsWon,
+          localContributionScore,
           stops: {
             create: stopCreateInputs,
           },

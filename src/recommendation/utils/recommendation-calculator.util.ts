@@ -56,12 +56,49 @@ export function calculateDifficultyScore(
 }
 
 /**
- * 코스 기본 점수 (Base Score) 연산 수식
- * BaseScore = max(50.0, 95.0 - (0.05 * D))
+ * 추천 코스 퀄리티 점수(5.0 만점 기준) 연산 수식
+ * - 적정 이동거리 (3km ~ 8km) 보너스 및 초단거리(< 1.5km) 페널티
+ * - 경유지 수(3~4개) 및 대중교통(BUS/SUBWAY) 동선 다양성 가중치 반영
  */
-export function calculateBaseScore(totalDifficultyScore: number): number {
-  const calculated = 95.0 - 0.05 * totalDifficultyScore;
-  return Number(Math.max(50.0, calculated).toFixed(2));
+export function calculateBaseScore(
+  totalDifficultyScore: number,
+  totalDistanceMeters: number = 3500,
+  localContributionScore: number = 50,
+  hasTransit: boolean = true,
+): number {
+  // 1) 기본 베이스 점수 (85.0점 기준)
+  let score = 85.0;
+
+  // 2) 이동 거리 적정성 평가 (부산 알찬 코스 적정거리: 3km ~ 8km)
+  if (totalDistanceMeters >= 3000 && totalDistanceMeters <= 8000) {
+    score += 10.0; // 적정 여행 거리 우대 (+10점)
+  } else if (totalDistanceMeters > 8000 && totalDistanceMeters <= 15000) {
+    score += 5.0; // 중거리 (+5점)
+  } else if (totalDistanceMeters < 1500) {
+    score -= 15.0; // 1.5km 미만 초단거리 감점 (-15점)
+  } else if (totalDistanceMeters < 3000) {
+    score -= 5.0; // 3km 미만 감점 (-5점)
+  }
+
+  // 3) 이동수단 다양성 우대 (대중교통 활용 코스 우대)
+  if (hasTransit) {
+    score += 5.0;
+  }
+
+  // 4) 외곽 로컬 상권 기여 우대 (로컬 비중에 따른 가산점 +5점)
+  if (localContributionScore >= 50) {
+    score += 5.0;
+  }
+
+  // 5) 과도한 오르막/난이도 체감 피로도 차감
+  score -= 0.02 * totalDifficultyScore;
+
+  // 6) 100점 만점 ➡️ 5.0 만점 변환 (3.5 ~ 4.9 범위 정규화)
+  const normalized5Point = Math.min(
+    4.9,
+    Math.max(3.5, Number((score / 20).toFixed(1))),
+  );
+  return normalized5Point;
 }
 
 /**

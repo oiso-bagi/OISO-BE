@@ -73,17 +73,15 @@ describe('SEED Script Numerical Calculations', () => {
   });
 
   describe('calculateBaseScore', () => {
-    it('난이도가 클 경우 최소 50.0점을 하한선으로 보장해야 한다', () => {
-      const extremeDifficulty = 1500;
-      const baseScore = calculateBaseScore(extremeDifficulty);
-      expect(baseScore).toBe(50.0);
+    it('초단거리(< 1.5km)의 경우 점수가 하향 보정되어야 한다', () => {
+      const baseScore = calculateBaseScore(10, 500, 30, false);
+      expect(baseScore).toBeLessThanOrEqual(4.0);
     });
 
-    it('일반 난이도 점수에 대해 BaseScore 수식(95.0 - 0.05 * D)을 정확히 계산해야 한다', () => {
-      const difficulty = 100;
-      const baseScore = calculateBaseScore(difficulty);
-      // 95.0 - (0.05 * 100) = 90.0
-      expect(baseScore).toBe(90.0);
+    it('적정거리(3~8km) 및 대중교통 이용 시 상위 점수(4.5 ~ 4.9)를 반환해야 한다', () => {
+      const baseScore = calculateBaseScore(10, 4500, 60, true);
+      expect(baseScore).toBeGreaterThanOrEqual(4.5);
+      expect(baseScore).toBeLessThanOrEqual(4.9);
     });
   });
 });
