@@ -274,19 +274,15 @@ export class RecommendedRouteListResponseDto {
     const rawRoute = route as Record<string, unknown>;
     const calculatedMetrics = rawRoute?.calculatedMetrics as
       { finalScore?: number } | undefined;
-    const finalScore = calculatedMetrics?.finalScore;
-    const rawScore =
-      finalScore != null
-        ? Number(finalScore)
-        : route.score != null
-          ? Number(route.score)
-          : 0;
-    // score가 0.0 ~ 5.0 범위인 경우 100점 백분율 척도로 안전 변환
-    const normalizedScore =
-      Number.isFinite(rawScore) && rawScore > 0 && rawScore <= 5.0
-        ? Math.round((rawScore / 5.0) * 100)
-        : Math.round(rawScore);
-    dto.score = Number.isFinite(normalizedScore) ? normalizedScore : 0;
+
+    // 추천 알고리즘 실시간 계산값(finalScore) 수집
+    const rawScore = Number(calculatedMetrics?.finalScore ?? route.score ?? 0);
+
+    // 0 ~ 100 범위 정수로 클램핑하여 안전하게 매핑
+    const roundedScore = Math.round(rawScore);
+    dto.score = Number.isFinite(roundedScore)
+      ? Math.max(0, Math.min(100, roundedScore))
+      : 0;
     dto.isRecommended = route.routeType === 'RECOMMENDED';
 
     dto.stopLocations = safeStops.map((stop) =>

@@ -9,7 +9,7 @@ describe('RecommendedRouteListResponseDto', () => {
       name: '부산 힐링 루트',
       totalDistanceMeters: 3200,
       estimatedSavingsWon: 1000,
-      score: new Prisma.Decimal(4.7),
+      score: new Prisma.Decimal(94),
       routeType: 'RECOMMENDED',
       congestionLevel: CongestionLevel.HIGH,
       stops: [

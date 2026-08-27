@@ -34,7 +34,7 @@ describe('RouteService', () => {
         name: '부산 야경 루트',
         totalDistanceMeters: 3200,
         estimatedSavingsWon: 1000,
-        score: 4.7,
+        score: 94,
         routeType: 'RECOMMENDED',
         stops: [
           {

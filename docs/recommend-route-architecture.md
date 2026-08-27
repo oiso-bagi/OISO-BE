@@ -169,7 +169,7 @@ sequenceDiagram
     end
 
     Note over Svc: [Step 3: Multi-Day Stitching & Soft Penalty] (durationDays > 1)
-    Svc->>Svc: Haversine 최근접 체이닝 + Soft Penalty (+50k overlap, +20k used, -15k theme) + 패키지 보너스(+0.1점)
+    Svc->>Svc: Haversine 최근접 체이닝 + Soft Penalty (+50k overlap, +20k used, -15k theme) + 패키지 보너스(+2.0점)
 
     Note over Svc: [Step 4: Top 3 Selection]
     Svc->>Svc: 최종 패키지 점수 내림차순 정렬 및 Top 3 코스 선별 (dayNumber 메타데이터 연동)
