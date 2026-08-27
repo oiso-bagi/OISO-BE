@@ -50,7 +50,7 @@ describe('RecommendedRouteListResponseDto', () => {
     expect(dto.totalTimeMinutes).toBe(60);
     expect(dto.congestionLevel).toBe(CongestionLevel.HIGH);
     expect(dto.estimatedSavingsWon).toBe(1000);
-    expect(dto.score).toBe(4.7);
+    expect(dto.score).toBe(94);
     expect(dto.isRecommended).toBe(true);
     expect(dto.stopLocations[0]).toMatchObject({
       sequence: 0,
