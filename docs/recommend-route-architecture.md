@@ -234,6 +234,7 @@ flowchart TD
 5. **5단계: 외곽 로컬 상권 가산점 ($\text{Local Bonus}$) & 뚜벅이 고도 피로도 감점 ($\text{Elevation Penalty}$)**
    $$\text{Local Bonus} = \left(\frac{\text{Route.localContributionScore}}{100}\right) \times 0.15 \quad (\text{최대 } +0.15\text{점})$$
    $$\text{Elevation Penalty} = \begin{cases} \left(\frac{\text{totalElevationGainMeters}}{400}\right) \times 0.15 & (\text{isPedestrianMode} = \text{true, 최대 } -0.15\text{점}) \\ 0.0 & (\text{isPedestrianMode} = \text{false}) \end{cases}$$
+   *(※ isPedestrianMode 미입력 시 일일 대중교통 할당 예산 $R_{\text{trans}} \times \text{dailyBudgetWon} < 4,000\text{원}$ 조건에 따라 자동으로 true 스마트 전환)*
 
 6. **6단계: 혼잡도 및 총 소요시간 가감점 ($\text{Congestion \& Duration Adj}$)**
    $$\text{Congestion Adjustment} = \begin{cases} +0.2 & (\text{LOW - 쾌적}) \\ 0.0 & (\text{MEDIUM - 보통}) \\ -0.3 & (\text{HIGH - 혼잡}) \end{cases}, \quad \text{Duration Adjustment} = \begin{cases} +0.1 & (180 \le \text{duration} \le 360\text{분}) \\ -0.1 & (\text{duration} > 420\text{분}) \\ 0.0 & (\text{기타}) \end{cases}$$

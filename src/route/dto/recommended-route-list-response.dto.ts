@@ -178,7 +178,11 @@ export class RecommendedRouteListResponseDto {
   })
   estimatedSavingsWon!: number;
 
-  @ApiProperty({ description: '추천 점수', example: 87.5, type: Number })
+  @ApiProperty({
+    description: '추천도 점수 (0.0 ~ 5.0점 만점 척도)',
+    example: 4.8,
+    type: Number,
+  })
   score!: number;
 
   @ApiProperty({ description: '추천 루트 여부', example: true, type: Boolean })
