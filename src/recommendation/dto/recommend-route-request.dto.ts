@@ -3,6 +3,7 @@ import { Type } from 'class-transformer';
 import {
   ArrayMinSize,
   IsArray,
+  IsBoolean,
   IsInt,
   IsNumber,
   IsOptional,
@@ -109,5 +110,6 @@ export class RecommendRouteRequestDto {
     type: Boolean,
   })
   @IsOptional()
+  @IsBoolean()
   isPedestrianMode?: boolean;
 }

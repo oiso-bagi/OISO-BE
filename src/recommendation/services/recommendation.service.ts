@@ -259,7 +259,10 @@ export class RecommendationService {
 
     // 뚜벅이(보행자) 전용 모드 선택 시 오르막 고도 피로도 차감 (최대 -0.15점 감점)
     const elevationPenalty = isPedestrianMode
-      ? (Number(route.totalElevationGainMeters ?? 0) / 400) * 0.15
+      ? Math.min(
+          0.15,
+          (Number(route.totalElevationGainMeters ?? 0) / 400) * 0.15,
+        )
       : 0;
 
     // 총 소요시간 적정성 가감점 (3~6시간 쾌적 코스 +0.1점 우대, 7시간 초과 -0.1점 감점)
@@ -526,8 +529,11 @@ export class RecommendationService {
     const leadRouteName = String(routes[0]?.name || '부산 여행');
     const durationText = `${targetDurationDays - 1}박 ${targetDurationDays}일`;
     const avgScore = totalScoreSum / routes.length;
-    // 체이닝 과정의 패널티(이동거리/중복)를 감안한 명시적 다일 패키지 종합 점수 연산 (최대 -0.3점 감점 상한, 다일 여행 우대 +0.1점)
-    const penaltyDeduction = Math.min(0.3, chainingCostPenalty * 0.005);
+    // 체이닝 과정의 패널티(이동거리/중복)를 감안한 명시적 다일 패키지 종합 점수 연산 (최대 -0.3점 감점 상한, 하한 0.0, 다일 여행 우대 +0.1점)
+    const penaltyDeduction = Math.max(
+      0,
+      Math.min(0.3, chainingCostPenalty * 0.005),
+    );
     const multiDayBonus = targetDurationDays > 1 ? 0.1 : 0;
     const packageScore = Number(
       Math.min(
@@ -578,7 +584,10 @@ export class RecommendationService {
       dailyBudgetWon,
       totalBudgetWon,
       ratios,
-      isPedestrianMode: Boolean(body?.isPedestrianMode),
+      isPedestrianMode:
+        typeof body?.isPedestrianMode === 'boolean'
+          ? body.isPedestrianMode
+          : undefined,
     };
   }
 

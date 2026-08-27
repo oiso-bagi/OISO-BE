@@ -106,6 +106,13 @@ export class RecommendationRepository {
         estimatedDurationMin: {
           lte: maxDurationMinutes,
         },
+        stops: {
+          none: {
+            place: {
+              category: PlaceCategory.ETC,
+            },
+          },
+        },
         ...(filter.travelStyleSlugs && filter.travelStyleSlugs.length > 0
           ? {
               OR: [

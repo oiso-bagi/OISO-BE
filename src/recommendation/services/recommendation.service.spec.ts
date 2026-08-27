@@ -58,7 +58,7 @@ describe('RecommendationService', () => {
       durationDays: 1,
       dailyBudgetWon: 60000,
       totalBudgetWon: 60000,
-      isPedestrianMode: false,
+      isPedestrianMode: undefined,
     });
     expect(result).toHaveLength(1);
     expect(result[0]).toMatchObject({
@@ -328,7 +328,7 @@ describe('RecommendationService', () => {
       durationDays: 1,
       dailyBudgetWon: 60000,
       totalBudgetWon: 60000,
-      isPedestrianMode: false,
+      isPedestrianMode: undefined,
       ratios: {
         foodRatio: 0.35,
         experienceRatio: 0.25,

@@ -46,6 +46,13 @@ describe('RecommendationRepository', () => {
           estimatedDurationMin: {
             lte: 1440,
           },
+          stops: {
+            none: {
+              place: {
+                category: PlaceCategory.ETC,
+              },
+            },
+          },
           OR: [
             {
               themes: {
