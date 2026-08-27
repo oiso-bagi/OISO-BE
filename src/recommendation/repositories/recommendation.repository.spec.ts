@@ -44,21 +44,43 @@ describe('RecommendationRepository', () => {
             lte: 60000,
           },
           estimatedDurationMin: {
-            lte: 480,
+            lte: 1440,
           },
           stops: {
-            some: {
+            none: {
               place: {
-                category: {
-                  in: [
-                    PlaceCategory.FOOD,
-                    PlaceCategory.MARKET,
-                    PlaceCategory.CAFE,
-                  ],
-                },
+                category: PlaceCategory.ETC,
               },
             },
           },
+          OR: [
+            {
+              themes: {
+                some: {
+                  theme: {
+                    slug: {
+                      in: ['local-food', 'emotion-cafe'],
+                    },
+                  },
+                },
+              },
+            },
+            {
+              stops: {
+                some: {
+                  place: {
+                    category: {
+                      in: [
+                        PlaceCategory.FOOD,
+                        PlaceCategory.MARKET,
+                        PlaceCategory.CAFE,
+                      ],
+                    },
+                  },
+                },
+              },
+            },
+          ],
         },
         take: 50,
       }),
@@ -79,22 +101,26 @@ describe('RecommendationRepository', () => {
       [
         {
           where?: {
-            stops?: {
-              some?: {
-                place?: {
-                  category?: {
-                    in?: PlaceCategory[];
+            OR?: Array<{
+              stops?: {
+                some?: {
+                  place?: {
+                    category?: {
+                      in?: PlaceCategory[];
+                    };
                   };
                 };
               };
-            };
+            }>;
           };
         },
       ]
     >;
     const callArg = calls[0][0];
 
-    expect(callArg.where?.stops?.some?.place?.category?.in).toEqual([
+    const stopsCondition = callArg.where?.OR?.find((c) => c.stops);
+
+    expect(stopsCondition?.stops?.some?.place?.category?.in).toEqual([
       PlaceCategory.NATURE,
       PlaceCategory.VIEWPOINT,
       PlaceCategory.EXPERIENCE,

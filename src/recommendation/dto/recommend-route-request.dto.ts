@@ -3,6 +3,7 @@ import { Type } from 'class-transformer';
 import {
   ArrayMinSize,
   IsArray,
+  IsBoolean,
   IsInt,
   IsNumber,
   IsOptional,
@@ -100,4 +101,15 @@ export class RecommendRouteRequestDto {
   @ValidateNested()
   @Type(() => BudgetRatiosDto)
   ratios?: BudgetRatiosDto;
+
+  @ApiProperty({
+    description:
+      '뚜벅이(보행자) 전용 추천 모드 여부. true 설정 시 고도 경사 오르막 피로도가 높은 산복도로 코스는 감점되고 평지 코스에 가산점이 부여됩니다.',
+    example: true,
+    required: false,
+    type: Boolean,
+  })
+  @IsOptional()
+  @IsBoolean()
+  isPedestrianMode?: boolean;
 }

@@ -15,10 +15,10 @@ describe('RecommendedRouteListResponseDto', () => {
       stops: [
         {
           orderIndex: 0,
-          transitType: TransitType.BUS,
-          travelMinutesFromPrev: 20,
+          transitType: TransitType.WALKING,
+          travelMinutesFromPrev: 0,
           stayMinutes: 10,
-          fareWon: 1500,
+          fareWon: 0,
           estimatedPriceWon: 9000,
           place: {
             name: '해운대 해수욕장',
@@ -28,10 +28,10 @@ describe('RecommendedRouteListResponseDto', () => {
         },
         {
           orderIndex: 1,
-          transitType: TransitType.WALKING,
+          transitType: TransitType.BUS,
           travelMinutesFromPrev: 30,
           stayMinutes: 20,
-          fareWon: 0,
+          fareWon: 1500,
           estimatedPriceWon: 1500,
           place: null,
         },
@@ -45,9 +45,9 @@ describe('RecommendedRouteListResponseDto', () => {
     expect(dto.stopCount).toBe(2);
     expect(dto.totalDistanceMeters).toBe(3200);
     expect(dto.totalDistanceKm).toBe(3.2);
-    expect(dto.transitTypes).toEqual(['BUS', 'WALKING']);
+    expect(dto.transitTypes).toEqual(['WALKING', 'BUS']);
     expect(dto.totalCost).toBe(12000);
-    expect(dto.totalTimeMinutes).toBe(80);
+    expect(dto.totalTimeMinutes).toBe(60);
     expect(dto.congestionLevel).toBe(CongestionLevel.HIGH);
     expect(dto.estimatedSavingsWon).toBe(1000);
     expect(dto.score).toBe(4.7);
@@ -59,11 +59,15 @@ describe('RecommendedRouteListResponseDto', () => {
       category: null,
       openTime: null,
       closeTime: null,
-      nextTransportType: 'BUS',
-      nextTravelTimeMinutes: 20,
+      nextTransportType: 'WALKING',
+      nextTravelTimeMinutes: 0,
       stayMinutes: 10,
       latitude: 35.1587,
       longitude: 129.1604,
+      fareWon: 0,
+      estimatedPriceWon: 9000,
+      touristPremiumWon: 13860,
+      savedPriceWon: 4860,
     });
     expect(dto).not.toHaveProperty('stops');
   });
