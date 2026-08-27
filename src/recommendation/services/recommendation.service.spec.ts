@@ -418,6 +418,9 @@ describe('RecommendationService', () => {
       (r) => r.stopLocations[0].placeName === '범주 초과 장소',
     );
     expect(packageStartingInvalid).toBeDefined();
+    expect(packageStartingInvalid!.stopLocations[1].placeName).toBe(
+      '유효하지만 먼 장소',
+    );
   });
 
   it('aggregates totalTimeMinutes across multi-day routes correctly in returned DTO', async () => {

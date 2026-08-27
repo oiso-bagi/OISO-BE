@@ -154,7 +154,7 @@ sequenceDiagram
     Ctrl->>Svc: recommendRoutes(dto)
     
     Note over Svc,DB: [Step 1: Hard Filter] Composite Index Scan + PlaceCategory Filter
-    Svc->>DB: findMany({ where: { estimatedCostWon <= dailyBudgetWon, estimatedDurationMin <= 480, stops.some.place.category.in(preferredCategories) } })
+    Svc->>DB: findMany({ where: { estimatedCostWon <= dailyBudgetWon, estimatedDurationMin <= (durationDays > 1 ? 1440 : 420), stops.some.place.category.in(preferredCategories) } })
     DB-->>Svc: 후보군 루트 데이터 전달 (Take 50)
 
     Note over Svc: [Step 2: Soft Filter & 추천도 점수 연산] 메모리 레벨 연산 (1~2ms)
@@ -181,9 +181,9 @@ sequenceDiagram
 
 ### 4.1 Step 1: Hard Filter (Prisma 복합 인덱스 & PlaceCategory 필터)
 
-- **조건**: `WHERE routeType = 'RECOMMENDED' AND isPublished = true AND estimatedCostWon <= dailyBudgetWon AND estimatedDurationMin <= 480`
+- **조건**: `WHERE routeType = 'RECOMMENDED' AND isPublished = true AND estimatedCostWon <= dailyBudgetWon AND estimatedDurationMin <= (durationDays > 1 ? 1440 : 420)`
   - `travelStyleSlugs`는 내부적으로 `TRAVEL_STYLE_CATEGORY_MAP`을 통해 `PlaceCategory[]`로 변환되며, 변환된 카테고리가 1개 이상인 경우 `stops.some.place.category IN (preferredCategories)` 조건이 추가 적용됩니다.
-  - ※ 1일 마스터 모듈 조회의 비용 기준은 `dailyBudgetWon`이며, 소요시간 기준은 1일 최대 권장 활동시간 `480분 (8시간)` 이하로 조회를 수행합니다. N일 결합 후 패키지 총 비용 역시 `totalBudgetWon` 이하임을 안전하게 보장합니다.
+  - ※ 1일 마스터 모듈 조회의 비용 기준은 `dailyBudgetWon`이며, 소요시간 기준은 1일 요청 시 `420분 (7시간)` 이하, 다일차 요청 시 `1440분 (24시간)` 이하로 조회를 수행합니다. N일 결합 후 패키지 총 비용 역시 `totalBudgetWon` 이하임을 안전하게 보장합니다.
   - ※ `RouteTheme` N:M 조인이 아닌 경유지 장소의 PlaceCategory 직접 필터 방식을 사용합니다.
 - **복합 인덱스**: `Route` 모델의 `@@index([routeType, estimatedCostWon])` 복합 B-Tree Index Scan 수행
 

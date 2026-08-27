@@ -257,11 +257,14 @@ export class RecommendationService {
     // 외곽 로컬 상권 기여도 보너스 (최대 +0.15점 가산점)
     const localBonus = (Number(route.localContributionScore ?? 0) / 100) * 0.15;
 
-    // 뚜벅이(보행자) 전용 모드 선택 시 오르막 고도 피로도 차감 (최대 -0.15점 감점)
+    // 뚜벅이(보행자) 전용 모드 선택 시 오르막 고도 피로도 차감 (0 ~ 0.15점 감점 클램핑)
     const elevationPenalty = isPedestrianMode
-      ? Math.min(
-          0.15,
-          (Number(route.totalElevationGainMeters ?? 0) / 400) * 0.15,
+      ? Math.max(
+          0,
+          Math.min(
+            0.15,
+            (Number(route.totalElevationGainMeters ?? 0) / 400) * 0.15,
+          ),
         )
       : 0;
 
