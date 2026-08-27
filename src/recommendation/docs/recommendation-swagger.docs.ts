@@ -152,7 +152,7 @@ export const ApiRecommendRoutesDocs = () =>
         '- isPedestrianMode: boolean 선택, 뚜벅이(보행자) 전용 추천 모드 (미입력 시 일일 대중교통 예산이 4,000원 미만일 때 자동 true 전환)',
         '',
         '[추천도 점수 스펙]',
-        '- score: 0.0 ~ 5.0점 만점 척도 (프론트엔드 UI 연동 시 Math.round((score / 5) * 100) 수식으로 추천도 N% 변환 렌더링)',
+        '- score: 0 ~ 100점 백분율 척도 (프론트엔드 UI 연동 시 별도 연산 없이 그대로 뒤에 %를 붙여 추천도 94%로 표기 렌더링)',
         '',
         '[다일차 패키지 코스 조합 응답 스펙 (durationDays >= 2)]',
         '- stopLocations[].sequence: 전체 일정을 통틀어 0부터 연속하여 1씩 증가하는 글로벌 방문 순서 인덱스 (0, 1, 2, 3, 4, 5...)',

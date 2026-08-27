@@ -230,8 +230,8 @@ export class RecommendedRouteListResponseDto {
   estimatedSavingsWon!: number;
 
   @ApiProperty({
-    description: '추천도 점수 (0.0 ~ 5.0점 만점 척도)',
-    example: 4.8,
+    description: '추천도 점수 (0 ~ 100점 백분율 척도)',
+    example: 94,
     type: Number,
   })
   score!: number;
@@ -274,14 +274,15 @@ export class RecommendedRouteListResponseDto {
     const rawRoute = route as Record<string, unknown>;
     const calculatedMetrics = rawRoute?.calculatedMetrics as
       { finalScore?: number } | undefined;
-    const finalScore = calculatedMetrics?.finalScore;
-    const score =
-      finalScore != null
-        ? Number(finalScore)
-        : route.score != null
-          ? Number(route.score)
-          : 0;
-    dto.score = Number.isFinite(score) ? score : 0;
+
+    // 추천 알고리즘 실시간 계산값(finalScore) 수집
+    const rawScore = Number(calculatedMetrics?.finalScore ?? route.score ?? 0);
+
+    // 0 ~ 100 범위 정수로 클램핑하여 안전하게 매핑
+    const roundedScore = Math.round(rawScore);
+    dto.score = Number.isFinite(roundedScore)
+      ? Math.max(0, Math.min(100, roundedScore))
+      : 0;
     dto.isRecommended = route.routeType === 'RECOMMENDED';
 
     dto.stopLocations = safeStops.map((stop) =>

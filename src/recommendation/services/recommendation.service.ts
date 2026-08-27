@@ -287,7 +287,8 @@ export class RecommendationService {
       themeBonus +
       budgetBonus;
 
-    return Number(Math.min(5.0, Math.max(0, finalScore)).toFixed(1));
+    const clamped5Score = Math.min(5.0, Math.max(0, finalScore));
+    return Math.round((clamped5Score / 5.0) * 100);
   }
 
   private getCongestionAdjustment(congestionLevel: CongestionLevel): number {
@@ -532,17 +533,15 @@ export class RecommendationService {
     const leadRouteName = String(routes[0]?.name || '부산 여행');
     const durationText = `${targetDurationDays - 1}박 ${targetDurationDays}일`;
     const avgScore = totalScoreSum / routes.length;
-    // 체이닝 과정의 패널티(이동거리/중복)를 감안한 명시적 다일 패키지 종합 점수 연산 (최대 -0.3점 감점 상한, 하한 0.0, 다일 여행 우대 +0.1점)
+    // 체이닝 과정의 패널티(이동거리/중복)를 감안한 명시적 다일 패키지 종합 점수 연산 (0~100점 백분율 스케일: 최대 -6점 감점 상한, 하한 0점 방어, 다일 우대 +2점)
     const penaltyDeduction = Math.max(
       0,
-      Math.min(0.3, chainingCostPenalty * 0.005),
+      Math.min(6.0, chainingCostPenalty * 0.1),
     );
-    const multiDayBonus = targetDurationDays > 1 ? 0.1 : 0;
-    const packageScore = Number(
-      Math.min(
-        5.0,
-        Math.max(0, avgScore - penaltyDeduction + multiDayBonus),
-      ).toFixed(1),
+    const multiDayBonus = targetDurationDays > 1 ? 2.0 : 0;
+    const packageScore = Math.min(
+      100,
+      Math.max(0, Math.round(avgScore - penaltyDeduction + multiDayBonus)),
     );
 
     const routeIdsKey = routes

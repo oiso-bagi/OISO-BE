@@ -55,7 +55,7 @@ describe('RouteController (e2e)', () => {
         totalTimeMinutes: 80,
         congestionLevel: 'MEDIUM',
         estimatedSavingsWon: 1000,
-        score: 4.7,
+        score: 94,
         isRecommended: true,
         stopLocations: [],
       },

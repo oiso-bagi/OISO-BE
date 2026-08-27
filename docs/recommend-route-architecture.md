@@ -101,9 +101,10 @@ flowchart TD
   $$D = (0.01 \times \text{distance}) + (b \times \text{elevationGain}) + (0.001 \times \text{fare})$$
   *※ [특약] $transitType = \text{WALKING}$ 이고 $\text{elevationGain} > 0$ 일 때 부산 산복도로 경사 피로도 반영을 위한 고도 가중치 $b = 2.0$ 적용*
 
-- **체감 난이도 $D$의 코스 기본 점수(Base Score) 사전 연산 산출 수식**:
-  $$\text{Base Score} = \max\left(50.0, 95.0 - (0.05 \times D)\right)$$
-  *※ 산복도로 계단 피로도 점수 $D$를 코스 기본 점수 차감 요인으로 연동하여 가성비 및 체감 피로도를 사전 계산 및 `Route.score`에 사전 적재*
+- **코스 기본 퀄리티 점수 사전 연산 산출 수식 (`calculateBaseScore`)**:
+  $$\text{Base Score}_{\text{raw}} = 85.0 + \text{DistanceBonus}(+10) + \text{TransitBonus}(+5) + \text{LocalBonus}(+5) - (0.02 \times D)$$
+  $$\text{Route.score} = \min\left(4.9, \max\left(3.5, \text{Number}\left(\left(\frac{\text{Base Score}_{\text{raw}}}{20}\right).\text{toFixed}(1)\right)\right)\right) \quad (3.5 \sim 4.9\text{점 정규화})$$
+  *※ 적정 이동거리(3~8km), 대중교통 동선, 외곽 로컬 상권 우대 및 체감 피로도 $D$를 종합 반영하여 사전 연산 후 `Route.score`에 5.0점 척도로 사전 적재*
 
 - **Crash-Free 5단계 다층 Fallback 알고리즘**:
   - `1차`: 슬롯 조건 부합 & 직전 카테고리와 연속되지 않는 최단거리 장소 (`FOOD->FOOD` 연속 방지)
@@ -165,11 +166,11 @@ sequenceDiagram
         Svc->>Svc: 4) Variance Penalty (식비 1.5x, 체험 1.0x, 교통 0.8x)
         Svc->>Svc: 5) Local Bonus (+0.15점) & Elevation Penalty (-0.15점)
         Svc->>Svc: 6) Congestion Adj (LOW +0.2 / HIGH -0.3) & Duration Adj (±0.1점)
-        Svc->>Svc: 7) Final Score = clamp(0.0 ~ 5.0, Sum) (5.0점 만점 척도)
+        Svc->>Svc: 7) Final Score = clamp(0 ~ 100, Math.round(Sum / 5 * 100)) (0~100점 백분율 척도)
     end
 
     Note over Svc: [Step 3: Multi-Day Stitching & Soft Penalty] (durationDays > 1)
-    Svc->>Svc: Haversine 최근접 체이닝 + Soft Penalty (+50k overlap, +20k used, -15k theme) + 패키지 보너스(+0.1점)
+    Svc->>Svc: Haversine 최근접 체이닝 + Soft Penalty (+50k overlap, +20k used, -15k theme) + 패키지 보너스(+2.0점)
 
     Note over Svc: [Step 4: Top 3 Selection]
     Svc->>Svc: 최종 패키지 점수 내림차순 정렬 및 Top 3 코스 선별 (dayNumber 메타데이터 연동)
@@ -193,7 +194,7 @@ sequenceDiagram
 
 후보군 루트(Take 50)에 대하여 사용자 성향, 보행 피로도 및 실시간 혼잡도를 결합한 **종합 추천도 점수($\text{Final Score}$)**를 연산합니다.
 
-#### 📐 추천도 점수 통합 계산 수식 및 흐름 다이어그램 (Final Recommendation Score Formula - 5.0점 만점 스케일) 🆕
+#### 📐 추천도 점수 통합 계산 수식 및 흐름 다이어그램 (Final Recommendation Score Formula - 0~100점 백분율 스케일) 🆕
 
 ##### 📊 추천도 점수 연산 워크플로우 다이어그램
 
@@ -213,8 +214,8 @@ flowchart TD
     Step1 --> Step6["6단계: Congestion & Duration Adj<br/>(혼잡도 +0.2/-0.3점 / 소요시간 ±0.1점)"]:::bonus
 
     Step2 & Step3 & Step4 & Step5 & Step6 --> Sum["가감점 합산 연산<br/>Base + Theme + Budget - Variance + Local - Elevation + Congestion + Duration"]
-    Sum --> Clamp["Clamping 연산<br/>clamp(0.0 ~ 5.0)"]:::final
-    Clamp --> Output["🏆 Final Score<br/>(0.0 ~ 5.0점 만점 / 추천도 N%)"]:::final
+    Sum --> Clamp["Clamping & 백분율 변환 연산<br/>Math.round(clamp(0 ~ 5.0) / 5 * 100)"]:::final
+    Clamp --> Output["🏆 Final Score<br/>(0 ~ 100점 백분율 정수 척도 / 추천도 N%)"]:::final
 ```
 
 ##### 📐 수식 명세 (Mathematical Specifications)
@@ -239,8 +240,9 @@ flowchart TD
 6. **6단계: 혼잡도 및 총 소요시간 가감점 ($\text{Congestion \& Duration Adj}$)**
    $$\text{Congestion Adjustment} = \begin{cases} +0.2 & (\text{LOW - 쾌적}) \\ 0.0 & (\text{MEDIUM - 보통}) \\ -0.3 & (\text{HIGH - 혼잡}) \end{cases}, \quad \text{Duration Adjustment} = \begin{cases} +0.1 & (180 \le \text{duration} \le 360\text{분}) \\ -0.1 & (\text{duration} > 420\text{분}) \\ 0.0 & (\text{기타}) \end{cases}$$
 
-7. **7단계: 🏆 최종 종합 추천도 점수 ($\text{Final Score}$ - 5.0점 만점 체계)**
-   $$\text{Final Score} = \min\left(5.0, \max\left(0, \text{Base Score} + \text{Theme Bonus} + \text{Budget Bonus} - \text{Variance Penalty} + \text{Local Bonus} - \text{Elevation Penalty} + \text{Congestion Adj} + \text{Duration Adj}\right)\right)$$
+7. **7단계: 🏆 최종 종합 추천도 점수 ($\text{Final Score}$ - 0~100점 백분율 정수 척도)**
+   $$\text{Final Score}_{5.0} = \min\left(5.0, \max\left(0, \text{Base Score} + \text{Theme Bonus} + \text{Budget Bonus} - \text{Variance Penalty} + \text{Local Bonus} - \text{Elevation Penalty} + \text{Congestion Adj} + \text{Duration Adj}\right)\right)$$
+   $$\text{Final Score}_{100} = \text{Math.round}\left(\frac{\text{Final Score}_{5.0}}{5.0} \times 100\right) \quad (0 \sim 100\text{점 정수})$$
 
 ---
 
@@ -255,9 +257,9 @@ flowchart TD
   - `UsedRoutePenalty`: 이전 패키지에서 이미 체이닝된 동일 루트 재사용 시 **+20,000m 가중 패널티** 부여
   - `ThemeBonus`: N일차 목표 테마와 매칭 시 **-15,000m 거리 할인 효과** 부여
 - **다일 패키지 종합 점수 수식 ($\text{Package Score}$)**:
-  $$\text{Penalty Deduction} = \max\left(0.0, \min\left(0.3, \text{Chaining Cost Penalty} \times 0.005\right)\right)$$
-  $$\text{Package Score} = \min\left(5.0, \max\left(0, \text{AvgScore} - \text{Penalty Deduction} + \text{MultiDayBonus}(+0.1)\right)\right)$$
-  *(이동거리 감점 상한선 `-0.3점` 및 하한선 `0.0점` 방어, 다일 여행 알찬 우대 보너스 `+0.1점` 적용)*
+  $$\text{Penalty Deduction} = \max\left(0.0, \min\left(6.0, \text{Chaining Cost Penalty} \times 0.1\right)\right)$$
+  $$\text{Package Score} = \min\left(100, \max\left(0, \text{Math.round}(\text{AvgScore} - \text{Penalty Deduction} + \text{MultiDayBonus}(+2.0))\right)\right)$$
+  *(이동거리 감점 상한선 `-6점` 및 하한선 `0점` 방어, 다일 여행 알찬 우대 보너스 `+2점` 적용)*
 - **경유지 및 지표 통합 규칙**:
   - 결합된 패키지의 경유지 객체에 `dayNumber (1, 2, 3...)` 자동 부여
   - 전체 경유지의 정렬 순서 `orderIndex`를 `0, 1, 2, 3...`으로 연쇄 재정렬
@@ -324,7 +326,7 @@ flowchart TD
 | 검증 항목 | 결과 | 설명 |
 | --- | --- | --- |
 | Flowchart 모듈성 보완 | **PASS** | 1일차 모듈 기준 & dayNumber 메타데이터 노드 반영 |
-| 최종 추천도 7단계 통합 수식 | **PASS** | BaseScore, ThemeBonus, BudgetBonus, VariancePenalty 등 7단계 5.0점 척도 수식 명시 |
+| 최종 추천도 7단계 통합 수식 | **PASS** | BaseScore, ThemeBonus, BudgetBonus, VariancePenalty 등 7단계 연산 후 0~100점 백분율 척도 변환 수식 명시 |
 | Exponential Backoff Retry | **PASS** | SEED 스크립트 외부 API 503/429 장애 시 3회 자동 재시도 적용 |
 | DTO 부동소수점 오차 방어 | **PASS** | `Math.abs(sum - 1.0) >= 0.001` 이면 예외 발생 (0.001 미만 오차 허용) |
 | Base Score 난이도 연동 | **PASS** | $\text{Base Score} = 3.0 + \min\left(0.7, \max\left(0, (\text{Route.score} - 3.5) \times 0.5\right)\right)$ 수식 명시 |
@@ -343,10 +345,11 @@ flowchart TD
 | --- | --- | --- | --- | --- | --- |
 | **$b = 2.00$ (최적 채택)** ⭐ | **94.0점** | **295.5점** | **+201.5점** | **3.14배** | **부산 산복도로 계단 피로도(약 3.14배)를 가장 정확히 반영** |
 
-### 8.2 예산 비율 오차 패널티 가중치 ($W$) 시뮬레이션 (5.0점 만점 스케일 맞춤)
-| 식비 가중치 ($W_{\text{food}}$) | 체험 가중치 ($W_{\text{exp}}$) | 교통 가중치 ($W_{\text{trans}}$) | 오차² 합계 | 패널티 감점 | 타당성 평가 |
-| --- | --- | --- | --- | --- | --- |
-| **$1.5$ (최적 채택)** ⭐ | **$1.0$** | **$0.8$** | **0.25** | **-0.37점** | **유저 맛집/식비 선호도를 5.0점 만점 척도에서 가장 우대하여 차별화 반영** |
+### 8.2 예산 비율 오차 패널티 가중치 ($W$) 시뮬레이션 (0~100점 백분율 스케일 맞춤)
+
+| **식비 가중치 ($W_{\text{food}}$)** | **체험비 가중치 ($W_{\text{exp}}$)** | **교통비 가중치 ($W_{\text{trans}}$)** | **예산 비율 오차 제곱 합** | **Variance Penalty** | **설계 의도 및 비고** |
+|:---:|:---:|:---:|:---:|:---:|:---|
+| **$1.5$ (최적 채택)** ⭐ | **$1.0$** | **$0.8$** | **0.25** | **-7.4점 (-0.37점 / 5.0 스케일)** | **유저 맛집/식비 선호도를 0~100점 백분율 척도에서 가장 우대하여 차별화 반영** |
 
 ---
 
