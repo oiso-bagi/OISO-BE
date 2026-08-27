@@ -32,6 +32,7 @@ export type RecommendationFilter = {
   dailyBudgetWon: number;
   totalBudgetWon: number;
   ratios?: BudgetRatios;
+  isPedestrianMode?: boolean;
 };
 
 export type RecommendedCandidateStop = {
@@ -60,6 +61,12 @@ export type RecommendedCandidateRoute = {
   routeType: any;
   congestionLevel: any;
   estimatedCostWon?: number | null;
+  foodCostWon?: number | null;
+  experienceCostWon?: number | null;
+  transportCostWon?: number | null;
+  localContributionScore?: number | null;
+  totalElevationGainMeters?: number | null;
   estimatedDurationMin?: number | null;
   stops?: RecommendedCandidateStop[];
+  themes?: any[];
 };

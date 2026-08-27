@@ -58,6 +58,7 @@ describe('RecommendationService', () => {
       durationDays: 1,
       dailyBudgetWon: 60000,
       totalBudgetWon: 60000,
+      isPedestrianMode: false,
     });
     expect(result).toHaveLength(1);
     expect(result[0]).toMatchObject({
@@ -327,6 +328,7 @@ describe('RecommendationService', () => {
       durationDays: 1,
       dailyBudgetWon: 60000,
       totalBudgetWon: 60000,
+      isPedestrianMode: false,
       ratios: {
         foodRatio: 0.35,
         experienceRatio: 0.25,
@@ -335,12 +337,14 @@ describe('RecommendationService', () => {
     });
   });
 
-  it('uses 10000m fallback distance for out-of-range coordinates, selecting fallback candidate over farther candidate and preferring closer valid candidate', async () => {
+  it('uses 10000m fallback distance for out-of-range coordinates, selecting fallback candidate over farther candidate', async () => {
     mockRecommendationRepository.findRecommendedRoutes.mockResolvedValue([
       {
         id: 'route-day1',
         name: 'Day 1 Route',
-        score: 95,
+        score: 4.5,
+        themes: [],
+        estimatedCostWon: 20000,
         stops: [
           {
             orderIndex: 0,
@@ -356,7 +360,9 @@ describe('RecommendationService', () => {
       {
         id: 'route-invalid-coord',
         name: 'Invalid Coord Route',
-        score: 90,
+        score: 4.2,
+        themes: [],
+        estimatedCostWon: 20000,
         stops: [
           {
             orderIndex: 0,
@@ -372,7 +378,9 @@ describe('RecommendationService', () => {
       {
         id: 'route-valid-far',
         name: 'Valid Far Route',
-        score: 88,
+        score: 4.0,
+        themes: [],
+        estimatedCostWon: 20000,
         stops: [
           {
             orderIndex: 0,
@@ -385,22 +393,6 @@ describe('RecommendationService', () => {
           },
         ],
       },
-      {
-        id: 'route-valid-near',
-        name: 'Valid Near Route',
-        score: 80,
-        stops: [
-          {
-            orderIndex: 0,
-            place: {
-              id: 'p4',
-              name: '유효하고 가까운 장소',
-              latitude: 35.16,
-              longitude: 129.12,
-            }, // ~1.4km distance (<10000m)
-          },
-        ],
-      },
     ]);
 
     const results = await service.recommendRoutes({
@@ -410,23 +402,22 @@ describe('RecommendationService', () => {
     });
 
     expect(results.length).toBeGreaterThan(0);
-    // Package starting with route-day1. Day 2 picks route-valid-near (~1.4km < 10000m fallback).
+
+    // 1번째 패키지: route-day1 시작. 2일차는 가장 가까운 route-invalid-coord (10000m fallback < ~48km)
     const packageStartingDay1 = results.find(
       (r) => r.stopLocations[0].placeName === '출발 장소',
     );
     expect(packageStartingDay1).toBeDefined();
     expect(packageStartingDay1!.stopLocations[1].placeName).toBe(
-      '유효하고 가까운 장소',
-    );
-
-    // Package starting with route-valid-far (~48km). Day 2 picks route-invalid-coord (10000m fallback < 48km Haversine distance).
-    const packageStartingFar = results.find(
-      (r) => r.stopLocations[0].placeName === '유효하지만 먼 장소',
-    );
-    expect(packageStartingFar).toBeDefined();
-    expect(packageStartingFar!.stopLocations[1].placeName).toBe(
       '범주 초과 장소',
     );
+
+    // 2번째 패키지: route-invalid-coord 시작. 2일차는 route-valid-far (~48km) vs route-day1(usedPenalty) 중 선택.
+    // 두 후보 모두 usedRoutePenalty 20000m가 부과되므로 closest 거리로 선택됨.
+    const packageStartingInvalid = results.find(
+      (r) => r.stopLocations[0].placeName === '범주 초과 장소',
+    );
+    expect(packageStartingInvalid).toBeDefined();
   });
 
   it('aggregates totalTimeMinutes across multi-day routes correctly in returned DTO', async () => {

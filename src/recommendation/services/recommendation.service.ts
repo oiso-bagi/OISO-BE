@@ -51,6 +51,8 @@ export interface GenericRoute {
   foodCostWon?: number;
   experienceCostWon?: number;
   transportCostWon?: number;
+  localContributionScore?: number | null;
+  totalElevationGainMeters?: number | null;
   estimatedDurationMin?: number;
   totalDifficultyScore?: Prisma.Decimal | number | null;
   stops?: GenericStop[];
@@ -140,12 +142,23 @@ export class RecommendationService {
       return [];
     }
 
-    // Step 2: Soft Filter (Final Score: 비율 오차 패널티, 혼잡도 가산점 연산)
+    // Step 2: Soft Filter (Final Score: 비율 오차 패널티, 혼잡도 가산점, 테마 일치 가산점, 예산 가점 연산)
     const ratios = validatedInput.ratios ?? DEFAULT_RATIOS;
+    const actualTransportBudgetWon =
+      ratios.transportRatio * validatedInput.dailyBudgetWon;
+    const isPedestrianMode =
+      validatedInput.isPedestrianMode ?? actualTransportBudgetWon < 4000;
+
     const candidateRoutes = rawCandidates
       .map((route) => ({
         ...route,
-        score: this.calculateFinalScore(route, ratios),
+        score: this.calculateFinalScore(
+          route,
+          ratios,
+          validatedInput.travelStyleSlugs,
+          validatedInput.dailyBudgetWon,
+          isPedestrianMode,
+        ),
       }))
       .sort((a, b) => b.score - a.score);
 
@@ -181,6 +194,9 @@ export class RecommendationService {
   private calculateFinalScore(
     route: GenericRoute,
     ratios: BudgetRatios,
+    requestedThemeSlugs?: string[],
+    dailyBudgetWon?: number,
+    isPedestrianMode?: boolean,
   ): number {
     const totalCost = route.estimatedCostWon || 1;
     const actualFoodRatio = (route.foodCostWon || 0) / totalCost;
@@ -196,24 +212,84 @@ export class RecommendationService {
       ratios.transportRatio - actualTransportRatio,
       2,
     );
-    const variancePenalty = (foodDiff + experienceDiff + transportDiff) * 100;
+    // 5.0점 스케일 맞춤 비율 오차 패널티 (식비 1.5배 가중치, 체험 1.0배, 교통 0.8배)
+    const variancePenalty =
+      foodDiff * 1.5 + experienceDiff * 1.0 + transportDiff * 0.8;
 
-    // SEED 시점에 이미 난이도 감점(0.05 * D)이 반영된 Route.score를 그대로 사용하여 이중 차감 방지
-    const baseScore = route.score != null ? Number(route.score) : 50;
+    // SEED 시점에 사전 산출된 3.5 ~ 4.9점 범위의 코스 퀄리티 기본점수를 3.0 ~ 3.7 스케일로 압축 정규화
+    const rawBaseScore = route.score != null ? Number(route.score) : 4.0;
+    const baseScore =
+      3.0 + Math.max(0, Math.min(0.7, (rawBaseScore - 3.5) * 0.5));
 
+    // 유저 선택 테마 부합 여부에 따른 테마 우대 가산점 (1개 일치시 +0.8점, 2개 이상 일치시 +1.0점, 미일치시 -0.5점)
+    let themeBonus = 0;
+    if (requestedThemeSlugs && requestedThemeSlugs.length > 0) {
+      const routeThemeSlugs = (route.themes ?? [])
+        .map((t) => t?.theme?.slug)
+        .filter((s): s is string => typeof s === 'string');
+      const matchedCount = requestedThemeSlugs.filter((slug) =>
+        routeThemeSlugs.includes(slug),
+      ).length;
+
+      if (matchedCount > 0) {
+        themeBonus = matchedCount >= 2 ? 1.0 : 0.8;
+      } else {
+        themeBonus = -0.5;
+      }
+    }
+
+    // 예산 충실도 우대 (설정 예산의 40%~100% 사이를 알차게 사용하는 코스 +0.25점, 너무 안 쓰는 코스 -0.15점)
+    let budgetBonus = 0;
+    if (dailyBudgetWon && dailyBudgetWon > 0) {
+      const budgetRatio = totalCost / dailyBudgetWon;
+      if (budgetRatio >= 0.4 && budgetRatio <= 1.0) {
+        budgetBonus = 0.25;
+      } else if (budgetRatio < 0.25) {
+        budgetBonus = -0.15;
+      }
+    }
+
+    // 실시간 혼잡도 가감점 (LOW: +0.1점, HIGH: -0.2점)
     const congestionAdjustment = this.getCongestionAdjustment(
       route.congestionLevel,
     );
 
-    return Math.max(0, baseScore - variancePenalty + congestionAdjustment);
+    // 외곽 로컬 상권 기여도 보너스 (최대 +0.15점 가산점)
+    const localBonus = (Number(route.localContributionScore ?? 0) / 100) * 0.15;
+
+    // 뚜벅이(보행자) 전용 모드 선택 시 오르막 고도 피로도 차감 (최대 -0.15점 감점)
+    const elevationPenalty = isPedestrianMode
+      ? (Number(route.totalElevationGainMeters ?? 0) / 400) * 0.15
+      : 0;
+
+    // 총 소요시간 적정성 가감점 (3~6시간 쾌적 코스 +0.1점 우대, 7시간 초과 -0.1점 감점)
+    const durationMin = route.estimatedDurationMin ?? 0;
+    let durationAdjustment = 0;
+    if (durationMin >= 180 && durationMin <= 360) {
+      durationAdjustment = 0.1;
+    } else if (durationMin > 420) {
+      durationAdjustment = -0.1;
+    }
+
+    const finalScore =
+      baseScore -
+      variancePenalty +
+      congestionAdjustment +
+      localBonus -
+      elevationPenalty +
+      durationAdjustment +
+      themeBonus +
+      budgetBonus;
+
+    return Number(Math.min(5.0, Math.max(0, finalScore)).toFixed(1));
   }
 
   private getCongestionAdjustment(congestionLevel: CongestionLevel): number {
     switch (congestionLevel) {
       case CongestionLevel.LOW:
-        return 3;
+        return 0.2;
       case CongestionLevel.HIGH:
-        return -5;
+        return -0.3;
       default:
         return 0;
     }
@@ -450,9 +526,14 @@ export class RecommendationService {
     const leadRouteName = String(routes[0]?.name || '부산 여행');
     const durationText = `${targetDurationDays - 1}박 ${targetDurationDays}일`;
     const avgScore = totalScoreSum / routes.length;
-    // 체이닝 과정의 패널티(이동거리/중복)를 감안한 명시적 다일 패키지 종합 점수 연산 (최저 0점 보장)
+    // 체이닝 과정의 패널티(이동거리/중복)를 감안한 명시적 다일 패키지 종합 점수 연산 (최대 -0.3점 감점 상한, 다일 여행 우대 +0.1점)
+    const penaltyDeduction = Math.min(0.3, chainingCostPenalty * 0.005);
+    const multiDayBonus = targetDurationDays > 1 ? 0.1 : 0;
     const packageScore = Number(
-      Math.max(0, avgScore - chainingCostPenalty * 0.1).toFixed(2),
+      Math.min(
+        5.0,
+        Math.max(0, avgScore - penaltyDeduction + multiDayBonus),
+      ).toFixed(1),
     );
 
     const routeIdsKey = routes
@@ -497,6 +578,7 @@ export class RecommendationService {
       dailyBudgetWon,
       totalBudgetWon,
       ratios,
+      isPedestrianMode: Boolean(body?.isPedestrianMode),
     };
   }
 

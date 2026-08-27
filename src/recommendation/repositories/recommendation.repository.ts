@@ -17,6 +17,17 @@ const recommendedRouteSelect = Prisma.validator<Prisma.RouteSelect>()({
   experienceCostWon: true,
   transportCostWon: true,
   totalDifficultyScore: true,
+  totalElevationGainMeters: true,
+  localContributionScore: true,
+  themes: {
+    select: {
+      theme: {
+        select: {
+          slug: true,
+        },
+      },
+    },
+  },
   stops: {
     orderBy: {
       orderIndex: 'asc',
@@ -51,20 +62,34 @@ const TRAVEL_STYLE_CATEGORY_MAP: Record<string, PlaceCategory[]> = {
     PlaceCategory.VIEWPOINT,
     PlaceCategory.EXPERIENCE,
   ],
-  'photo-spot': [PlaceCategory.VIEWPOINT, PlaceCategory.CULTURE],
+  'photo-spot': [
+    PlaceCategory.CULTURE,
+    PlaceCategory.VIEWPOINT,
+    PlaceCategory.CAFE,
+  ],
   'traditional-market': [PlaceCategory.MARKET],
-  'nature-walk': [PlaceCategory.NATURE],
+  'nature-walk': [PlaceCategory.NATURE, PlaceCategory.VIEWPOINT],
 };
 
 @Injectable()
 export class RecommendationRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  findRecommendedRoutes(filter: RecommendationFilter) {
-    const preferredCategories = this.getPreferredCategories(
-      filter.travelStyleSlugs,
+  async findRecommendedRoutes(
+    filter: RecommendationFilter,
+  ): Promise<
+    Prisma.RouteGetPayload<{ select: typeof recommendedRouteSelect }>[]
+  > {
+    const preferredCategories = Array.from(
+      new Set(
+        (filter.travelStyleSlugs ?? []).flatMap(
+          (slug) => TRAVEL_STYLE_CATEGORY_MAP[slug] ?? [],
+        ),
+      ),
     );
-    const maxDurationMinutes = 480; // 1일 마스터 모듈 코스 최대 권장 소요시간 상한선 (8시간 = 480분)
+
+    const maxDurationMinutes =
+      filter.durationDays && filter.durationDays > 1 ? 1440 : 420;
 
     return this.prisma.route.findMany({
       where: {
@@ -81,17 +106,32 @@ export class RecommendationRepository {
         estimatedDurationMin: {
           lte: maxDurationMinutes,
         },
-        ...(preferredCategories.length > 0
+        ...(filter.travelStyleSlugs && filter.travelStyleSlugs.length > 0
           ? {
-              stops: {
-                some: {
-                  place: {
-                    category: {
-                      in: preferredCategories,
+              OR: [
+                {
+                  themes: {
+                    some: {
+                      theme: {
+                        slug: {
+                          in: filter.travelStyleSlugs,
+                        },
+                      },
                     },
                   },
                 },
-              },
+                {
+                  stops: {
+                    some: {
+                      place: {
+                        category: {
+                          in: preferredCategories,
+                        },
+                      },
+                    },
+                  },
+                },
+              ],
             }
           : {}),
       },
