@@ -101,9 +101,10 @@ flowchart TD
   $$D = (0.01 \times \text{distance}) + (b \times \text{elevationGain}) + (0.001 \times \text{fare})$$
   *※ [특약] $transitType = \text{WALKING}$ 이고 $\text{elevationGain} > 0$ 일 때 부산 산복도로 경사 피로도 반영을 위한 고도 가중치 $b = 2.0$ 적용*
 
-- **체감 난이도 $D$의 코스 기본 점수(Base Score) 사전 연산 산출 수식**:
-  $$\text{Base Score} = \max\left(50.0, 95.0 - (0.05 \times D)\right)$$
-  *※ 산복도로 계단 피로도 점수 $D$를 코스 기본 점수 차감 요인으로 연동하여 가성비 및 체감 피로도를 사전 계산 및 `Route.score`에 사전 적재*
+- **코스 기본 퀄리티 점수 사전 연산 산출 수식 (`calculateBaseScore`)**:
+  $$\text{Base Score}_{\text{raw}} = 85.0 + \text{DistanceBonus}(+10) + \text{TransitBonus}(+5) + \text{LocalBonus}(+5) - (0.02 \times D)$$
+  $$\text{Route.score} = \min\left(4.9, \max\left(3.5, \text{Number}\left(\left(\frac{\text{Base Score}_{\text{raw}}}{20}\right).\text{toFixed}(1)\right)\right)\right) \quad (3.5 \sim 4.9\text{점 정규화})$$
+  *※ 적정 이동거리(3~8km), 대중교통 동선, 외곽 로컬 상권 우대 및 체감 피로도 $D$를 종합 반영하여 사전 연산 후 `Route.score`에 5.0점 척도로 사전 적재*
 
 - **Crash-Free 5단계 다층 Fallback 알고리즘**:
   - `1차`: 슬롯 조건 부합 & 직전 카테고리와 연속되지 않는 최단거리 장소 (`FOOD->FOOD` 연속 방지)
@@ -348,7 +349,7 @@ flowchart TD
 
 | **식비 가중치 ($W_{\text{food}}$)** | **체험비 가중치 ($W_{\text{exp}}$)** | **교통비 가중치 ($W_{\text{trans}}$)** | **예산 비율 오차 제곱 합** | **Variance Penalty** | **설계 의도 및 비고** |
 |:---:|:---:|:---:|:---:|:---:|:---|
-| **$1.5$ (최적 채택)** ⭐ | **$1.0$** | **$0.8$** | **0.25** | **-0.37점** | **유저 맛집/식비 선호도를 0~100점 백분율 척도에서 가장 우대하여 차별화 반영** |
+| **$1.5$ (최적 채택)** ⭐ | **$1.0$** | **$0.8$** | **0.25** | **-7.4점 (-0.37점 / 5.0 스케일)** | **유저 맛집/식비 선호도를 0~100점 백분율 척도에서 가장 우대하여 차별화 반영** |
 
 ---
 
