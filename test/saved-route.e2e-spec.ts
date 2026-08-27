@@ -194,14 +194,18 @@ describe('SavedRouteController (e2e)', () => {
           {
             sequence: 0,
             dayNumber: 1,
+            placeId: null,
             placeName: '해운대 해수욕장',
             category: 'NATURE',
             openTime: '00:00',
             closeTime: '24:00',
             nextTransportType: 'BUS',
             nextTravelTimeMinutes: 20,
+            fareWon: 1500,
+            estimatedPriceWon: 5000,
             latitude: 35.1587,
             longitude: 129.1604,
+            pathCoordinates: [],
           },
         ],
       });
