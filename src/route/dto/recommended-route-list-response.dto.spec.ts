@@ -64,6 +64,10 @@ describe('RecommendedRouteListResponseDto', () => {
       stayMinutes: 10,
       latitude: 35.1587,
       longitude: 129.1604,
+      fareWon: 1500,
+      estimatedPriceWon: 9000,
+      touristPremiumWon: 13860,
+      savedPriceWon: 4860,
     });
     expect(dto).not.toHaveProperty('stops');
   });

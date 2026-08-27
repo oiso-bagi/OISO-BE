@@ -94,6 +94,40 @@ export class RouteStopLocationDto {
   })
   longitude!: number | null;
 
+  @ApiProperty({
+    description: '구간 이동 대중교통/이동 비용(원)',
+    example: 1500,
+    nullable: true,
+    type: Number,
+  })
+  fareWon!: number | null;
+
+  @ApiProperty({
+    description: '장소 실제/추정 이용 가격(원)',
+    example: 12000,
+    nullable: true,
+    type: Number,
+  })
+  estimatedPriceWon!: number | null;
+
+  @ApiProperty({
+    description:
+      '해당 장소 카테고리의 비교 기준이 되는 관광지 프리미엄 가격(원)',
+    example: 18500,
+    nullable: true,
+    type: Number,
+  })
+  touristPremiumWon!: number | null;
+
+  @ApiProperty({
+    description:
+      '해당 장소 이용으로 절약한 금액(원, touristPremiumWon - estimatedPriceWon)',
+    example: 6500,
+    nullable: true,
+    type: Number,
+  })
+  savedPriceWon!: number | null;
+
   static from(stop: RouteStopWithPlace): RouteStopLocationDto {
     const dto = new RouteStopLocationDto();
     dto.sequence = stop.orderIndex ?? 0;
@@ -114,6 +148,23 @@ export class RouteStopLocationDto {
       stop.place?.latitude != null ? Number(stop.place.latitude) : null;
     dto.longitude =
       stop.place?.longitude != null ? Number(stop.place.longitude) : null;
+
+    dto.fareWon = stop.fareWon != null ? Number(stop.fareWon) : null;
+    dto.estimatedPriceWon =
+      stop.estimatedPriceWon != null ? Number(stop.estimatedPriceWon) : null;
+
+    if (dto.estimatedPriceWon != null && dto.estimatedPriceWon > 0) {
+      // 관광지 프리미엄 지수 (로컬 35% 절감의 역산 기준가 = actualPrice / 0.65)
+      dto.touristPremiumWon = Math.round(dto.estimatedPriceWon * 1.54);
+      dto.savedPriceWon = Math.max(
+        0,
+        dto.touristPremiumWon - dto.estimatedPriceWon,
+      );
+    } else {
+      dto.touristPremiumWon = null;
+      dto.savedPriceWon = null;
+    }
+
     return dto;
   }
 }
