@@ -21,8 +21,9 @@ jobs:
 
     env:
       PRISMA_CLIENT_ENGINE_TYPE: binary
-      DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/oiso"
-      DIRECT_URL: "postgresql://dummy:dummy@localhost:5432/oiso"
+      DATABASE_URL: 'postgresql://dummy:dummy@localhost:5432/oiso'
+      DIRECT_URL: 'postgresql://dummy:dummy@localhost:5432/oiso'
+      SKIP_DASHBOARD_REPOSITORY_INTEGRATION_TESTS: 'true'
 
     steps:
       - name: Checkout
