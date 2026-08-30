@@ -219,8 +219,8 @@ flowchart TD
 
 ##### 📐 수식 명세 (Mathematical Specifications)
 
-1. **1단계: 코스 기본 퀄리티 점수 ($\text{Base Score}$ - 3.2~4.2점 스케일 정규화)**
-   $$\text{Base Score} = 3.2 + \min\left(1.0, \max\left(0, (\text{rawBaseScore} - 3.5) \times \frac{1.0}{1.5}\right)\right)$$
+1. **1단계: 코스 기본 퀄리티 점수 ($\text{Base Score}$ - 3.2~4.15점 스케일 정규화, 최대 가산점 +0.85 여유폭 확보)**
+   $$\text{Base Score} = 3.2 + \min\left(0.95, \max\left(0, (\text{rawBaseScore} - 3.5) \times \frac{0.95}{1.5}\right)\right)$$
    *(※ $\text{rawBaseScore} > 5.0$ 인 경우 100점 만점 입력을 방어하기 위해 $\text{rawBaseScore} / 20.0$ 자동 정규화 적용)*
 
 2. **2단계: 유저 선택 테마 우대 가산점 ($\text{Theme Bonus}$ - 우선 노출 핵심 요소)**
@@ -329,7 +329,7 @@ flowchart TD
 | 최종 추천도 7단계 통합 수식 | **PASS** | BaseScore, ThemeBonus, BudgetBonus, VariancePenalty 등 7단계 연산 후 0~100점 백분율 척도 변환 수식 명시 |
 | Exponential Backoff Retry | **PASS** | SEED 스크립트 외부 API 503/429 장애 시 3회 자동 재시도 적용 |
 | DTO 부동소수점 오차 방어 | **PASS** | `Math.abs(sum - 1.0) >= 0.001` 이면 예외 발생 (0.001 미만 오차 허용) |
-| Base Score 난이도 연동 | **PASS** | $\text{Base Score} = 3.2 + \min\left(1.0, \max\left(0, (\text{rawBaseScore} - 3.5) \times \frac{1.0}{1.5}\right)\right)$ 수식 명시 |
+| Base Score 난이도 연동 | **PASS** | $\text{Base Score} = 3.2 + \min\left(0.95, \max\left(0, (\text{rawBaseScore} - 3.5) \times \frac{0.95}{1.5}\right)\right)$ 수식 명시 |
 | Google Elevation 파이프 일괄 수집 | **PASS** | `Place.elevationMeters` 1회성 일괄 수집 완료 |
 | 역정규화 고도 연산 | **PASS** | `RouteStop.elevationGainMeters` 이동 순서 상대값 0-Call 저장 |
 | UI 6대 테마 SEED | **PASS** | `local-food`, `beach-tour` 등 6종 테마 PlaceCategory 직접 필터 매핑 완료 |

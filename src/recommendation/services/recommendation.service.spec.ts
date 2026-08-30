@@ -541,4 +541,50 @@ describe('RecommendationService', () => {
     expect(score100!).toBeGreaterThanOrEqual(score99!);
     expect(score99!).toBeGreaterThanOrEqual(score98!);
   });
+
+  it('preserves score distinction under MAXIMUM bonus conditions (+0.85) without 100-point saturation', async () => {
+    // Each route satisfies all bonus conditions perfectly (+0.85 total bonus)
+    // 1) 2 themes matched (+0.45)
+    // 2) 50% budget ratio (+0.15)
+    // 3) LOW congestion (+0.10)
+    // 4) 100 localContributionScore (+0.10)
+    // 5) 300 min duration (+0.05)
+    const baseCandidate = {
+      estimatedCostWon: 30000,
+      foodCostWon: 10500, // 35% (DEFAULT_RATIOS 일치)
+      experienceCostWon: 7500, // 25% (DEFAULT_RATIOS 일치)
+      transportCostWon: 12000, // 40% (DEFAULT_RATIOS 일치)
+      congestionLevel: 'LOW' as const,
+      localContributionScore: 100,
+      estimatedDurationMin: 300,
+      themes: [
+        { theme: { slug: 'local-food' } },
+        { theme: { slug: 'beach-tour' } },
+      ],
+      stops: [],
+    };
+
+    mockRecommendationRepository.findRecommendedRoutes.mockResolvedValue([
+      { ...baseCandidate, id: 'r-max-97', name: 'Route 97', score: 97 },
+      { ...baseCandidate, id: 'r-max-98', name: 'Route 98', score: 98 },
+      { ...baseCandidate, id: 'r-max-99', name: 'Route 99', score: 99 },
+      { ...baseCandidate, id: 'r-max-100', name: 'Route 100', score: 100 },
+    ]);
+
+    const results = await service.recommendRoutes({
+      travelStyleSlugs: ['local-food', 'beach-tour'],
+      durationDays: 1,
+      dailyBudgetWon: 60000,
+    });
+
+    expect(results).toHaveLength(3);
+    const score100 = results.find((r) => r.id === 'r-max-100')?.score;
+    const score99 = results.find((r) => r.id === 'r-max-99')?.score;
+    const score98 = results.find((r) => r.id === 'r-max-98')?.score;
+
+    expect(score100).toBe(100);
+    expect(score99).toBe(99);
+    expect(score98).toBe(99);
+    expect(score100).toBeGreaterThan(score99!);
+  });
 });
