@@ -565,7 +565,6 @@ describe('RecommendationService', () => {
     };
 
     mockRecommendationRepository.findRecommendedRoutes.mockResolvedValue([
-      { ...baseCandidate, id: 'r-max-97', name: 'Route 97', score: 97 },
       { ...baseCandidate, id: 'r-max-98', name: 'Route 98', score: 98 },
       { ...baseCandidate, id: 'r-max-99', name: 'Route 99', score: 99 },
       { ...baseCandidate, id: 'r-max-100', name: 'Route 100', score: 100 },
@@ -584,7 +583,8 @@ describe('RecommendationService', () => {
 
     expect(score100).toBe(100);
     expect(score99).toBe(99);
-    expect(score98).toBe(99);
+    expect(score98).toBe(98);
     expect(score100).toBeGreaterThan(score99!);
+    expect(score99!).toBeGreaterThan(score98!);
   });
 });
