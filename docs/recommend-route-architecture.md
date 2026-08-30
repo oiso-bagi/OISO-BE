@@ -250,16 +250,16 @@ flowchart TD
 
 `durationDays > 1` (2일~5일) 요청 시, 1일차 추천 코스(Base Route) 선정 후 N일차 코스는 Haversine 최근접 거리 체이닝 및 Soft Penalty 알고리즘으로 조합됩니다.
 
-- **체이닝 패널티 연산 수식**:
-  $$\text{Chaining Cost Penalty} = \text{Haversine}(P_{1,\text{last}}, P_{2,\text{first}}) + \text{OverlapPenalty} + \text{UsedRoutePenalty} - \text{ThemeBonus}$$
+- **체이닝 패널티 연산 수식 (미터 단위 $m$)**:
+  $$\text{Chaining Cost Penalty (m)} = \text{Haversine}(P_{1,\text{last}}, P_{2,\text{first}}) + \text{OverlapPenalty} + \text{UsedRoutePenalty} - \text{ThemeBonus}$$
 - **Soft Penalty & 가중치 명세**:
   - `OverlapPenalty`: 이미 선택된 일차의 `PlaceID`가 다음 일차 코스에 포함될 경우 **+50,000m 가중 패널티** 부여 (장소 중복 차단)
   - `UsedRoutePenalty`: 이전 패키지에서 이미 체이닝된 동일 루트 재사용 시 **+20,000m 가중 패널티** 부여
   - `ThemeBonus`: N일차 목표 테마와 매칭 시 **-15,000m 거리 할인 효과** 부여
 - **다일 패키지 종합 점수 수식 ($\text{Package Score}$)**:
-  $$\text{Penalty Deduction} = \max\left(0.0, \min\left(6.0, \text{Chaining Cost Penalty} \times 0.1\right)\right)$$
+  $$\text{Penalty Deduction} = \max\left(0.0, \min\left(6.0, \frac{\text{Chaining Cost Penalty (m)}}{1000} \times 0.1\right)\right)$$
   $$\text{Package Score} = \min\left(100, \max\left(0, \text{Math.round}(\text{AvgScore} - \text{Penalty Deduction} + \text{MultiDayBonus}(+1.0))\right)\right)$$
-  *(이동거리 감점 상한선 `-6점` 및 하한선 `0점` 방어, 다일 여행 알찬 우대 보너스 `+1점` 적용)*
+  *(이동거리 $1\text{km}$당 $-0.1\text{점}$ 감점, 최대 감점 상한선 `-6점` 및 하한선 `0점` 방어, 다일 여행 알찬 우대 보너스 `+1점` 적용)*
 - **경유지 및 지표 통합 규칙**:
   - 결합된 패키지의 경유지 객체에 `dayNumber (1, 2, 3...)` 자동 부여
   - 전체 경유지의 정렬 순서 `orderIndex`를 `0, 1, 2, 3...`으로 연쇄 재정렬
