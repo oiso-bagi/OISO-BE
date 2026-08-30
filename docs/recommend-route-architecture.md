@@ -160,7 +160,7 @@ sequenceDiagram
 
     Note over Svc: [Step 2: Soft Filter & 추천도 점수 연산] 메모리 레벨 연산 (1~2ms)
         loop 후보군 Candidate Route 마다 7단계 연산
-        Svc->>Svc: 1) BaseScore (3.2~4.15점 압축 정규화, rawScore > 5.0 시 /20.0 방어)
+        Svc->>Svc: 1) BaseScore (3.2~4.15점 압축 정규화, 5.0 만점 단일 척도 연산)
         Svc->>Svc: 2) Theme Bonus (+0.3~0.45점 일치 / -0.2점 미일치)
         Svc->>Svc: 3) Budget Bonus (+0.15점 충실 활용 / -0.1점 미달)
         Svc->>Svc: 4) Variance Penalty (식비 1.5x, 체험 1.0x, 교통 0.8x, 0.5x 완화)
@@ -221,7 +221,7 @@ flowchart TD
 
 1. **1단계: 코스 기본 퀄리티 점수 ($\text{Base Score}$ - 3.2~4.15점 스케일 정규화, 최대 가산점 +0.85 여유폭 확보)**
    $$\text{Base Score} = 3.2 + \min\left(0.95, \max\left(0, (\text{rawBaseScore} - 3.8) \times \frac{0.95}{1.2}\right)\right)$$
-   *(※ $\text{rawBaseScore} > 5.0$ 인 경우 100점 만점 입력을 방어하기 위해 $\text{rawBaseScore} / 20.0$ 자동 정규화 적용)*
+   *(※ $\text{rawBaseScore}$는 DB에 5.0 만점 척도(3.5~4.9점)로 단일화되어 적재 및 연산됨)*
 
 2. **2단계: 유저 선택 테마 우대 가산점 ($\text{Theme Bonus}$ - 우선 노출 핵심 요소)**
    $$\text{Theme Bonus} = \begin{cases} +0.45 & (\text{선택 테마 2개 이상 일치}) \\ +0.30 & (\text{선택 테마 1개 일치}) \\ -0.20 & (\text{선택 테마 미일치}) \end{cases}$$
