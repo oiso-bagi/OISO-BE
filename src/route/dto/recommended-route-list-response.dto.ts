@@ -5,6 +5,7 @@ import type {
   RouteStopWithPlace,
   RouteWithStops,
 } from '@/route/dto/recommended-route-detail-response.dto';
+import { calculateTouristSavings } from '@/route/utils/tourist-savings.util';
 
 export class RouteStopLocationDto {
   @ApiProperty({
@@ -153,17 +154,9 @@ export class RouteStopLocationDto {
     dto.estimatedPriceWon =
       stop.estimatedPriceWon != null ? Number(stop.estimatedPriceWon) : null;
 
-    if (dto.estimatedPriceWon != null && dto.estimatedPriceWon > 0) {
-      // 관광지 프리미엄 지수 (로컬 35% 절감의 역산 기준가 = actualPrice / 0.65)
-      dto.touristPremiumWon = Math.round(dto.estimatedPriceWon * 1.54);
-      dto.savedPriceWon = Math.max(
-        0,
-        dto.touristPremiumWon - dto.estimatedPriceWon,
-      );
-    } else {
-      dto.touristPremiumWon = null;
-      dto.savedPriceWon = null;
-    }
+    const savings = calculateTouristSavings(dto.estimatedPriceWon);
+    dto.touristPremiumWon = savings.touristPremiumWon;
+    dto.savedPriceWon = savings.savedPriceWon;
 
     return dto;
   }

@@ -216,13 +216,13 @@ export class RecommendationService {
     const variancePenalty =
       (foodDiff * 1.5 + experienceDiff * 1.0 + transportDiff * 0.8) * 0.5;
 
-    // rawBaseScore(5.0 만점 기준 또는 100점 만점 기준) 정규화 (3.5 ~ 4.9점 범위를 3.2 ~ 4.2 스케일로 매핑)
+    // rawBaseScore(5.0 만점 기준 또는 100점 만점 기준) 정규화 (3.5 ~ 5.0점 범위를 3.2 ~ 4.2 스케일로 매핑)
     let rawBaseScore = route.score != null ? Number(route.score) : 4.0;
     if (rawBaseScore > 5.0) {
       rawBaseScore = rawBaseScore / 20.0;
     }
     const baseScore =
-      3.2 + Math.max(0, Math.min(1.0, (rawBaseScore - 3.5) * (1.0 / 1.4)));
+      3.2 + Math.max(0, Math.min(1.0, (rawBaseScore - 3.5) * (1.0 / 1.5)));
 
     // 유저 선택 테마 부합 여부에 따른 테마 우대 가산점 (1개 일치시 +0.3점, 2개 이상 일치시 +0.45점, 미일치시 -0.2점)
     let themeBonus = 0;
@@ -536,7 +536,7 @@ export class RecommendationService {
     const leadRouteName = String(routes[0]?.name || '부산 여행');
     const durationText = `${targetDurationDays - 1}박 ${targetDurationDays}일`;
     const avgScore = totalScoreSum / routes.length;
-    // 체이닝 과정의 패널티(이동거리/중복)를 감안한 명시적 다일 패키지 종합 점수 연산 (0~100점 백분율 스케일: 최대 -6점 감점 상한, 하한 0점 방어, 다일 우대 +2점)
+    // 체이닝 과정의 패널티(이동거리/중복)를 감안한 명시적 다일 패키지 종합 점수 연산 (0~100점 백분율 스케일: 최대 -6점 감점 상한, 하한 0점 방어, 다일 우대 +1.0점)
     const penaltyDeduction = Math.max(
       0,
       Math.min(6.0, chainingCostPenalty * 0.1),

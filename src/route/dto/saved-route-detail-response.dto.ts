@@ -13,6 +13,7 @@ import {
   RouteStopWithPlace,
   RouteWithStops,
 } from '@/route/dto/recommended-route-detail-response.dto';
+import { calculateTouristSavings } from '@/route/utils/tourist-savings.util';
 
 export type SavedRouteDetailRawData = {
   savedAt: Date;
@@ -182,16 +183,9 @@ export class SavedRouteStopDetailDto {
     dto.fareWon = stop.fareWon ?? null;
     dto.estimatedPriceWon = stop.estimatedPriceWon ?? null;
 
-    if (dto.estimatedPriceWon != null && dto.estimatedPriceWon > 0) {
-      dto.touristPremiumWon = Math.round(dto.estimatedPriceWon * 1.54);
-      dto.savedPriceWon = Math.max(
-        0,
-        dto.touristPremiumWon - dto.estimatedPriceWon,
-      );
-    } else {
-      dto.touristPremiumWon = null;
-      dto.savedPriceWon = null;
-    }
+    const savings = calculateTouristSavings(dto.estimatedPriceWon);
+    dto.touristPremiumWon = savings.touristPremiumWon;
+    dto.savedPriceWon = savings.savedPriceWon;
 
     dto.latitude =
       stop.place?.latitude != null ? Number(stop.place.latitude) : null;

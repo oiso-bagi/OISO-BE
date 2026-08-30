@@ -494,4 +494,51 @@ describe('RecommendationService', () => {
     expect(results[0].stopLocations[1].dayNumber).toBe(2);
     expect(results[0].stopLocations[2].dayNumber).toBe(3);
   });
+
+  it('preserves monotonicity for high raw scores (e.g. 98, 99, 100 or 4.8, 4.9, 5.0) without premature clamping', async () => {
+    mockRecommendationRepository.findRecommendedRoutes.mockResolvedValue([
+      {
+        id: 'r-98',
+        name: 'Route 98',
+        score: 98,
+        estimatedCostWon: 30000,
+        themes: [{ theme: { slug: 'local-food' } }],
+        stops: [],
+      },
+      {
+        id: 'r-99',
+        name: 'Route 99',
+        score: 99,
+        estimatedCostWon: 30000,
+        themes: [{ theme: { slug: 'local-food' } }],
+        stops: [],
+      },
+      {
+        id: 'r-100',
+        name: 'Route 100',
+        score: 100,
+        estimatedCostWon: 30000,
+        themes: [{ theme: { slug: 'local-food' } }],
+        stops: [],
+      },
+    ]);
+
+    const results = await service.recommendRoutes({
+      travelStyleSlugs: ['local-food'],
+      durationDays: 1,
+      dailyBudgetWon: 60000,
+    });
+
+    expect(results).toHaveLength(3);
+    const score100 = results.find((r) => r.id === 'r-100')?.score;
+    const score99 = results.find((r) => r.id === 'r-99')?.score;
+    const score98 = results.find((r) => r.id === 'r-98')?.score;
+
+    expect(score100).toBeDefined();
+    expect(score99).toBeDefined();
+    expect(score98).toBeDefined();
+    expect(score100!).toBeGreaterThan(score98!);
+    expect(score100!).toBeGreaterThanOrEqual(score99!);
+    expect(score99!).toBeGreaterThanOrEqual(score98!);
+  });
 });
