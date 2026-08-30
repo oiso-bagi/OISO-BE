@@ -214,14 +214,14 @@ export class RecommendationService {
     );
     // 5.0점 스케일 맞춤 비율 오차 패널티 (식비 1.5배 가중치, 체험 1.0배, 교통 0.8배)
     const variancePenalty =
-      foodDiff * 1.5 + experienceDiff * 1.0 + transportDiff * 0.8;
+      (foodDiff * 1.5 + experienceDiff * 1.0 + transportDiff * 0.8) * 0.5;
 
-    // SEED 시점에 사전 산출된 3.5 ~ 4.9점 범위의 코스 퀄리티 기본점수를 3.0 ~ 3.7 스케일로 압축 정규화
+    // rawBaseScore(5.0 만점 척도) 정규화 (3.8 ~ 5.0점 범위를 3.2 ~ 4.15 스케일로 매핑, 최대 가산점 +0.85 누적 시 단조 분기 및 5.0 상한 여유 확보)
     const rawBaseScore = route.score != null ? Number(route.score) : 4.0;
     const baseScore =
-      3.0 + Math.max(0, Math.min(0.7, (rawBaseScore - 3.5) * 0.5));
+      3.2 + Math.max(0, Math.min(0.95, (rawBaseScore - 3.8) * (0.95 / 1.2)));
 
-    // 유저 선택 테마 부합 여부에 따른 테마 우대 가산점 (1개 일치시 +0.8점, 2개 이상 일치시 +1.0점, 미일치시 -0.5점)
+    // 유저 선택 테마 부합 여부에 따른 테마 우대 가산점 (1개 일치시 +0.3점, 2개 이상 일치시 +0.45점, 미일치시 -0.2점)
     let themeBonus = 0;
     if (requestedThemeSlugs && requestedThemeSlugs.length > 0) {
       const routeThemeSlugs = (route.themes ?? [])
@@ -232,47 +232,47 @@ export class RecommendationService {
       ).length;
 
       if (matchedCount > 0) {
-        themeBonus = matchedCount >= 2 ? 1.0 : 0.8;
+        themeBonus = matchedCount >= 2 ? 0.45 : 0.3;
       } else {
-        themeBonus = -0.5;
+        themeBonus = -0.2;
       }
     }
 
-    // 예산 충실도 우대 (설정 예산의 40%~100% 사이를 알차게 사용하는 코스 +0.25점, 너무 안 쓰는 코스 -0.15점)
+    // 예산 충실도 우대 (설정 예산의 40%~100% 사이 사용 코스 +0.15점, 미달시 -0.1점)
     let budgetBonus = 0;
     if (dailyBudgetWon && dailyBudgetWon > 0) {
       const budgetRatio = totalCost / dailyBudgetWon;
       if (budgetRatio >= 0.4 && budgetRatio <= 1.0) {
-        budgetBonus = 0.25;
+        budgetBonus = 0.15;
       } else if (budgetRatio < 0.25) {
-        budgetBonus = -0.15;
+        budgetBonus = -0.1;
       }
     }
 
-    // 실시간 혼잡도 가감점 (LOW: +0.1점, HIGH: -0.2점)
+    // 실시간 혼잡도 가감점 (LOW: +0.1점, HIGH: -0.15점)
     const congestionAdjustment = this.getCongestionAdjustment(
       route.congestionLevel,
     );
 
-    // 외곽 로컬 상권 기여도 보너스 (최대 +0.15점 가산점)
-    const localBonus = (Number(route.localContributionScore ?? 0) / 100) * 0.15;
+    // 외곽 로컬 상권 기여도 보너스 (최대 +0.1점 가산점)
+    const localBonus = (Number(route.localContributionScore ?? 0) / 100) * 0.1;
 
-    // 뚜벅이(보행자) 전용 모드 선택 시 오르막 고도 피로도 차감 (0 ~ 0.15점 감점 클램핑)
+    // 뚜벅이(보행자) 전용 모드 선택 시 오르막 고도 피로도 차감 (0 ~ 0.1점 감점 클램핑)
     const elevationPenalty = isPedestrianMode
       ? Math.max(
           0,
           Math.min(
-            0.15,
-            (Number(route.totalElevationGainMeters ?? 0) / 400) * 0.15,
+            0.1,
+            (Number(route.totalElevationGainMeters ?? 0) / 400) * 0.1,
           ),
         )
       : 0;
 
-    // 총 소요시간 적정성 가감점 (3~6시간 쾌적 코스 +0.1점 우대, 7시간 초과 -0.1점 감점)
+    // 총 소요시간 적정성 가감점 (3~6시간 쾌적 코스 +0.05점 우대, 7시간 초과 -0.1점 감점)
     const durationMin = route.estimatedDurationMin ?? 0;
     let durationAdjustment = 0;
     if (durationMin >= 180 && durationMin <= 360) {
-      durationAdjustment = 0.1;
+      durationAdjustment = 0.05;
     } else if (durationMin > 420) {
       durationAdjustment = -0.1;
     }
@@ -294,9 +294,9 @@ export class RecommendationService {
   private getCongestionAdjustment(congestionLevel: CongestionLevel): number {
     switch (congestionLevel) {
       case CongestionLevel.LOW:
-        return 0.2;
+        return 0.1;
       case CongestionLevel.HIGH:
-        return -0.3;
+        return -0.15;
       default:
         return 0;
     }
@@ -533,12 +533,12 @@ export class RecommendationService {
     const leadRouteName = String(routes[0]?.name || '부산 여행');
     const durationText = `${targetDurationDays - 1}박 ${targetDurationDays}일`;
     const avgScore = totalScoreSum / routes.length;
-    // 체이닝 과정의 패널티(이동거리/중복)를 감안한 명시적 다일 패키지 종합 점수 연산 (0~100점 백분율 스케일: 최대 -6점 감점 상한, 하한 0점 방어, 다일 우대 +2점)
+    // 체이닝 과정의 패널티(이동거리/중복)를 감안한 명시적 다일 패키지 종합 점수 연산 (0~100점 백분율 스케일: 최대 -6점 감점 상한, 하한 0점 방어, 다일 우대 +1.0점)
     const penaltyDeduction = Math.max(
       0,
       Math.min(6.0, chainingCostPenalty * 0.1),
     );
-    const multiDayBonus = targetDurationDays > 1 ? 2.0 : 0;
+    const multiDayBonus = targetDurationDays > 1 ? 1.0 : 0;
     const packageScore = Math.min(
       100,
       Math.max(0, Math.round(avgScore - penaltyDeduction + multiDayBonus)),

@@ -205,7 +205,7 @@ describe('RecommendationService', () => {
     const day1Route = {
       id: 'day1-route',
       name: 'Day 1',
-      score: 90,
+      score: 4.5,
       estimatedCostWon: 40000,
       routeType: 'RECOMMENDED',
       congestionLevel: 'MEDIUM',
@@ -225,7 +225,7 @@ describe('RecommendationService', () => {
     const expensiveDay2Route = {
       id: 'expensive-day2',
       name: 'Expensive Day 2',
-      score: 95,
+      score: 4.75,
       estimatedCostWon: 30000, // 40000 + 30000 = 70000 > 60000 total budget
       routeType: 'RECOMMENDED',
       congestionLevel: 'MEDIUM',
@@ -245,7 +245,7 @@ describe('RecommendationService', () => {
     const cheaperDay2Route = {
       id: 'cheaper-day2',
       name: 'Cheaper Day 2',
-      score: 85,
+      score: 4.25,
       estimatedCostWon: 15000, // 40000 + 15000 = 55000 <= 60000 total budget
       routeType: 'RECOMMENDED',
       congestionLevel: 'MEDIUM',
@@ -428,7 +428,7 @@ describe('RecommendationService', () => {
       {
         id: 'r1',
         name: 'Route 1',
-        score: 90,
+        score: 4.5,
         estimatedDurationMin: 180,
         stops: [
           {
@@ -442,7 +442,7 @@ describe('RecommendationService', () => {
       {
         id: 'r2',
         name: 'Route 2',
-        score: 85,
+        score: 4.25,
         estimatedDurationMin: 240,
         stops: [
           {
@@ -472,7 +472,7 @@ describe('RecommendationService', () => {
       {
         id: 'single-route',
         name: 'Single Available Route',
-        score: 90,
+        score: 4.5,
         stops: [
           {
             orderIndex: 0,
@@ -493,5 +493,124 @@ describe('RecommendationService', () => {
     expect(results[0].stopLocations[0].dayNumber).toBe(1);
     expect(results[0].stopLocations[1].dayNumber).toBe(2);
     expect(results[0].stopLocations[2].dayNumber).toBe(3);
+  });
+
+  it('preserves monotonicity for high raw scores (e.g. 4.88, 4.94, 5.0) without premature clamping', async () => {
+    mockRecommendationRepository.findRecommendedRoutes.mockResolvedValue([
+      {
+        id: 'r-98',
+        name: 'Route 98',
+        score: 4.9,
+        estimatedCostWon: 30000,
+        themes: [{ theme: { slug: 'local-food' } }],
+        stops: [],
+      },
+      {
+        id: 'r-99',
+        name: 'Route 99',
+        score: 4.95,
+        estimatedCostWon: 30000,
+        themes: [{ theme: { slug: 'local-food' } }],
+        stops: [],
+      },
+      {
+        id: 'r-100',
+        name: 'Route 100',
+        score: 5.0,
+        estimatedCostWon: 30000,
+        themes: [{ theme: { slug: 'local-food' } }],
+        stops: [],
+      },
+    ]);
+
+    const results = await service.recommendRoutes({
+      travelStyleSlugs: ['local-food'],
+      durationDays: 1,
+      dailyBudgetWon: 60000,
+    });
+
+    expect(results).toHaveLength(3);
+    const score100 = results.find((r) => r.id === 'r-100')?.score;
+    const score99 = results.find((r) => r.id === 'r-99')?.score;
+    const score98 = results.find((r) => r.id === 'r-98')?.score;
+
+    expect(score100).toBeDefined();
+    expect(score99).toBeDefined();
+    expect(score98).toBeDefined();
+    expect(score100!).toBeGreaterThan(score98!);
+    expect(score100!).toBeGreaterThanOrEqual(score99!);
+    expect(score99!).toBeGreaterThanOrEqual(score98!);
+  });
+
+  it('preserves score distinction under MAXIMUM bonus conditions (+0.85) without 100-point saturation', async () => {
+    // Each route satisfies all bonus conditions perfectly (+0.85 total bonus)
+    // 1) 2 themes matched (+0.45)
+    // 2) 50% budget ratio (+0.15)
+    // 3) LOW congestion (+0.10)
+    // 4) 100 localContributionScore (+0.10)
+    // 5) 300 min duration (+0.05)
+    const baseCandidate = {
+      estimatedCostWon: 30000,
+      foodCostWon: 10500, // 35% (DEFAULT_RATIOS 일치)
+      experienceCostWon: 7500, // 25% (DEFAULT_RATIOS 일치)
+      transportCostWon: 12000, // 40% (DEFAULT_RATIOS 일치)
+      congestionLevel: 'LOW' as const,
+      localContributionScore: 100,
+      estimatedDurationMin: 300,
+      themes: [
+        { theme: { slug: 'local-food' } },
+        { theme: { slug: 'beach-tour' } },
+      ],
+      stops: [],
+    };
+
+    mockRecommendationRepository.findRecommendedRoutes.mockResolvedValue([
+      { ...baseCandidate, id: 'r-max-98', name: 'Route 98', score: 4.9 },
+      { ...baseCandidate, id: 'r-max-99', name: 'Route 99', score: 4.95 },
+      { ...baseCandidate, id: 'r-max-100', name: 'Route 100', score: 5.0 },
+    ]);
+
+    const results = await service.recommendRoutes({
+      travelStyleSlugs: ['local-food', 'beach-tour'],
+      durationDays: 1,
+      dailyBudgetWon: 60000,
+    });
+
+    expect(results).toHaveLength(3);
+    const score100 = results.find((r) => r.id === 'r-max-100')?.score;
+    const score99 = results.find((r) => r.id === 'r-max-99')?.score;
+    const score98 = results.find((r) => r.id === 'r-max-98')?.score;
+
+    expect(score100).toBe(100);
+    expect(score99).toBe(99);
+    expect(score98).toBe(98);
+    expect(score100).toBeGreaterThan(score99!);
+    expect(score99!).toBeGreaterThan(score98!);
+  });
+
+  it('guarantees score 6.0 is monotonically non-decreasing compared to score 5.0 without inversion', async () => {
+    const baseRoute = {
+      estimatedCostWon: 30000,
+      stops: [],
+    };
+
+    mockRecommendationRepository.findRecommendedRoutes.mockResolvedValue([
+      { ...baseRoute, id: 'r-score-5', name: 'Route 5.0', score: 5.0 },
+      { ...baseRoute, id: 'r-score-6', name: 'Route 6.0', score: 6.0 },
+    ]);
+
+    const results = await service.recommendRoutes({
+      travelStyleSlugs: ['local-food'],
+      durationDays: 1,
+      dailyBudgetWon: 60000,
+    });
+
+    const score5 = results.find((r) => r.id === 'r-score-5')?.score;
+    const score6 = results.find((r) => r.id === 'r-score-6')?.score;
+
+    expect(score5).toBeDefined();
+    expect(score6).toBeDefined();
+    // 6.0 must be >= 5.0 and capped at max score (no boundary inversion)
+    expect(score6!).toBeGreaterThanOrEqual(score5!);
   });
 });

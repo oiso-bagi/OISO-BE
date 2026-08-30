@@ -56,5 +56,8 @@ describe('RecommendedRouteDetailResponseDto', () => {
     expect(dto.stops[0].closeTime).toBeNull();
     expect(dto.stops[0].nextTransportType).toBe('BUS');
     expect(dto.stops[0].nextTravelTimeMinutes).toBe(20);
+    expect(dto.stops[0].estimatedPriceWon).toBe(9000);
+    expect(dto.stops[0].touristPremiumWon).toBe(13860);
+    expect(dto.stops[0].savedPriceWon).toBe(4860);
   });
 });

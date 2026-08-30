@@ -92,5 +92,17 @@ describe('SavedRouteStopDetailDto', () => {
         longitude: 129.1604,
       });
     });
+
+    it('calculates touristPremiumWon and savedPriceWon when estimatedPriceWon exists', () => {
+      const dto = SavedRouteStopDetailDto.from({
+        orderIndex: 0,
+        estimatedPriceWon: 10000,
+        place: { name: '해운대 소문난 암소갈비' },
+      });
+
+      expect(dto.estimatedPriceWon).toBe(10000);
+      expect(dto.touristPremiumWon).toBe(15400);
+      expect(dto.savedPriceWon).toBe(5400);
+    });
   });
 });

@@ -13,6 +13,7 @@ import {
   RouteStopWithPlace,
   RouteWithStops,
 } from '@/route/dto/recommended-route-detail-response.dto';
+import { calculateTouristSavings } from '@/route/utils/tourist-savings.util';
 
 export type SavedRouteDetailRawData = {
   savedAt: Date;
@@ -105,6 +106,24 @@ export class SavedRouteStopDetailDto {
   estimatedPriceWon: number | null = null;
 
   @ApiProperty({
+    description:
+      '해당 장소 카테고리의 비교 기준이 되는 관광지 프리미엄 가격(원)',
+    example: 18500,
+    nullable: true,
+    type: Number,
+  })
+  touristPremiumWon: number | null = null;
+
+  @ApiProperty({
+    description:
+      '해당 장소 이용으로 절약한 금액(원, touristPremiumWon - estimatedPriceWon)',
+    example: 6500,
+    nullable: true,
+    type: Number,
+  })
+  savedPriceWon: number | null = null;
+
+  @ApiProperty({
     description: '장소 위도',
     example: 35.1532,
     nullable: true,
@@ -163,6 +182,11 @@ export class SavedRouteStopDetailDto {
     dto.nextTravelTimeMinutes = stop.travelMinutesFromPrev ?? null;
     dto.fareWon = stop.fareWon ?? null;
     dto.estimatedPriceWon = stop.estimatedPriceWon ?? null;
+
+    const savings = calculateTouristSavings(dto.estimatedPriceWon);
+    dto.touristPremiumWon = savings.touristPremiumWon;
+    dto.savedPriceWon = savings.savedPriceWon;
+
     dto.latitude =
       stop.place?.latitude != null ? Number(stop.place.latitude) : null;
     dto.longitude =
