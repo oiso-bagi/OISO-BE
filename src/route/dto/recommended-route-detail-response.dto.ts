@@ -227,6 +227,24 @@ export class RouteStopResponseDto {
 
   @ApiProperty({
     description:
+      '해당 장소 카테고리의 비교 기준이 되는 관광지 프리미엄 가격(원)',
+    example: 18500,
+    nullable: true,
+    type: Number,
+  })
+  touristPremiumWon!: number | null;
+
+  @ApiProperty({
+    description:
+      '해당 장소 이용으로 절약한 금액(원, touristPremiumWon - estimatedPriceWon)',
+    example: 6500,
+    nullable: true,
+    type: Number,
+  })
+  savedPriceWon!: number | null;
+
+  @ApiProperty({
+    description:
       '이전 경유지부터 현재 경유지까지의 실제 도로 굴곡 좌표 배열 (카카오맵 Polyline 렌더링용, WALKING 구간은 보행 보간 좌표 generateFallbackPath() 사용, 첫 경유지는 빈 배열)',
     type: [PathCoordinateDto],
     example: [
@@ -268,6 +286,17 @@ export class RouteStopResponseDto {
 
     dto.fareWon = stop.fareWon ?? null;
     dto.estimatedPriceWon = stop.estimatedPriceWon ?? null;
+
+    if (dto.estimatedPriceWon != null && dto.estimatedPriceWon > 0) {
+      dto.touristPremiumWon = Math.round(dto.estimatedPriceWon * 1.54);
+      dto.savedPriceWon = Math.max(
+        0,
+        dto.touristPremiumWon - dto.estimatedPriceWon,
+      );
+    } else {
+      dto.touristPremiumWon = null;
+      dto.savedPriceWon = null;
+    }
 
     const transitDetailsObj = stop.transitDetails as {
       pathCoordinates?: PathCoordinateDto[];

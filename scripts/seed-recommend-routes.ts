@@ -595,7 +595,26 @@ async function seedRecommendRoutes() {
       }
 
       const estimatedCostWon = foodCostWon + experienceCostWon + transportCostWon;
-      const themeSlugs = Array.from(new Set([theme.slug, 'beach-tour', 'local-food'])).slice(0, 2);
+      const matchingThemes: string[] = [theme.slug];
+      if (uniqueStops.some((p) => isBeachPlace(p))) {
+        matchingThemes.push('beach-tour');
+      }
+      if (uniqueStops.some((p) => p.category === PlaceCategory.FOOD || p.category === PlaceCategory.MARKET)) {
+        matchingThemes.push('local-food');
+      }
+      if (uniqueStops.some((p) => p.category === PlaceCategory.CAFE)) {
+        matchingThemes.push('emotion-cafe');
+      }
+      if (uniqueStops.some((p) => p.category === PlaceCategory.CULTURE || p.category === PlaceCategory.VIEWPOINT)) {
+        matchingThemes.push('photo-spot');
+      }
+      if (uniqueStops.some((p) => p.category === PlaceCategory.MARKET)) {
+        matchingThemes.push('traditional-market');
+      }
+      if (uniqueStops.some((p) => p.category === PlaceCategory.NATURE)) {
+        matchingThemes.push('nature-walk');
+      }
+      const themeSlugs = Array.from(new Set(matchingThemes)).slice(0, 2);
 
       const themeConnections = themeSlugs.map((slug) => ({
         theme: { connect: { slug } },
