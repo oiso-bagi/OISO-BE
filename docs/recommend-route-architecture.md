@@ -159,7 +159,7 @@ sequenceDiagram
     DB-->>Svc: 후보군 루트 데이터 전달 (Take 50)
 
     Note over Svc: [Step 2: Soft Filter & 추천도 점수 연산] 메모리 레벨 연산 (1~2ms)
-        loop 후보군 Candidate Route 마다 7단계 연산
+        loop 후보군 Candidate Route 마다 8단계 연산
         Svc->>Svc: 1) BaseScore (3.2~4.10점 압축 정규화, 5.0 만점 단일 척도 연산)
         Svc->>Svc: 2) Theme Bonus (+0.3~0.45점 일치 / -0.2점 미일치)
         Svc->>Svc: 3) Budget Bonus (+0.15점 충실 활용 / -0.1점 미달)
@@ -333,7 +333,7 @@ flowchart TD
 | 검증 항목 | 결과 | 설명 |
 | --- | --- | --- |
 | Flowchart 모듈성 보완 | **PASS** | 1일차 모듈 기준 & dayNumber 메타데이터 노드 반영 |
-| 최종 추천도 7단계 통합 수식 | **PASS** | BaseScore, ThemeBonus, BudgetBonus, VariancePenalty 등 7단계 연산 후 0~100점 백분율 척도 변환 수식 명시 |
+| 최종 추천도 8단계 통합 수식 | **PASS** | BaseScore, ThemeBonus, BudgetBonus, VariancePenalty, TieBreakers 등 8단계 연산 후 0~100점 백분율 척도 변환 수식 명시 |
 | Exponential Backoff Retry | **PASS** | SEED 스크립트 외부 API 503/429 장애 시 3회 자동 재시도 적용 |
 | DTO 부동소수점 오차 방어 | **PASS** | `Math.abs(sum - 1.0) >= 0.001` 이면 예외 발생 (0.001 미만 오차 허용) |
 | Base Score 난이도 연동 | **PASS** | $\text{Base Score} = 3.2 + \min\left(0.90, \max\left(0, (\text{rawBaseScore} - 3.8) \times \frac{0.90}{1.2}\right)\right)$ 수식 명시 |

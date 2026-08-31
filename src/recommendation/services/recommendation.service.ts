@@ -239,23 +239,9 @@ export class RecommendationService {
         themeBonus = -0.2;
       }
 
-      // [타이브레이커 1] 대표 기획 테마 일치 시 추가 특화 보너스 (+0.06점)
-      const primaryKeywords: Record<string, string> = {
-        'local-food': '맛집',
-        'emotion-cafe': '카페',
-        'beach-tour': '해변',
-        'photo-spot': '포토',
-        'traditional-market': '시장',
-        'nature-walk': '자연',
-      };
-      const isPrimaryTheme = requestedThemeSlugs.some((slug) => {
-        const kw = primaryKeywords[slug];
-        return (
-          (kw && (route.name || '').includes(kw)) ||
-          routeThemes[0]?.theme?.slug === slug
-        );
-      });
-      if (isPrimaryTheme) {
+      // [타이브레이커 1] 1순위 대표 기획 테마 일치 시 추가 특화 보너스 (+0.06점)
+      const primaryThemeSlug = routeThemes[0]?.theme?.slug;
+      if (primaryThemeSlug && requestedThemeSlugs.includes(primaryThemeSlug)) {
         primaryThemeBonus = 0.06;
       }
     }

@@ -682,4 +682,57 @@ describe('RecommendationService', () => {
     expect(scorePrimary!).toBeGreaterThan(scoreSecondary!);
     expect(scoreSecondary!).toBeGreaterThan(scoreThird!);
   });
+
+  it('does not grant local-food primaryThemeBonus to a route whose first theme is traditional-market even if its name contains 맛집', async () => {
+    const commonRoute = {
+      score: 4.8,
+      estimatedCostWon: 35000,
+      foodCostWon: 12250,
+      experienceCostWon: 8750,
+      transportCostWon: 14000,
+      congestionLevel: 'LOW' as const,
+      localContributionScore: 90,
+      estimatedDurationMin: 300,
+      estimatedSavingsWon: 10000,
+      totalDistanceMeters: 4000,
+      stops: [],
+    };
+
+    mockRecommendationRepository.findRecommendedRoutes.mockResolvedValue([
+      // Route A: 1st theme is local-food
+      {
+        ...commonRoute,
+        id: 'r-pure-food',
+        name: '부산 로컬 코스',
+        themes: [{ theme: { slug: 'local-food' } }],
+      },
+      // Route B: 1st theme is traditional-market, but name contains '맛집'
+      {
+        ...commonRoute,
+        id: 'r-market-with-food-name',
+        name: '부산 전통 시장 - 맛집 골목 릴레이 코스',
+        themes: [
+          { theme: { slug: 'traditional-market' } },
+          { theme: { slug: 'local-food' } },
+        ],
+      },
+    ]);
+
+    const results = await service.recommendRoutes({
+      travelStyleSlugs: ['local-food'],
+      durationDays: 1,
+      dailyBudgetWon: 60000,
+    });
+
+    expect(results).toHaveLength(2);
+    const scorePureFood = results.find((r) => r.id === 'r-pure-food')?.score;
+    const scoreMarketNamedFood = results.find(
+      (r) => r.id === 'r-market-with-food-name',
+    )?.score;
+
+    expect(scorePureFood).toBeDefined();
+    expect(scoreMarketNamedFood).toBeDefined();
+    // Pure food route must receive primaryThemeBonus and score strictly higher than market route
+    expect(scorePureFood!).toBeGreaterThan(scoreMarketNamedFood!);
+  });
 });
