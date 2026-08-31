@@ -735,4 +735,54 @@ describe('RecommendationService', () => {
     // Pure food route must receive primaryThemeBonus and score strictly higher than market route
     expect(scorePureFood!).toBeGreaterThan(scoreMarketNamedFood!);
   });
+
+  it('excludes single-day tiebreakers for multi-day requests (durationDays > 1) and preserves chaining ranking', async () => {
+    const candidateA = {
+      id: 'day1-cand',
+      name: 'Day 1 Candidate',
+      score: 4.8,
+      estimatedCostWon: 25000,
+      estimatedSavingsWon: 20000,
+      totalDistanceMeters: 4000,
+      themes: [{ theme: { slug: 'local-food' } }],
+      stops: [
+        {
+          orderIndex: 0,
+          place: { id: 'p1', latitude: 35.1, longitude: 129.1 },
+        },
+      ],
+    };
+    const candidateB = {
+      id: 'day2-cand',
+      name: 'Day 2 Candidate',
+      score: 4.8,
+      estimatedCostWon: 25000,
+      estimatedSavingsWon: 1000,
+      totalDistanceMeters: 1000,
+      themes: [{ theme: { slug: 'beach-tour' } }],
+      stops: [
+        {
+          orderIndex: 0,
+          place: { id: 'p2', latitude: 35.105, longitude: 129.105 },
+        },
+      ],
+    };
+
+    mockRecommendationRepository.findRecommendedRoutes.mockResolvedValue([
+      candidateA,
+      candidateB,
+    ]);
+
+    const results = await service.recommendRoutes({
+      travelStyleSlugs: ['local-food', 'beach-tour'],
+      durationDays: 2,
+      dailyBudgetWon: 60000,
+    });
+
+    expect(results).toHaveLength(1);
+    expect(results[0].stopLocations).toHaveLength(2);
+    // Package score must be computed using multi-day formula with chaining bonus (+1.0) without 1-day tie-breaker inflation
+    expect(results[0].score).toBeGreaterThanOrEqual(85);
+    expect(results[0].score).toBeLessThanOrEqual(100);
+  });
 });

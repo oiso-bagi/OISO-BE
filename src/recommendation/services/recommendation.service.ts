@@ -149,6 +149,7 @@ export class RecommendationService {
     const isPedestrianMode =
       validatedInput.isPedestrianMode ?? actualTransportBudgetWon < 4000;
 
+    const isSingleDay = (validatedInput.durationDays ?? 1) === 1;
     const candidateRoutes = rawCandidates
       .map((route) => ({
         ...route,
@@ -158,6 +159,7 @@ export class RecommendationService {
           validatedInput.travelStyleSlugs,
           validatedInput.dailyBudgetWon,
           isPedestrianMode,
+          isSingleDay,
         ),
       }))
       .sort((a, b) => b.score - a.score);
@@ -197,6 +199,7 @@ export class RecommendationService {
     requestedThemeSlugs?: string[],
     dailyBudgetWon?: number,
     isPedestrianMode?: boolean,
+    isSingleDay: boolean = true,
   ): number {
     const totalCost = route.estimatedCostWon || 1;
     const actualFoodRatio = (route.foodCostWon || 0) / totalCost;
@@ -223,7 +226,6 @@ export class RecommendationService {
 
     // 유저 선택 테마 부합 여부에 따른 테마 우대 가산점 (1개 일치시 +0.3점, 2개 이상 일치시 +0.45점, 미일치시 -0.2점)
     let themeBonus = 0;
-    let primaryThemeBonus = 0;
     if (requestedThemeSlugs && requestedThemeSlugs.length > 0) {
       const routeThemes = route.themes ?? [];
       const routeThemeSlugs = routeThemes
@@ -237,12 +239,6 @@ export class RecommendationService {
         themeBonus = matchedCount >= 2 ? 0.45 : 0.3;
       } else {
         themeBonus = -0.2;
-      }
-
-      // [타이브레이커 1] 1순위 대표 기획 테마 일치 시 추가 특화 보너스 (+0.06점)
-      const primaryThemeSlug = routeThemes[0]?.theme?.slug;
-      if (primaryThemeSlug && requestedThemeSlugs.includes(primaryThemeSlug)) {
-        primaryThemeBonus = 0.06;
       }
     }
 
@@ -280,18 +276,31 @@ export class RecommendationService {
       durationAdjustment = -0.1;
     }
 
-    // [타이브레이커 2] 가성비 절약률 보너스 (지출 대비 절약액 비율 최대 +0.10점)
-    const savingsWon = Number(route.estimatedSavingsWon || 0);
-    const savingsRatio = Math.min(1.0, savingsWon / Math.max(1, totalCost));
-    const savingsBonus = savingsRatio * 0.1;
-
-    // [타이브레이커 3] 1일 이동 쾌적 거리(3km~5km) 우대 보너스 (+0.04점)
-    const distanceMeters = Number(route.totalDistanceMeters || 0);
+    // [1일차 전용 타이브레이커] durationDays === 1일 때만 동점 해소 가중치 가산
+    let primaryThemeBonus = 0;
+    let savingsBonus = 0;
     let distanceBonus = 0;
-    if (distanceMeters >= 3000 && distanceMeters <= 5000) {
-      distanceBonus = 0.04;
-    } else if (distanceMeters > 5000 && distanceMeters <= 7500) {
-      distanceBonus = 0.02;
+
+    if (isSingleDay) {
+      // [타이브레이커 1] 1순위 대표 기획 테마 일치 시 추가 특화 보너스 (+0.06점)
+      const routeThemes = route.themes ?? [];
+      const primaryThemeSlug = routeThemes[0]?.theme?.slug;
+      if (primaryThemeSlug && requestedThemeSlugs?.includes(primaryThemeSlug)) {
+        primaryThemeBonus = 0.06;
+      }
+
+      // [타이브레이커 2] 가성비 절약률 보너스 (지출 대비 절약액 비율 최대 +0.10점)
+      const savingsWon = Number(route.estimatedSavingsWon || 0);
+      const savingsRatio = Math.min(1.0, savingsWon / Math.max(1, totalCost));
+      savingsBonus = savingsRatio * 0.1;
+
+      // [타이브레이커 3] 1일 이동 쾌적 거리(3km~5km) 우대 보너스 (+0.04점)
+      const distanceMeters = Number(route.totalDistanceMeters || 0);
+      if (distanceMeters >= 3000 && distanceMeters <= 5000) {
+        distanceBonus = 0.04;
+      } else if (distanceMeters > 5000 && distanceMeters <= 7500) {
+        distanceBonus = 0.02;
+      }
     }
 
     const finalScore =
