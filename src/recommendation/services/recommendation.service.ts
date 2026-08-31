@@ -219,10 +219,10 @@ export class RecommendationService {
     const variancePenalty =
       (foodDiff * 1.5 + experienceDiff * 1.0 + transportDiff * 0.8) * 0.5;
 
-    // rawBaseScore(5.0 만점 척도) 정규화 (3.8 ~ 5.0점 범위를 3.2 ~ 4.10 스케일로 매핑)
+    // rawBaseScore(5.0 만점 척도) 정규화 (3.5 ~ 5.0점 범위를 3.2 ~ 4.10 스케일로 매핑)
     const rawBaseScore = route.score != null ? Number(route.score) : 4.0;
     const baseScore =
-      3.2 + Math.max(0, Math.min(0.9, (rawBaseScore - 3.8) * (0.9 / 1.2)));
+      3.2 + Math.max(0, Math.min(0.9, (rawBaseScore - 3.5) * (0.9 / 1.5)));
 
     // 유저 선택 테마 부합 여부에 따른 테마 우대 가산점 (1개 일치시 +0.3점, 2개 이상 일치시 +0.45점, 미일치시 -0.2점)
     let themeBonus = 0;

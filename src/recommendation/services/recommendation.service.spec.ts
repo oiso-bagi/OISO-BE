@@ -565,8 +565,8 @@ describe('RecommendationService', () => {
     };
 
     mockRecommendationRepository.findRecommendedRoutes.mockResolvedValue([
-      { ...baseCandidate, id: 'r-max-98', name: 'Route 98', score: 4.88 },
-      { ...baseCandidate, id: 'r-max-99', name: 'Route 99', score: 4.94 },
+      { ...baseCandidate, id: 'r-max-98', name: 'Route 98', score: 4.8 },
+      { ...baseCandidate, id: 'r-max-99', name: 'Route 99', score: 4.9 },
       { ...baseCandidate, id: 'r-max-100', name: 'Route 100', score: 5.0 },
     ]);
 
@@ -586,6 +586,32 @@ describe('RecommendationService', () => {
     expect(score98).toBe(98);
     expect(score100).toBeGreaterThan(score99!);
     expect(score99!).toBeGreaterThan(score98!);
+  });
+
+  it('preserves score distinction across the full seeded range below 3.8 (e.g. 3.5 vs 3.7)', async () => {
+    const baseRoute = {
+      estimatedCostWon: 30000,
+      stops: [],
+    };
+
+    mockRecommendationRepository.findRecommendedRoutes.mockResolvedValue([
+      { ...baseRoute, id: 'r-score-35', name: 'Route 3.5', score: 3.5 },
+      { ...baseRoute, id: 'r-score-37', name: 'Route 3.7', score: 3.7 },
+    ]);
+
+    const results = await service.recommendRoutes({
+      travelStyleSlugs: ['local-food'],
+      durationDays: 1,
+      dailyBudgetWon: 60000,
+    });
+
+    expect(results).toHaveLength(2);
+    const score35 = results.find((r) => r.id === 'r-score-35')?.score;
+    const score37 = results.find((r) => r.id === 'r-score-37')?.score;
+
+    expect(score35).toBeDefined();
+    expect(score37).toBeDefined();
+    expect(score37!).toBeGreaterThan(score35!);
   });
 
   it('guarantees score 6.0 is monotonically non-decreasing compared to score 5.0 without inversion', async () => {
@@ -782,6 +808,6 @@ describe('RecommendationService', () => {
     expect(results).toHaveLength(1);
     expect(results[0].stopLocations).toHaveLength(2);
     // Package score must be computed using multi-day formula with chaining bonus (+1.0) without 1-day tie-breaker inflation
-    expect(results[0].score).toBe(85);
+    expect(results[0].score).toBe(86);
   });
 });

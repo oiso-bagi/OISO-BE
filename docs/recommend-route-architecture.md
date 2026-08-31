@@ -222,8 +222,8 @@ flowchart TD
 ##### 📐 수식 명세 (Mathematical Specifications)
 
 1. **1단계: 코스 기본 퀄리티 점수 ($\text{Base Score}$ - 3.2~4.10점 스케일 정규화, 최대 가산점 여유폭 확보)**
-   $$\text{Base Score} = 3.2 + \min\left(0.90, \max\left(0, (\text{rawBaseScore} - 3.8) \times \frac{0.90}{1.2}\right)\right)$$
-   *(※ $\text{rawBaseScore}$는 DB에 5.0 만점 척도(3.8~5.0점)로 단일화되어 적재 및 연산되며, $\text{rawBaseScore} = 5.0$일 때 $\text{Base Score} = 4.10$ 만점을 가집니다)*
+   $$\text{Base Score} = 3.2 + \min\left(0.90, \max\left(0, (\text{rawBaseScore} - 3.5) \times \frac{0.90}{1.5}\right)\right)$$
+   *(※ $\text{rawBaseScore}$는 DB에 5.0 만점 척도(3.5~5.0점)로 단일화되어 적재 및 연산되며, $\text{rawBaseScore} = 5.0$일 때 $\text{Base Score} = 4.10$ 만점을 가집니다)*
 
 2. **2단계: 유저 선택 테마 우대 가산점 ($\text{Theme Bonus}$ - 우선 노출 핵심 요소)**
    $$\text{Theme Bonus} = \begin{cases} +0.45 & (\text{선택 테마 2개 이상 일치}) \\ +0.30 & (\text{선택 테마 1개 일치}) \\ -0.20 & (\text{선택 테마 미일치}) \end{cases}$$
@@ -337,7 +337,7 @@ flowchart TD
 | 최종 추천도 8단계 통합 수식 | **PASS** | BaseScore, ThemeBonus, BudgetBonus, VariancePenalty, TieBreakers 등 8단계 연산 후 0~100점 백분율 척도 변환 수식 명시 |
 | Exponential Backoff Retry | **PASS** | SEED 스크립트 외부 API 503/429 장애 시 3회 자동 재시도 적용 |
 | DTO 부동소수점 오차 방어 | **PASS** | `Math.abs(sum - 1.0) >= 0.001` 이면 예외 발생 (0.001 미만 오차 허용) |
-| Base Score 난이도 연동 | **PASS** | $\text{Base Score} = 3.2 + \min\left(0.90, \max\left(0, (\text{rawBaseScore} - 3.8) \times \frac{0.90}{1.2}\right)\right)$ 수식 명시 |
+| Base Score 난이도 연동 | **PASS** | $\text{Base Score} = 3.2 + \min\left(0.90, \max\left(0, (\text{rawBaseScore} - 3.5) \times \frac{0.90}{1.5}\right)\right)$ 수식 명시 |
 | Google Elevation 파이프 일괄 수집 | **PASS** | `Place.elevationMeters` 1회성 일괄 수집 완료 |
 | 역정규화 고도 연산 | **PASS** | `RouteStop.elevationGainMeters` 이동 순서 상대값 0-Call 저장 |
 | UI 6대 테마 SEED | **PASS** | `local-food`, `beach-tour` 등 6종 테마 PlaceCategory 직접 필터 매핑 완료 |
