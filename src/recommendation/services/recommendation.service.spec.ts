@@ -782,7 +782,6 @@ describe('RecommendationService', () => {
     expect(results).toHaveLength(1);
     expect(results[0].stopLocations).toHaveLength(2);
     // Package score must be computed using multi-day formula with chaining bonus (+1.0) without 1-day tie-breaker inflation
-    expect(results[0].score).toBeGreaterThanOrEqual(85);
-    expect(results[0].score).toBeLessThanOrEqual(100);
+    expect(results[0].score).toBe(85);
   });
 });

@@ -223,7 +223,7 @@ flowchart TD
 
 1. **1단계: 코스 기본 퀄리티 점수 ($\text{Base Score}$ - 3.2~4.10점 스케일 정규화, 최대 가산점 여유폭 확보)**
    $$\text{Base Score} = 3.2 + \min\left(0.90, \max\left(0, (\text{rawBaseScore} - 3.8) \times \frac{0.90}{1.2}\right)\right)$$
-   *(※ $\text{rawBaseScore}$는 DB에 5.0 만점 척도(3.5~4.9점)로 단일화되어 적재 및 연산됨)*
+   *(※ $\text{rawBaseScore}$는 DB에 5.0 만점 척도(3.8~5.0점)로 단일화되어 적재 및 연산되며, $\text{rawBaseScore} = 5.0$일 때 $\text{Base Score} = 4.10$ 만점을 가집니다)*
 
 2. **2단계: 유저 선택 테마 우대 가산점 ($\text{Theme Bonus}$ - 우선 노출 핵심 요소)**
    $$\text{Theme Bonus} = \begin{cases} +0.45 & (\text{선택 테마 2개 이상 일치}) \\ +0.30 & (\text{선택 테마 1개 일치}) \\ -0.20 & (\text{선택 테마 미일치}) \end{cases}$$
@@ -236,7 +236,7 @@ flowchart TD
 
 5. **5단계: 외곽 로컬 상권 가산점 ($\text{Local Bonus}$) & 고도 피로도 감점 ($\text{Elevation Penalty}$)**
    $$\text{Local Bonus} = \left(\frac{\text{Route.localContributionScore}}{100}\right) \times 0.10 \quad (\text{최대 } +0.10\text{점})$$
-   $$\text{Elevation Penalty} = \begin{cases} \min\left(0.10, \left(\frac{\text{totalElevationGainMeters}}{400}\right) \times 0.10\right) & (\text{isPedestrianMode} = \text{true}) \\ \min\left(0.05, \left(\frac{\text{totalElevationGainMeters}}{400}\right) \times 0.05\right) & (\text{isPedestrianMode} = \text{false}) \end{cases}$$
+   $$\text{Elevation Penalty} = \begin{cases} \max\left(0, \min\left(0.10, \left(\frac{\text{totalElevationGainMeters}}{400}\right) \times 0.10\right)\right) & (\text{isPedestrianMode} = \text{true}) \\ \max\left(0, \min\left(0.05, \left(\frac{\text{totalElevationGainMeters}}{400}\right) \times 0.05\right)\right) & (\text{isPedestrianMode} = \text{false}) \end{cases}$$
    *(※ isPedestrianMode 미입력 시 일일 대중교통 할당 예산 $R_{\text{trans}} \times \text{dailyBudgetWon} < 4,000\text{원}$ 조건에 따라 자동으로 true 스마트 전환)*
 
 6. **6단계: 혼잡도 및 총 소요시간 가감점 ($\text{Congestion \& Duration Adj}$)**
@@ -245,7 +245,7 @@ flowchart TD
 7. **7단계: 1일차 동점 방지 타이브레이커 ($\text{Tie-Breakers}$ - durationDays = 1 전용)** 🆕
    *(※ 1일차 단일 코스 요청 시에만 적용되며, 다일차(2일~5일) 요청 시에는 체이닝 알고리즘 왜곡 방지를 위해 배제됩니다)*
    - **주 테마 일치 보너스**: $\text{Primary Theme Bonus} = +0.06\text{점}$ (코스의 1순위 대표 테마와 요청 테마 일치 시)
-   - **가성비 절약률 보너스**: $\text{Savings Bonus} = \min\left(1.0, \frac{\text{estimatedSavingsWon}}{\text{totalCost}}\right) \times 0.10\text{점}$ (최대 $+0.10\text{점}$)
+   - **가성비 절약률 보너스**: $\text{Savings Bonus} = \min\left(1.0, \frac{\text{estimatedSavingsWon}}{\max(1, \text{totalCost})}\right) \times 0.10\text{점}$ (최대 $+0.10\text{점}$)
    - **쾌적 이동거리 보너스**: $\text{Distance Bonus} = \begin{cases} +0.04\text{점} & (3,000\text{m} \le \text{dist} \le 5,000\text{m}) \\ +0.02\text{점} & (5,000\text{m} < \text{dist} \le 7,500\text{m}) \\ 0.0\text{점} & (\text{기타}) \end{cases}$
 
 8. **8단계: 🏆 최종 종합 추천도 점수 ($\text{Final Score}$ - 0~100점 백분율 정수 척도)**
