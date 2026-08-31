@@ -216,15 +216,17 @@ export class RecommendationService {
     const variancePenalty =
       (foodDiff * 1.5 + experienceDiff * 1.0 + transportDiff * 0.8) * 0.5;
 
-    // rawBaseScore(5.0 만점 척도) 정규화 (3.8 ~ 5.0점 범위를 3.2 ~ 4.15 스케일로 매핑, 최대 가산점 +0.85 누적 시 단조 분기 및 5.0 상한 여유 확보)
+    // rawBaseScore(5.0 만점 척도) 정규화 (3.8 ~ 5.0점 범위를 3.2 ~ 4.10 스케일로 매핑)
     const rawBaseScore = route.score != null ? Number(route.score) : 4.0;
     const baseScore =
-      3.2 + Math.max(0, Math.min(0.95, (rawBaseScore - 3.8) * (0.95 / 1.2)));
+      3.2 + Math.max(0, Math.min(0.9, (rawBaseScore - 3.8) * (0.9 / 1.2)));
 
     // 유저 선택 테마 부합 여부에 따른 테마 우대 가산점 (1개 일치시 +0.3점, 2개 이상 일치시 +0.45점, 미일치시 -0.2점)
     let themeBonus = 0;
+    let primaryThemeBonus = 0;
     if (requestedThemeSlugs && requestedThemeSlugs.length > 0) {
-      const routeThemeSlugs = (route.themes ?? [])
+      const routeThemes = route.themes ?? [];
+      const routeThemeSlugs = routeThemes
         .map((t) => t?.theme?.slug)
         .filter((s): s is string => typeof s === 'string');
       const matchedCount = requestedThemeSlugs.filter((slug) =>
@@ -235,6 +237,26 @@ export class RecommendationService {
         themeBonus = matchedCount >= 2 ? 0.45 : 0.3;
       } else {
         themeBonus = -0.2;
+      }
+
+      // [타이브레이커 1] 대표 기획 테마 일치 시 추가 특화 보너스 (+0.06점)
+      const primaryKeywords: Record<string, string> = {
+        'local-food': '맛집',
+        'emotion-cafe': '카페',
+        'beach-tour': '해변',
+        'photo-spot': '포토',
+        'traditional-market': '시장',
+        'nature-walk': '자연',
+      };
+      const isPrimaryTheme = requestedThemeSlugs.some((slug) => {
+        const kw = primaryKeywords[slug];
+        return (
+          (kw && (route.name || '').includes(kw)) ||
+          routeThemes[0]?.theme?.slug === slug
+        );
+      });
+      if (isPrimaryTheme) {
+        primaryThemeBonus = 0.06;
       }
     }
 
@@ -257,16 +279,11 @@ export class RecommendationService {
     // 외곽 로컬 상권 기여도 보너스 (최대 +0.1점 가산점)
     const localBonus = (Number(route.localContributionScore ?? 0) / 100) * 0.1;
 
-    // 뚜벅이(보행자) 전용 모드 선택 시 오르막 고도 피로도 차감 (0 ~ 0.1점 감점 클램핑)
+    // 고도 피로도 차감 (기본 미세 감점 + 뚜벅이 전용 모드 시 가중 감점)
+    const elevationGain = Number(route.totalElevationGainMeters ?? 0);
     const elevationPenalty = isPedestrianMode
-      ? Math.max(
-          0,
-          Math.min(
-            0.1,
-            (Number(route.totalElevationGainMeters ?? 0) / 400) * 0.1,
-          ),
-        )
-      : 0;
+      ? Math.max(0, Math.min(0.1, (elevationGain / 400) * 0.1))
+      : Math.max(0, Math.min(0.05, (elevationGain / 400) * 0.05));
 
     // 총 소요시간 적정성 가감점 (3~6시간 쾌적 코스 +0.05점 우대, 7시간 초과 -0.1점 감점)
     const durationMin = route.estimatedDurationMin ?? 0;
@@ -277,6 +294,20 @@ export class RecommendationService {
       durationAdjustment = -0.1;
     }
 
+    // [타이브레이커 2] 가성비 절약률 보너스 (지출 대비 절약액 비율 최대 +0.10점)
+    const savingsWon = Number(route.estimatedSavingsWon || 0);
+    const savingsRatio = Math.min(1.0, savingsWon / Math.max(1, totalCost));
+    const savingsBonus = savingsRatio * 0.1;
+
+    // [타이브레이커 3] 1일 이동 쾌적 거리(3km~5km) 우대 보너스 (+0.04점)
+    const distanceMeters = Number(route.totalDistanceMeters || 0);
+    let distanceBonus = 0;
+    if (distanceMeters >= 3000 && distanceMeters <= 5000) {
+      distanceBonus = 0.04;
+    } else if (distanceMeters > 5000 && distanceMeters <= 7500) {
+      distanceBonus = 0.02;
+    }
+
     const finalScore =
       baseScore -
       variancePenalty +
@@ -285,7 +316,10 @@ export class RecommendationService {
       elevationPenalty +
       durationAdjustment +
       themeBonus +
-      budgetBonus;
+      primaryThemeBonus +
+      budgetBonus +
+      savingsBonus +
+      distanceBonus;
 
     const clamped5Score = Math.min(5.0, Math.max(0, finalScore));
     return Math.round((clamped5Score / 5.0) * 100);

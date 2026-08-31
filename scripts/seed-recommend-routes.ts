@@ -197,21 +197,25 @@ interface SlotPattern {
   fallbackCategories?: PlaceCategory[];
 }
 
-/**
- * 6대 마스터 테마별 4-슬롯(Slot) 시퀀스 패턴 정의
- */
 function getThemeSlotPattern(themeSlug: string, targetStopCount: number): SlotPattern[] {
   if (themeSlug === 'local-food') {
-    // 1) local-food: Slot 1(FOOD) -> Slot 2(CAFE) -> Slot 3(FOOD/MARKET) -> Slot 4(VIEWPOINT/NATURE)
+    // 1) local-food: Slot 1(FOOD 점심) -> Slot 2(CAFE 디저트) -> Slot 3(VIEWPOINT/CULTURE 산책) -> Slot 4(FOOD 저녁)
     const pattern: SlotPattern[] = [
       { primaryCategories: [PlaceCategory.FOOD] },
       { primaryCategories: [PlaceCategory.CAFE] },
-      { primaryCategories: [PlaceCategory.FOOD, PlaceCategory.MARKET] },
+      {
+        primaryCategories: [
+          PlaceCategory.VIEWPOINT,
+          PlaceCategory.CULTURE,
+          PlaceCategory.NATURE,
+        ],
+        fallbackCategories: [PlaceCategory.EXPERIENCE, PlaceCategory.CAFE],
+      },
     ];
     if (targetStopCount === 4) {
       pattern.push({
-        primaryCategories: [PlaceCategory.VIEWPOINT, PlaceCategory.NATURE],
-        fallbackCategories: [PlaceCategory.CULTURE, PlaceCategory.EXPERIENCE],
+        primaryCategories: [PlaceCategory.FOOD, PlaceCategory.MARKET],
+        fallbackCategories: [PlaceCategory.EXPERIENCE, PlaceCategory.CAFE],
       });
     }
     return pattern;
@@ -372,8 +376,8 @@ async function seedRecommendRoutes() {
       const anchor = themeAnchors[courseIdx];
       totalRouteCount++;
 
-      // 경유지 수: 3 ~ 4개 가변 정돈 (모듈 기준)
-      const targetStopCount = 3 + (totalRouteCount % 2); // 3개 또는 4개 가변
+      // 경유지 수: 4개 고정
+      const targetStopCount = 4;
       const slotPatterns = getThemeSlotPattern(theme.slug, targetStopCount);
 
       const selectedStops: any[] = [anchor];
@@ -596,10 +600,11 @@ async function seedRecommendRoutes() {
 
       const estimatedCostWon = foodCostWon + experienceCostWon + transportCostWon;
       const matchingThemes: string[] = [theme.slug];
-      if (uniqueStops.some((p) => isBeachPlace(p))) {
+      if (uniqueStops.some((p) => isBeachPlace(p)) && theme.slug !== 'beach-tour') {
         matchingThemes.push('beach-tour');
       }
-      if (uniqueStops.some((p) => p.category === PlaceCategory.FOOD || p.category === PlaceCategory.MARKET)) {
+      const foodCount = uniqueStops.filter((p) => p.category === PlaceCategory.FOOD).length;
+      if (foodCount >= 2 && theme.slug !== 'local-food') {
         matchingThemes.push('local-food');
       }
       if (uniqueStops.some((p) => p.category === PlaceCategory.CAFE)) {

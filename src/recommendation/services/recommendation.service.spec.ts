@@ -565,8 +565,8 @@ describe('RecommendationService', () => {
     };
 
     mockRecommendationRepository.findRecommendedRoutes.mockResolvedValue([
-      { ...baseCandidate, id: 'r-max-98', name: 'Route 98', score: 4.9 },
-      { ...baseCandidate, id: 'r-max-99', name: 'Route 99', score: 4.95 },
+      { ...baseCandidate, id: 'r-max-98', name: 'Route 98', score: 4.88 },
+      { ...baseCandidate, id: 'r-max-99', name: 'Route 99', score: 4.94 },
       { ...baseCandidate, id: 'r-max-100', name: 'Route 100', score: 5.0 },
     ]);
 
@@ -612,5 +612,74 @@ describe('RecommendationService', () => {
     expect(score6).toBeDefined();
     // 6.0 must be >= 5.0 and capped at max score (no boundary inversion)
     expect(score6!).toBeGreaterThanOrEqual(score5!);
+  });
+
+  it('breaks ties between candidates with identical base scores using primary theme, savings, and distance bonuses', async () => {
+    const commonRoute = {
+      score: 4.8,
+      estimatedCostWon: 35000,
+      foodCostWon: 12250,
+      experienceCostWon: 8750,
+      transportCostWon: 14000,
+      congestionLevel: 'LOW' as const,
+      localContributionScore: 90,
+      estimatedDurationMin: 300,
+      stops: [],
+    };
+
+    mockRecommendationRepository.findRecommendedRoutes.mockResolvedValue([
+      // Route 1: Primary theme matches requested theme + high savings + sweetspot distance (highest tie-breaker)
+      {
+        ...commonRoute,
+        id: 'r-primary-match',
+        name: 'Primary Match Route',
+        themes: [{ theme: { slug: 'local-food' } }],
+        estimatedSavingsWon: 20000,
+        totalDistanceMeters: 4000,
+      },
+      // Route 2: Secondary theme matches + moderate savings + longer distance
+      {
+        ...commonRoute,
+        id: 'r-secondary-match',
+        name: 'Secondary Match Route',
+        themes: [
+          { theme: { slug: 'traditional-market' } },
+          { theme: { slug: 'local-food' } },
+        ],
+        estimatedSavingsWon: 12000,
+        totalDistanceMeters: 4500,
+      },
+      // Route 3: Secondary theme matches + minimal savings + short distance
+      {
+        ...commonRoute,
+        id: 'r-third-match',
+        name: 'Third Route',
+        themes: [
+          { theme: { slug: 'traditional-market' } },
+          { theme: { slug: 'local-food' } },
+        ],
+        estimatedSavingsWon: 1000,
+        totalDistanceMeters: 1000,
+      },
+    ]);
+
+    const results = await service.recommendRoutes({
+      travelStyleSlugs: ['local-food'],
+      durationDays: 1,
+      dailyBudgetWon: 60000,
+    });
+
+    expect(results).toHaveLength(3);
+    const scorePrimary = results.find((r) => r.id === 'r-primary-match')?.score;
+    const scoreSecondary = results.find(
+      (r) => r.id === 'r-secondary-match',
+    )?.score;
+    const scoreThird = results.find((r) => r.id === 'r-third-match')?.score;
+
+    expect(scorePrimary).toBeDefined();
+    expect(scoreSecondary).toBeDefined();
+    expect(scoreThird).toBeDefined();
+    expect(scorePrimary!).toBeGreaterThan(scoreSecondary!);
+    expect(scoreSecondary!).toBeGreaterThan(scoreThird!);
   });
 });
