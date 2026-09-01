@@ -159,14 +159,15 @@ sequenceDiagram
     DB-->>Svc: 후보군 루트 데이터 전달 (Take 50)
 
     Note over Svc: [Step 2: Soft Filter & 추천도 점수 연산] 메모리 레벨 연산 (1~2ms)
-        loop 후보군 Candidate Route 마다 7단계 연산
-        Svc->>Svc: 1) BaseScore (3.2~4.15점 압축 정규화, 5.0 만점 단일 척도 연산)
+        loop 후보군 Candidate Route 마다 8단계 연산
+        Svc->>Svc: 1) BaseScore (3.2~4.10점 압축 정규화, 5.0 만점 단일 척도 연산)
         Svc->>Svc: 2) Theme Bonus (+0.3~0.45점 일치 / -0.2점 미일치)
         Svc->>Svc: 3) Budget Bonus (+0.15점 충실 활용 / -0.1점 미달)
         Svc->>Svc: 4) Variance Penalty (식비 1.5x, 체험 1.0x, 교통 0.8x, 0.5x 완화)
-        Svc->>Svc: 5) Local Bonus (+0.10점) & Elevation Penalty (-0.10점)
+        Svc->>Svc: 5) Local Bonus (+0.10점) & Elevation Penalty (미세 -0.05 / 뚜벅이 -0.10점)
         Svc->>Svc: 6) Congestion Adj (LOW +0.1 / HIGH -0.15) & Duration Adj (+0.05 / -0.1점)
-        Svc->>Svc: 7) Final Score = clamp(0 ~ 100, Math.round(Sum / 5 * 100)) (0~100점 백분율 척도)
+        Svc->>Svc: 7) Tie-Breakers (주 테마 +0.06, 절약률 +0.10, 쾌적거리 +0.04)
+        Svc->>Svc: 8) Final Score = clamp(0 ~ 100, Math.round(Sum / 5 * 100)) (0~100점 백분율 척도)
     end
 
     Note over Svc: [Step 3: Multi-Day Stitching & Soft Penalty] (durationDays > 1)
@@ -204,24 +205,25 @@ flowchart TD
     classDef penalty fill:#ffebee,stroke:#c62828,stroke-width:2px;
     classDef final fill:#fff8e1,stroke:#f57f17,stroke-width:3px;
 
-    Start["후보 코스 데이터 (Take 50)"] --> Step1["1단계: Base Score<br/>(3.2 ~ 4.15점 스케일 매핑)"]:::base
+    Start["후보 코스 데이터 (Take 50)"] --> Step1["1단계: Base Score<br/>(3.2 ~ 4.10점 스케일 매핑)"]:::base
 
     Step1 --> Step2["2단계: Theme Bonus<br/>(+0.30 ~ +0.45점 일치 / -0.20점 미일치)"]:::bonus
     Step1 --> Step3["3단계: Budget Bonus<br/>(+0.15점 충실 활용 / -0.10점 미달)"]:::bonus
     Step1 --> Step4["4단계: Variance Penalty<br/>(식비 1.5x, 체험 1.0x, 교통 0.8x, 0.5x)"]:::penalty
-    Step1 --> Step5["5단계: Local Bonus & Elevation Penalty<br/>(+0.10점 로컬 / -0.10점 뚜벅이 고도)"]:::bonus
+    Step1 --> Step5["5단계: Local Bonus & Elevation Penalty<br/>(+0.10점 로컬 / -0.05~0.10점 고도)"]:::bonus
     Step1 --> Step6["6단계: Congestion & Duration Adj<br/>(혼잡도 +0.1/-0.15점 / 소요시간 +0.05/-0.1점)"]:::bonus
+    Step1 --> Step7["7단계: 1일차 Tie-Breakers<br/>(주 테마 +0.06 / 절약률 +0.10 / 쾌적거리 +0.04)"]:::bonus
 
-    Step2 & Step3 & Step4 & Step5 & Step6 --> Sum["가감점 합산 연산<br/>Base + Theme + Budget - Variance + Local - Elevation + Congestion + Duration"]
+    Step2 & Step3 & Step4 & Step5 & Step6 & Step7 --> Sum["가감점 합산 연산<br/>Base + Theme + Budget - Variance + Local - Elevation + Congestion + Duration + TieBreakers"]
     Sum --> Clamp["Clamping & 백분율 변환 연산<br/>Math.round(clamp(0 ~ 5.0) / 5 * 100)"]:::final
     Clamp --> Output["🏆 Final Score<br/>(0 ~ 100점 백분율 정수 척도 / 추천도 N%)"]:::final
 ```
 
 ##### 📐 수식 명세 (Mathematical Specifications)
 
-1. **1단계: 코스 기본 퀄리티 점수 ($\text{Base Score}$ - 3.2~4.15점 스케일 정규화, 최대 가산점 +0.85 여유폭 확보)**
-   $$\text{Base Score} = 3.2 + \min\left(0.95, \max\left(0, (\text{rawBaseScore} - 3.8) \times \frac{0.95}{1.2}\right)\right)$$
-   *(※ $\text{rawBaseScore}$는 DB에 5.0 만점 척도(3.5~4.9점)로 단일화되어 적재 및 연산됨)*
+1. **1단계: 코스 기본 퀄리티 점수 ($\text{Base Score}$ - 3.2~4.10점 스케일 정규화, 최대 가산점 여유폭 확보)**
+   $$\text{Base Score} = 3.2 + \min\left(0.90, \max\left(0, (\text{rawBaseScore} - 3.5) \times \frac{0.90}{1.5}\right)\right)$$
+   *(※ $\text{rawBaseScore}$는 DB에 5.0 만점 척도(3.5~5.0점)로 단일화되어 적재 및 연산되며, $\text{rawBaseScore} = 5.0$일 때 $\text{Base Score} = 4.10$ 만점을 가집니다)*
 
 2. **2단계: 유저 선택 테마 우대 가산점 ($\text{Theme Bonus}$ - 우선 노출 핵심 요소)**
    $$\text{Theme Bonus} = \begin{cases} +0.45 & (\text{선택 테마 2개 이상 일치}) \\ +0.30 & (\text{선택 테마 1개 일치}) \\ -0.20 & (\text{선택 테마 미일치}) \end{cases}$$
@@ -232,16 +234,22 @@ flowchart TD
 4. **4단계: 사용자 예산 비율 오차 제곱 패널티 ($\text{Variance Penalty}$ - 가중치 세분화)**
    $$\text{Variance Penalty} = \left( (R_{\text{food, user}} - R_{\text{food, actual}})^2 \times 1.5 + (R_{\text{exp, user}} - R_{\text{exp, actual}})^2 \times 1.0 + (R_{\text{trans, user}} - R_{\text{trans, actual}})^2 \times 0.8 \right) \times 0.5$$
 
-5. **5단계: 외곽 로컬 상권 가산점 ($\text{Local Bonus}$) & 뚜벅이 고도 피로도 감점 ($\text{Elevation Penalty}$)**
+5. **5단계: 외곽 로컬 상권 가산점 ($\text{Local Bonus}$) & 고도 피로도 감점 ($\text{Elevation Penalty}$)**
    $$\text{Local Bonus} = \left(\frac{\text{Route.localContributionScore}}{100}\right) \times 0.10 \quad (\text{최대 } +0.10\text{점})$$
-   $$\text{Elevation Penalty} = \begin{cases} \left(\frac{\text{totalElevationGainMeters}}{400}\right) \times 0.10 & (\text{isPedestrianMode} = \text{true, 최대 } -0.10\text{점}) \\ 0.0 & (\text{isPedestrianMode} = \text{false}) \end{cases}$$
+   $$\text{Elevation Penalty} = \begin{cases} \max\left(0, \min\left(0.10, \left(\frac{\text{totalElevationGainMeters}}{400}\right) \times 0.10\right)\right) & (\text{isPedestrianMode} = \text{true}) \\ \max\left(0, \min\left(0.05, \left(\frac{\text{totalElevationGainMeters}}{400}\right) \times 0.05\right)\right) & (\text{isPedestrianMode} = \text{false}) \end{cases}$$
    *(※ isPedestrianMode 미입력 시 일일 대중교통 할당 예산 $R_{\text{trans}} \times \text{dailyBudgetWon} < 4,000\text{원}$ 조건에 따라 자동으로 true 스마트 전환)*
 
 6. **6단계: 혼잡도 및 총 소요시간 가감점 ($\text{Congestion \& Duration Adj}$)**
    $$\text{Congestion Adjustment} = \begin{cases} +0.10 & (\text{LOW - 쾌적}) \\ 0.0 & (\text{MEDIUM - 보통}) \\ -0.15 & (\text{HIGH - 혼잡}) \end{cases}, \quad \text{Duration Adjustment} = \begin{cases} +0.05 & (180 \le \text{duration} \le 360\text{분}) \\ -0.10 & (\text{duration} > 420\text{분}) \\ 0.0 & (\text{기타}) \end{cases}$$
 
-7. **7단계: 🏆 최종 종합 추천도 점수 ($\text{Final Score}$ - 0~100점 백분율 정수 척도)**
-   $$\text{Final Score}_{5.0} = \min\left(5.0, \max\left(0, \text{Base Score} + \text{Theme Bonus} + \text{Budget Bonus} - \text{Variance Penalty} + \text{Local Bonus} - \text{Elevation Penalty} + \text{Congestion Adj} + \text{Duration Adj}\right)\right)$$
+7. **7단계: 1일차 동점 방지 타이브레이커 ($\text{Tie-Breakers}$ - durationDays = 1 전용)** 🆕
+   *(※ 1일차 단일 코스 요청 시에만 적용되며, 다일차(2일~5일) 요청 시에는 체이닝 알고리즘 왜곡 방지를 위해 배제됩니다)*
+   - **주 테마 일치 보너스**: $\text{Primary Theme Bonus} = +0.06\text{점}$ (코스의 1순위 대표 테마와 요청 테마 일치 시)
+   - **가성비 절약률 보너스**: $\text{Savings Bonus} = \min\left(1.0, \frac{\text{estimatedSavingsWon}}{\max(1, \text{totalCost})}\right) \times 0.10\text{점}$ (최대 $+0.10\text{점}$)
+   - **쾌적 이동거리 보너스**: $\text{Distance Bonus} = \begin{cases} +0.04\text{점} & (3,000\text{m} \le \text{dist} \le 5,000\text{m}) \\ +0.02\text{점} & (5,000\text{m} < \text{dist} \le 7,500\text{m}) \\ 0.0\text{점} & (\text{기타}) \end{cases}$
+
+8. **8단계: 🏆 최종 종합 추천도 점수 ($\text{Final Score}$ - 0~100점 백분율 정수 척도)**
+   $$\text{Final Score}_{5.0} = \min\left(5.0, \max\left(0, \text{Base} + \text{Theme} + \text{Budget} - \text{Variance} + \text{Local} - \text{Elevation} + \text{Congestion} + \text{Duration} + \text{TieBreakers}\right)\right)$$
    $$\text{Final Score}_{100} = \text{Math.round}\left(\frac{\text{Final Score}_{5.0}}{5.0} \times 100\right) \quad (0 \sim 100\text{점 정수})$$
 
 ---
@@ -326,10 +334,10 @@ flowchart TD
 | 검증 항목 | 결과 | 설명 |
 | --- | --- | --- |
 | Flowchart 모듈성 보완 | **PASS** | 1일차 모듈 기준 & dayNumber 메타데이터 노드 반영 |
-| 최종 추천도 7단계 통합 수식 | **PASS** | BaseScore, ThemeBonus, BudgetBonus, VariancePenalty 등 7단계 연산 후 0~100점 백분율 척도 변환 수식 명시 |
+| 최종 추천도 8단계 통합 수식 | **PASS** | BaseScore, ThemeBonus, BudgetBonus, VariancePenalty, TieBreakers 등 8단계 연산 후 0~100점 백분율 척도 변환 수식 명시 |
 | Exponential Backoff Retry | **PASS** | SEED 스크립트 외부 API 503/429 장애 시 3회 자동 재시도 적용 |
 | DTO 부동소수점 오차 방어 | **PASS** | `Math.abs(sum - 1.0) >= 0.001` 이면 예외 발생 (0.001 미만 오차 허용) |
-| Base Score 난이도 연동 | **PASS** | $\text{Base Score} = 3.2 + \min\left(0.95, \max\left(0, (\text{rawBaseScore} - 3.8) \times \frac{0.95}{1.2}\right)\right)$ 수식 명시 |
+| Base Score 난이도 연동 | **PASS** | $\text{Base Score} = 3.2 + \min\left(0.90, \max\left(0, (\text{rawBaseScore} - 3.5) \times \frac{0.90}{1.5}\right)\right)$ 수식 명시 |
 | Google Elevation 파이프 일괄 수집 | **PASS** | `Place.elevationMeters` 1회성 일괄 수집 완료 |
 | 역정규화 고도 연산 | **PASS** | `RouteStop.elevationGainMeters` 이동 순서 상대값 0-Call 저장 |
 | UI 6대 테마 SEED | **PASS** | `local-food`, `beach-tour` 등 6종 테마 PlaceCategory 직접 필터 매핑 완료 |

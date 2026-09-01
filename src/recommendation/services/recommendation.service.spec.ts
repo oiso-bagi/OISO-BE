@@ -565,8 +565,8 @@ describe('RecommendationService', () => {
     };
 
     mockRecommendationRepository.findRecommendedRoutes.mockResolvedValue([
-      { ...baseCandidate, id: 'r-max-98', name: 'Route 98', score: 4.9 },
-      { ...baseCandidate, id: 'r-max-99', name: 'Route 99', score: 4.95 },
+      { ...baseCandidate, id: 'r-max-98', name: 'Route 98', score: 4.8 },
+      { ...baseCandidate, id: 'r-max-99', name: 'Route 99', score: 4.9 },
       { ...baseCandidate, id: 'r-max-100', name: 'Route 100', score: 5.0 },
     ]);
 
@@ -586,6 +586,32 @@ describe('RecommendationService', () => {
     expect(score98).toBe(98);
     expect(score100).toBeGreaterThan(score99!);
     expect(score99!).toBeGreaterThan(score98!);
+  });
+
+  it('preserves score distinction across the full seeded range below 3.8 (e.g. 3.5 vs 3.7)', async () => {
+    const baseRoute = {
+      estimatedCostWon: 30000,
+      stops: [],
+    };
+
+    mockRecommendationRepository.findRecommendedRoutes.mockResolvedValue([
+      { ...baseRoute, id: 'r-score-35', name: 'Route 3.5', score: 3.5 },
+      { ...baseRoute, id: 'r-score-37', name: 'Route 3.7', score: 3.7 },
+    ]);
+
+    const results = await service.recommendRoutes({
+      travelStyleSlugs: ['local-food'],
+      durationDays: 1,
+      dailyBudgetWon: 60000,
+    });
+
+    expect(results).toHaveLength(2);
+    const score35 = results.find((r) => r.id === 'r-score-35')?.score;
+    const score37 = results.find((r) => r.id === 'r-score-37')?.score;
+
+    expect(score35).toBeDefined();
+    expect(score37).toBeDefined();
+    expect(score37!).toBeGreaterThan(score35!);
   });
 
   it('guarantees score 6.0 is monotonically non-decreasing compared to score 5.0 without inversion', async () => {
@@ -612,5 +638,176 @@ describe('RecommendationService', () => {
     expect(score6).toBeDefined();
     // 6.0 must be >= 5.0 and capped at max score (no boundary inversion)
     expect(score6!).toBeGreaterThanOrEqual(score5!);
+  });
+
+  it('breaks ties between candidates with identical base scores using primary theme, savings, and distance bonuses', async () => {
+    const commonRoute = {
+      score: 4.8,
+      estimatedCostWon: 35000,
+      foodCostWon: 12250,
+      experienceCostWon: 8750,
+      transportCostWon: 14000,
+      congestionLevel: 'LOW' as const,
+      localContributionScore: 90,
+      estimatedDurationMin: 300,
+      stops: [],
+    };
+
+    mockRecommendationRepository.findRecommendedRoutes.mockResolvedValue([
+      // Route 1: Primary theme matches requested theme + high savings + sweetspot distance (highest tie-breaker)
+      {
+        ...commonRoute,
+        id: 'r-primary-match',
+        name: 'Primary Match Route',
+        themes: [{ theme: { slug: 'local-food' } }],
+        estimatedSavingsWon: 20000,
+        totalDistanceMeters: 4000,
+      },
+      // Route 2: Secondary theme matches + moderate savings + longer distance
+      {
+        ...commonRoute,
+        id: 'r-secondary-match',
+        name: 'Secondary Match Route',
+        themes: [
+          { theme: { slug: 'traditional-market' } },
+          { theme: { slug: 'local-food' } },
+        ],
+        estimatedSavingsWon: 12000,
+        totalDistanceMeters: 4500,
+      },
+      // Route 3: Secondary theme matches + minimal savings + short distance
+      {
+        ...commonRoute,
+        id: 'r-third-match',
+        name: 'Third Route',
+        themes: [
+          { theme: { slug: 'traditional-market' } },
+          { theme: { slug: 'local-food' } },
+        ],
+        estimatedSavingsWon: 1000,
+        totalDistanceMeters: 1000,
+      },
+    ]);
+
+    const results = await service.recommendRoutes({
+      travelStyleSlugs: ['local-food'],
+      durationDays: 1,
+      dailyBudgetWon: 60000,
+    });
+
+    expect(results).toHaveLength(3);
+    const scorePrimary = results.find((r) => r.id === 'r-primary-match')?.score;
+    const scoreSecondary = results.find(
+      (r) => r.id === 'r-secondary-match',
+    )?.score;
+    const scoreThird = results.find((r) => r.id === 'r-third-match')?.score;
+
+    expect(scorePrimary).toBeDefined();
+    expect(scoreSecondary).toBeDefined();
+    expect(scoreThird).toBeDefined();
+    expect(scorePrimary!).toBeGreaterThan(scoreSecondary!);
+    expect(scoreSecondary!).toBeGreaterThan(scoreThird!);
+  });
+
+  it('does not grant local-food primaryThemeBonus to a route whose first theme is traditional-market even if its name contains 맛집', async () => {
+    const commonRoute = {
+      score: 4.8,
+      estimatedCostWon: 35000,
+      foodCostWon: 12250,
+      experienceCostWon: 8750,
+      transportCostWon: 14000,
+      congestionLevel: 'LOW' as const,
+      localContributionScore: 90,
+      estimatedDurationMin: 300,
+      estimatedSavingsWon: 10000,
+      totalDistanceMeters: 4000,
+      stops: [],
+    };
+
+    mockRecommendationRepository.findRecommendedRoutes.mockResolvedValue([
+      // Route A: 1st theme is local-food
+      {
+        ...commonRoute,
+        id: 'r-pure-food',
+        name: '부산 로컬 코스',
+        themes: [{ theme: { slug: 'local-food' } }],
+      },
+      // Route B: 1st theme is traditional-market, but name contains '맛집'
+      {
+        ...commonRoute,
+        id: 'r-market-with-food-name',
+        name: '부산 전통 시장 - 맛집 골목 릴레이 코스',
+        themes: [
+          { theme: { slug: 'traditional-market' } },
+          { theme: { slug: 'local-food' } },
+        ],
+      },
+    ]);
+
+    const results = await service.recommendRoutes({
+      travelStyleSlugs: ['local-food'],
+      durationDays: 1,
+      dailyBudgetWon: 60000,
+    });
+
+    expect(results).toHaveLength(2);
+    const scorePureFood = results.find((r) => r.id === 'r-pure-food')?.score;
+    const scoreMarketNamedFood = results.find(
+      (r) => r.id === 'r-market-with-food-name',
+    )?.score;
+
+    expect(scorePureFood).toBeDefined();
+    expect(scoreMarketNamedFood).toBeDefined();
+    // Pure food route must receive primaryThemeBonus and score strictly higher than market route
+    expect(scorePureFood!).toBeGreaterThan(scoreMarketNamedFood!);
+  });
+
+  it('excludes single-day tiebreakers for multi-day requests (durationDays > 1) and preserves chaining ranking', async () => {
+    const candidateA = {
+      id: 'day1-cand',
+      name: 'Day 1 Candidate',
+      score: 4.8,
+      estimatedCostWon: 25000,
+      estimatedSavingsWon: 20000,
+      totalDistanceMeters: 4000,
+      themes: [{ theme: { slug: 'local-food' } }],
+      stops: [
+        {
+          orderIndex: 0,
+          place: { id: 'p1', latitude: 35.1, longitude: 129.1 },
+        },
+      ],
+    };
+    const candidateB = {
+      id: 'day2-cand',
+      name: 'Day 2 Candidate',
+      score: 4.8,
+      estimatedCostWon: 25000,
+      estimatedSavingsWon: 1000,
+      totalDistanceMeters: 1000,
+      themes: [{ theme: { slug: 'beach-tour' } }],
+      stops: [
+        {
+          orderIndex: 0,
+          place: { id: 'p2', latitude: 35.105, longitude: 129.105 },
+        },
+      ],
+    };
+
+    mockRecommendationRepository.findRecommendedRoutes.mockResolvedValue([
+      candidateA,
+      candidateB,
+    ]);
+
+    const results = await service.recommendRoutes({
+      travelStyleSlugs: ['local-food', 'beach-tour'],
+      durationDays: 2,
+      dailyBudgetWon: 60000,
+    });
+
+    expect(results).toHaveLength(1);
+    expect(results[0].stopLocations).toHaveLength(2);
+    // Package score must be computed using multi-day formula with chaining bonus (+1.0) without 1-day tie-breaker inflation
+    expect(results[0].score).toBe(86);
   });
 });
