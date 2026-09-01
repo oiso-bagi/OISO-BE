@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { RecommendedRouteDetailResponseDto } from '@/route/dto/recommended-route-detail-response.dto';
+import { SaveRouteResponseDto } from '@/route/dto/save-route-response.dto';
 import { SavedRouteCompletionResponseDto } from '@/route/dto/saved-route-completion-response.dto';
 import { SavedRouteDetailResponseDto } from '@/route/dto/saved-route-detail-response.dto';
 import { SavedRouteListResponseDto } from '@/route/dto/saved-route-list-response.dto';
@@ -56,7 +57,10 @@ export class SavedRouteService {
     return SavedRouteDetailResponseDto.from(rawData);
   }
 
-  async saveRoute(userId: string, routeId: string): Promise<void> {
+  async saveRoute(
+    userId: string,
+    routeId: string,
+  ): Promise<SaveRouteResponseDto> {
     const normalizedUserId = this.validateUserId(userId);
     let normalizedRouteId = this.validateRouteId(routeId);
 
@@ -152,13 +156,14 @@ export class SavedRouteService {
       normalizedRouteId,
     );
     if (alreadySaved) {
-      return; // 이미 저장된 경우 멱등성 유지 (정상 처리)
+      return SaveRouteResponseDto.from(false); // 이미 저장된 경우 멱등성 유지 및 created: false 반환
     }
 
     await this.savedRouteRepository.createSavedRoute(
       normalizedUserId,
       normalizedRouteId,
     );
+    return SaveRouteResponseDto.from(true); // 새로 저장된 경우 created: true 반환
   }
 
   async deleteSavedRoute(userId: string, routeId: string): Promise<void> {
