@@ -156,14 +156,17 @@ export class SavedRouteService {
       normalizedRouteId,
     );
     if (alreadySaved) {
-      return SaveRouteResponseDto.from(false); // 이미 저장된 경우 멱등성 유지 및 created: false 반환
+      return SaveRouteResponseDto.from(false); // 이미 저장된 경우 멱등성 유지 및 불필요한 쓰기 방지
     }
 
-    await this.savedRouteRepository.createSavedRoute(
+    const savedResult = await this.savedRouteRepository.createSavedRoute(
       normalizedUserId,
       normalizedRouteId,
     );
-    return SaveRouteResponseDto.from(true); // 새로 저장된 경우 created: true 반환
+    const wasCreated = Boolean(
+      (savedResult as { savedAt?: Date } | null)?.savedAt,
+    );
+    return SaveRouteResponseDto.from(wasCreated);
   }
 
   async deleteSavedRoute(userId: string, routeId: string): Promise<void> {

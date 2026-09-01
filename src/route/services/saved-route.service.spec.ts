@@ -233,6 +233,7 @@ describe('SavedRouteService', () => {
       mockSavedRouteRepository.createSavedRoute.mockResolvedValue({
         userId: 'user-1',
         routeId: 'route-1',
+        savedAt: new Date('2026-09-01T12:00:00.000Z'),
       });
 
       const result = await service.saveRoute('user-1', 'route-1');
@@ -285,6 +286,7 @@ describe('SavedRouteService', () => {
       mockSavedRouteRepository.createSavedRoute.mockResolvedValue({
         userId: 'user-1',
         routeId: stitchedId,
+        savedAt: new Date('2026-09-01T12:00:00.000Z'),
       });
 
       const result = await service.saveRoute('user-1', stitchedId);
@@ -353,6 +355,26 @@ describe('SavedRouteService', () => {
       const result = await service.saveRoute('user-1', 'route-1');
 
       expect(mockSavedRouteRepository.createSavedRoute).not.toHaveBeenCalled();
+      expect(result.created).toBe(false);
+    });
+
+    it('handles concurrent race condition (P2002 collision where createSavedRoute returns without savedAt) by returning created = false', async () => {
+      mockSavedRouteRepository.findRouteById.mockResolvedValue({
+        id: 'route-1',
+      });
+      mockSavedRouteRepository.findSavedRoute.mockResolvedValue(null);
+      // createSavedRoute catches P2002 and returns { userId, routeId } without savedAt
+      mockSavedRouteRepository.createSavedRoute.mockResolvedValue({
+        userId: 'user-1',
+        routeId: 'route-1',
+      });
+
+      const result = await service.saveRoute('user-1', 'route-1');
+
+      expect(mockSavedRouteRepository.createSavedRoute).toHaveBeenCalledWith(
+        'user-1',
+        'route-1',
+      );
       expect(result.created).toBe(false);
     });
   });
