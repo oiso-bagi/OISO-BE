@@ -225,7 +225,7 @@ describe('SavedRouteService', () => {
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('creates saved route record when valid route is provided', async () => {
+    it('creates saved route record and returns created = true when valid route is provided', async () => {
       mockSavedRouteRepository.findRouteById.mockResolvedValue({
         id: 'route-1',
       });
@@ -233,17 +233,19 @@ describe('SavedRouteService', () => {
       mockSavedRouteRepository.createSavedRoute.mockResolvedValue({
         userId: 'user-1',
         routeId: 'route-1',
+        savedAt: new Date('2026-09-01T12:00:00.000Z'),
       });
 
-      await service.saveRoute('user-1', 'route-1');
+      const result = await service.saveRoute('user-1', 'route-1');
 
       expect(mockSavedRouteRepository.createSavedRoute).toHaveBeenCalledWith(
         'user-1',
         'route-1',
       );
+      expect(result.created).toBe(true);
     });
 
-    it('saves stitched route successfully by creating route entity first if not exists', async () => {
+    it('saves stitched route successfully and returns created = true', async () => {
       const stitchedId = 'stitched-route-1_route-2';
       const mockStitchedDetail = {
         routeName: '통합 코스',
@@ -284,9 +286,10 @@ describe('SavedRouteService', () => {
       mockSavedRouteRepository.createSavedRoute.mockResolvedValue({
         userId: 'user-1',
         routeId: stitchedId,
+        savedAt: new Date('2026-09-01T12:00:00.000Z'),
       });
 
-      await service.saveRoute('user-1', stitchedId);
+      const result = await service.saveRoute('user-1', stitchedId);
 
       expect(mockRouteService.getRecommendedRouteDetail).toHaveBeenCalledWith(
         stitchedId,
@@ -324,6 +327,7 @@ describe('SavedRouteService', () => {
         'user-1',
         stitchedId,
       );
+      expect(result.created).toBe(true);
     });
 
     it('throws NotFoundException when place in stitched route is not found in DB', async () => {
@@ -339,7 +343,7 @@ describe('SavedRouteService', () => {
       );
     });
 
-    it('does not duplicate create when already saved (idempotent)', async () => {
+    it('does not duplicate create and returns created = false when already saved (idempotent)', async () => {
       mockSavedRouteRepository.findRouteById.mockResolvedValue({
         id: 'route-1',
       });
@@ -348,9 +352,30 @@ describe('SavedRouteService', () => {
         routeId: 'route-1',
       });
 
-      await service.saveRoute('user-1', 'route-1');
+      const result = await service.saveRoute('user-1', 'route-1');
 
       expect(mockSavedRouteRepository.createSavedRoute).not.toHaveBeenCalled();
+      expect(result.created).toBe(false);
+    });
+
+    it('handles concurrent race condition (P2002 collision where createSavedRoute returns without savedAt) by returning created = false', async () => {
+      mockSavedRouteRepository.findRouteById.mockResolvedValue({
+        id: 'route-1',
+      });
+      mockSavedRouteRepository.findSavedRoute.mockResolvedValue(null);
+      // createSavedRoute catches P2002 and returns { userId, routeId } without savedAt
+      mockSavedRouteRepository.createSavedRoute.mockResolvedValue({
+        userId: 'user-1',
+        routeId: 'route-1',
+      });
+
+      const result = await service.saveRoute('user-1', 'route-1');
+
+      expect(mockSavedRouteRepository.createSavedRoute).toHaveBeenCalledWith(
+        'user-1',
+        'route-1',
+      );
+      expect(result.created).toBe(false);
     });
   });
 

@@ -51,15 +51,17 @@ describe('SavedRouteController', () => {
     expect(result).toBe(mockResponse);
   });
 
-  it('delegates to SavedRouteService.saveRoute with current user id and routeId', async () => {
-    mockSavedRouteService.saveRoute.mockResolvedValue(undefined);
+  it('delegates to SavedRouteService.saveRoute with current user id and routeId and returns SaveRouteResponseDto', async () => {
+    const mockResponse = { created: true };
+    mockSavedRouteService.saveRoute.mockResolvedValue(mockResponse);
 
-    await controller.saveRoute({ routeId: 'route-1' }, user);
+    const result = await controller.saveRoute({ routeId: 'route-1' }, user);
 
     expect(mockSavedRouteService.saveRoute).toHaveBeenCalledWith(
       'user-1',
       'route-1',
     );
+    expect(result).toBe(mockResponse);
   });
 
   it('delegates to SavedRouteService.deleteSavedRoute with current user id and routeId', async () => {

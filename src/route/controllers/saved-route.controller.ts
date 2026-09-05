@@ -22,6 +22,7 @@ import {
   ApiToggleSavedRouteCompletionDocs,
 } from '@/route/docs/saved-route-swagger.docs';
 import { CreateSavedRouteDto } from '@/route/dto/create-saved-route.dto';
+import { SaveRouteResponseDto } from '@/route/dto/save-route-response.dto';
 import { SavedRouteCompletionResponseDto } from '@/route/dto/saved-route-completion-response.dto';
 import { SavedRouteDetailResponseDto } from '@/route/dto/saved-route-detail-response.dto';
 import { SavedRouteListResponseDto } from '@/route/dto/saved-route-list-response.dto';
@@ -48,8 +49,8 @@ export class SavedRouteController {
   async saveRoute(
     @Body() dto: CreateSavedRouteDto,
     @CurrentUser() user: User,
-  ): Promise<void> {
-    await this.savedRouteService.saveRoute(user.id, dto.routeId);
+  ): Promise<SaveRouteResponseDto> {
+    return this.savedRouteService.saveRoute(user.id, dto.routeId);
   }
 
   @Delete(':routeId')

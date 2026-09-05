@@ -18,6 +18,7 @@ import {
   createCommonErrorExample,
 } from '@/common/docs/auth-error-swagger.docs';
 import { CreateSavedRouteDto } from '@/route/dto/create-saved-route.dto';
+import { SaveRouteResponseDto } from '@/route/dto/save-route-response.dto';
 import { SavedRouteCompletionResponseDto } from '@/route/dto/saved-route-completion-response.dto';
 import { SavedRouteDetailResponseDto } from '@/route/dto/saved-route-detail-response.dto';
 import { SavedRouteListResponseDto } from '@/route/dto/saved-route-list-response.dto';
@@ -160,11 +161,14 @@ export const ApiSaveRouteDocs = () =>
     applySavedRouteAuthDocs(),
     ApiOperation({
       summary: '추천 루트 보관함 저장 API',
-      description: '선택한 추천 루트를 유저의 보관함(SavedRoute)에 저장합니다.',
+      description:
+        '선택한 추천 루트를 유저의 보관함(SavedRoute)에 저장합니다. 신규 저장 시 created: true, 이미 저장되어 있는 경우 멱등성 유지와 함께 created: false를 반환합니다.',
     }),
     ApiBody({ type: CreateSavedRouteDto }),
     ApiCreatedResponse({
-      description: '성공적으로 보관함에 저장되었습니다.',
+      description:
+        '보관함 저장 요청이 성공적으로 처리되었습니다. (신규 생성 시 created: true, 기존 저장 시 created: false)',
+      type: SaveRouteResponseDto,
     }),
     ApiBadRequestResponse({
       description: 'routeId가 비어 있으면 400 응답을 반환합니다.',
