@@ -3,7 +3,6 @@ import {
   ApiBadRequestResponse,
   ApiBearerAuth,
   ApiBody,
-  ApiCookieAuth,
   ApiCreatedResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
@@ -11,7 +10,6 @@ import {
   ApiParam,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import { ACCESS_TOKEN_COOKIE } from '@/auth/auth.constants';
 import {
   AdminRouteDetailResponseDto,
   CreateAdminRouteDto,
@@ -21,7 +19,6 @@ import {
 const applyAdminAuthDocs = () =>
   applyDecorators(
     ApiBearerAuth(),
-    ApiCookieAuth(ACCESS_TOKEN_COOKIE),
     ApiUnauthorizedResponse({
       description:
         '인증 토큰이 유효하지 않거나 권한이 없습니다 (401 Unauthorized)',

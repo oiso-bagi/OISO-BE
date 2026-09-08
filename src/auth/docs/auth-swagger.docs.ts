@@ -10,10 +10,7 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import {
-  ACCESS_TOKEN_COOKIE,
-  REFRESH_TOKEN_COOKIE,
-} from '@/auth/auth.constants';
+import { REFRESH_TOKEN_COOKIE } from '@/auth/auth.constants';
 import { AuthSessionResponseDto } from '@/auth/dto/auth-session-response.dto';
 import { AuthTokenResponseDto } from '@/auth/dto/auth-token-response.dto';
 import { CurrentUserResponseDto } from '@/auth/dto/current-user-response.dto';
@@ -239,7 +236,6 @@ export const ApiHandleGoogleCallbackDocs = () =>
 export const ApiGetCurrentUserDocs = () =>
   applyDecorators(
     ApiBearerAuth(),
-    ApiCookieAuth(ACCESS_TOKEN_COOKIE),
     ApiOperation({
       summary: '현재 로그인한 사용자 조회',
       description: [
@@ -249,9 +245,8 @@ export const ApiGetCurrentUserDocs = () =>
         '요청 바디: 없음',
         '',
         '인증 방식:',
-        '1. Authorization: Bearer <accessToken> 헤더를 우선 사용합니다.',
-        '2. Bearer 토큰이 없으면 액세스 토큰 쿠키를 사용합니다.',
-        '3. 액세스 토큰이 없거나 유효하지 않으면 401 응답을 반환합니다.',
+        '1. Authorization: Bearer <accessToken> 헤더를 사용합니다.',
+        '2. 액세스 토큰이 없거나 유효하지 않으면 401 응답을 반환합니다.',
       ].join('\n'),
     }),
     ApiOkResponse({

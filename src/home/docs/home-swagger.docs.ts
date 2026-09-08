@@ -1,12 +1,10 @@
 import { applyDecorators } from '@nestjs/common';
 import {
   ApiBearerAuth,
-  ApiCookieAuth,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
-import { ACCESS_TOKEN_COOKIE } from '@/auth/auth.constants';
 import {
   ApiAccessTokenUnauthorizedResponseDocs,
   ApiJwtAccessTokenInternalServerErrorResponseDocs,
@@ -18,7 +16,6 @@ export const ApiHomeControllerDocs = () => ApiTags('Home');
 export const ApiGetHomeSummaryDocs = () =>
   applyDecorators(
     ApiBearerAuth(),
-    ApiCookieAuth(ACCESS_TOKEN_COOKIE),
     ApiOperation({
       summary: '홈 요약 조회',
       description: [
@@ -29,8 +26,6 @@ export const ApiGetHomeSummaryDocs = () =>
         '',
         '인증 방식:',
         '1. Authorization: Bearer <accessToken> 헤더를 우선 사용합니다.',
-        '2. Bearer 토큰이 없으면 액세스 토큰 쿠키를 사용합니다.',
-        '3. 인증에 성공한 사용자의 user.id 기준으로 저장 루트 요약을 조회합니다.',
       ].join('\n'),
     }),
     ApiOkResponse({

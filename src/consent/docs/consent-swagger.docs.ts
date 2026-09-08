@@ -3,12 +3,10 @@ import {
   ApiBadRequestResponse,
   ApiBearerAuth,
   ApiBody,
-  ApiCookieAuth,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
-import { ACCESS_TOKEN_COOKIE } from '@/auth/auth.constants';
 import {
   ApiAccessTokenUnauthorizedResponseDocs,
   ApiJwtAccessTokenInternalServerErrorResponseDocs,
@@ -56,7 +54,6 @@ export const ApiConsentControllerDocs = () => ApiTags('Consent');
 export const ApiGetConsentStatusDocs = () =>
   applyDecorators(
     ApiBearerAuth(),
-    ApiCookieAuth(ACCESS_TOKEN_COOKIE),
     ApiOperation({
       summary: '약관 동의 현황 조회',
       description: [
@@ -67,8 +64,6 @@ export const ApiGetConsentStatusDocs = () =>
         '',
         '인증 방식:',
         '1. Authorization: Bearer <accessToken> 헤더를 우선 사용합니다.',
-        '2. Bearer 토큰이 없으면 액세스 토큰 쿠키를 사용합니다.',
-        '3. 인증에 성공한 사용자의 user.id 기준으로 약관 동의 이력을 조회합니다.',
       ].join('\n'),
     }),
     ApiOkResponse({
@@ -85,7 +80,6 @@ export const ApiGetConsentStatusDocs = () =>
 export const ApiSubmitConsentDocs = () =>
   applyDecorators(
     ApiBearerAuth(),
-    ApiCookieAuth(ACCESS_TOKEN_COOKIE),
     ApiOperation({
       summary: '약관 동의 제출',
       description: [

@@ -3,7 +3,6 @@ import {
   ApiBearerAuth,
   ApiBody,
   ApiConflictResponse,
-  ApiCookieAuth,
   ApiForbiddenResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
@@ -14,7 +13,6 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { UserProvider, UserRole } from '@prisma/client';
-import { ACCESS_TOKEN_COOKIE } from '@/auth/auth.constants';
 import {
   AdminToggleUserActiveDto,
   AdminUpdateUserRoleDto,
@@ -27,7 +25,6 @@ export const ApiAdminUserControllerDocs = () => ApiTags('관리자 회원');
 const applyAdminAuthDocs = () =>
   applyDecorators(
     ApiBearerAuth(),
-    ApiCookieAuth(ACCESS_TOKEN_COOKIE),
     ApiUnauthorizedResponse({
       description: '인증 토큰이 없거나 유효하지 않거나 정지된 계정입니다.',
     }),

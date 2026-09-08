@@ -3,10 +3,7 @@ import { RequestMethod, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from '@/app.module';
-import {
-  ACCESS_TOKEN_COOKIE,
-  REFRESH_TOKEN_COOKIE,
-} from '@/auth/auth.constants';
+import { REFRESH_TOKEN_COOKIE } from '@/auth/auth.constants';
 import {
   isAllowedFrontendOrigin,
   resolveFrontendOriginRules,
@@ -56,7 +53,6 @@ async function bootstrap() {
     .setDescription('OISO backend API documentation')
     .setVersion('1.0.0')
     .addBearerAuth()
-    .addCookieAuth(ACCESS_TOKEN_COOKIE, undefined, ACCESS_TOKEN_COOKIE)
     .addCookieAuth(REFRESH_TOKEN_COOKIE, undefined, REFRESH_TOKEN_COOKIE)
     .build();
   const documentFactory = () =>
