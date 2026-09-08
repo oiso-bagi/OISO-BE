@@ -75,7 +75,7 @@ export const ApiGetSavedRouteListDocs = () =>
         '요청 바디: 없음',
         '',
         '인증 방식:',
-        '1. Authorization: Bearer <accessToken> 헤더를 우선 사용합니다.',
+        '1. Authorization: Bearer <accessToken> 헤더를 필수로 사용합니다.',
       ].join('\n'),
     }),
     ApiOkResponse({
@@ -111,7 +111,7 @@ export const ApiGetSavedRouteDetailDocs = () =>
         '요청 바디: 없음',
         '',
         '인증 방식:',
-        '1. Authorization: Bearer <accessToken> 헤더를 우선 사용합니다.',
+        '1. Authorization: Bearer <accessToken> 헤더를 필수로 사용합니다.',
       ].join('\n'),
     }),
     ApiParam({
