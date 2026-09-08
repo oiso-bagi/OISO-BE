@@ -13,7 +13,6 @@ describe('AuthGuard', () => {
     getCurrentUser: jest.fn(),
   };
   const mockAuthCookieService = {
-    parseCookies: jest.fn(),
     getBearerToken: jest.fn(),
   };
   let guard: AuthGuard;
@@ -35,39 +34,38 @@ describe('AuthGuard', () => {
     );
   });
 
-  it('resolves the user from the access token cookie and attaches it to the request', async () => {
+  it('resolves the user from the bearer token and attaches it to the request', async () => {
     const request: Partial<Request> & { user?: unknown } = { headers: {} };
-    mockAuthCookieService.parseCookies.mockReturnValue({
-      [ACCESS_TOKEN_COOKIE]: 'cookie-access-token',
-    });
-    mockAuthCookieService.getBearerToken.mockReturnValue(undefined);
+    mockAuthCookieService.getBearerToken.mockReturnValue('bearer-token');
     mockAuthService.getCurrentUser.mockResolvedValue({ id: 'user-id' });
 
     const context = createContext(request);
 
     await expect(guard.canActivate(context)).resolves.toBe(true);
-    expect(mockAuthService.getCurrentUser).toHaveBeenCalledWith(
-      'cookie-access-token',
-    );
+    expect(mockAuthService.getCurrentUser).toHaveBeenCalledWith('bearer-token');
     expect(request.user).toEqual({ id: 'user-id' });
   });
 
-  it('prefers a bearer token over the access token cookie', async () => {
-    const request: Partial<Request> & { user?: unknown } = { headers: {} };
-    mockAuthCookieService.parseCookies.mockReturnValue({
-      [ACCESS_TOKEN_COOKIE]: 'cookie-access-token',
-    });
-    mockAuthCookieService.getBearerToken.mockReturnValue('bearer-token');
-    mockAuthService.getCurrentUser.mockResolvedValue({ id: 'user-id' });
+  it('does not use the access token cookie as a fallback', async () => {
+    const request: Partial<Request> & { user?: unknown } = {
+      headers: {
+        cookie: `${ACCESS_TOKEN_COOKIE}=cookie-access-token`,
+      },
+    };
+    mockAuthCookieService.getBearerToken.mockReturnValue(undefined);
+    mockAuthService.getCurrentUser.mockRejectedValue(
+      new UnauthorizedException('?≪꽭???좏겙???꾩슂?⑸땲??'),
+    );
 
-    await guard.canActivate(createContext(request));
+    await expect(guard.canActivate(createContext(request))).rejects.toThrow(
+      UnauthorizedException,
+    );
 
-    expect(mockAuthService.getCurrentUser).toHaveBeenCalledWith('bearer-token');
+    expect(mockAuthService.getCurrentUser).toHaveBeenCalledWith(undefined);
   });
 
   it('propagates UnauthorizedException when authentication fails', async () => {
     const request: Partial<Request> & { user?: unknown } = { headers: {} };
-    mockAuthCookieService.parseCookies.mockReturnValue({});
     mockAuthCookieService.getBearerToken.mockReturnValue(undefined);
     mockAuthService.getCurrentUser.mockRejectedValue(
       new UnauthorizedException('액세스 토큰이 필요합니다.'),

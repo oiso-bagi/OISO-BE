@@ -3,7 +3,6 @@ import {
   ApiBadRequestResponse,
   ApiBearerAuth,
   ApiBody,
-  ApiCookieAuth,
   ApiCreatedResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
@@ -11,7 +10,6 @@ import {
   ApiParam,
   ApiTags,
 } from '@nestjs/swagger';
-import { ACCESS_TOKEN_COOKIE } from '@/auth/auth.constants';
 import {
   ApiAccessTokenUnauthorizedResponseDocs,
   ApiJwtAccessTokenInternalServerErrorResponseDocs,
@@ -63,11 +61,7 @@ const savedRouteNotFoundExamples = {
 export const ApiSavedRouteControllerDocs = () => ApiTags('Saved Route');
 
 const applySavedRouteAuthDocs = () =>
-  applyDecorators(
-    ApiBearerAuth(),
-    ApiCookieAuth(ACCESS_TOKEN_COOKIE),
-    ApiAccessTokenUnauthorizedResponseDocs(),
-  );
+  applyDecorators(ApiBearerAuth(), ApiAccessTokenUnauthorizedResponseDocs());
 
 export const ApiGetSavedRouteListDocs = () =>
   applyDecorators(
@@ -81,9 +75,7 @@ export const ApiGetSavedRouteListDocs = () =>
         '요청 바디: 없음',
         '',
         '인증 방식:',
-        '1. Authorization: Bearer <accessToken> 헤더를 우선 사용합니다.',
-        '2. Bearer 토큰이 없으면 액세스 토큰 쿠키를 사용합니다.',
-        '3. 인증에 성공한 사용자의 user.id 기준으로 저장 루트를 조회합니다.',
+        '1. Authorization: Bearer <accessToken> 헤더를 필수로 사용합니다.',
       ].join('\n'),
     }),
     ApiOkResponse({
@@ -119,9 +111,7 @@ export const ApiGetSavedRouteDetailDocs = () =>
         '요청 바디: 없음',
         '',
         '인증 방식:',
-        '1. Authorization: Bearer <accessToken> 헤더를 우선 사용합니다.',
-        '2. Bearer 토큰이 없으면 액세스 토큰 쿠키를 사용합니다.',
-        '3. 인증에 성공한 사용자의 user.id 기준으로 저장 여부를 확인합니다.',
+        '1. Authorization: Bearer <accessToken> 헤더를 필수로 사용합니다.',
       ].join('\n'),
     }),
     ApiParam({

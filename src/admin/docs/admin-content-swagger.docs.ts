@@ -2,7 +2,6 @@ import { applyDecorators } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiBody,
-  ApiCookieAuth,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
@@ -11,7 +10,6 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import { ACCESS_TOKEN_COOKIE } from '@/auth/auth.constants';
 import {
   AdminPlaceListItemDto,
   AdminPlacePageResponseDto,
@@ -28,7 +26,6 @@ export const ApiAdminContentControllerDocs = () => ApiTags('Admin Content');
 const applyAdminAuthDocs = () =>
   applyDecorators(
     ApiBearerAuth(),
-    ApiCookieAuth(ACCESS_TOKEN_COOKIE),
     ApiUnauthorizedResponse({
       description:
         '인증 토큰이 유효하지 않거나 권한이 없습니다 (401 Unauthorized)',

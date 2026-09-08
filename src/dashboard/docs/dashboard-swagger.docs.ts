@@ -2,12 +2,10 @@ import { applyDecorators } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
-  ApiCookieAuth,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
-import { ACCESS_TOKEN_COOKIE } from '@/auth/auth.constants';
 import {
   ApiAccessTokenUnauthorizedResponseDocs,
   ApiJwtAccessTokenInternalServerErrorResponseDocs,
@@ -19,7 +17,6 @@ export const ApiDashboardControllerDocs = () => ApiTags('Dashboard');
 export const ApiGetSavingsDashboardDocs = () =>
   applyDecorators(
     ApiBearerAuth(),
-    ApiCookieAuth(ACCESS_TOKEN_COOKIE),
     ApiOperation({
       summary: '절약 대시보드 조회',
       description: [
@@ -30,8 +27,6 @@ export const ApiGetSavingsDashboardDocs = () =>
         '',
         '인증 방식:',
         '1. Authorization: Bearer <accessToken> 헤더를 우선 사용합니다.',
-        '2. Bearer 토큰이 없으면 액세스 토큰 쿠키를 사용합니다.',
-        '3. 인증에 성공한 사용자의 user.id 기준으로 대시보드를 조회합니다.',
       ].join('\n'),
     }),
     ApiOkResponse({
