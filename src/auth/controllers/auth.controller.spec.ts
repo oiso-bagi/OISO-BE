@@ -24,24 +24,33 @@ interface MockResponse extends Response {
   redirectMock: jest.Mock<void, [string]>;
 }
 
+type AuthorizationUrlMock = jest.Mock<string, [string, string]>;
+type UserProfileMock = jest.Mock<Promise<unknown>, [string, string]>;
+
 describe('AuthController', () => {
   const originalKakaoRedirectUri = process.env.KAKAO_REDIRECT_URI;
   const originalGoogleRedirectUri = process.env.GOOGLE_REDIRECT_URI;
   const mockAuthService = {
-    loginWithKakao: jest.fn(),
-    loginWithGoogle: jest.fn(),
+    loginWithKakao: jest.fn<Promise<unknown>, [unknown]>(),
+    loginWithGoogle: jest.fn<Promise<unknown>, [unknown]>(),
   };
-  const mockKakaoAuthService = {
-    getAuthorizationUrl: jest.fn(),
-    getUserProfile: jest.fn(),
+  const mockKakaoAuthService: {
+    getAuthorizationUrl: AuthorizationUrlMock;
+    getUserProfile: UserProfileMock;
+  } = {
+    getAuthorizationUrl: jest.fn<string, [string, string]>(),
+    getUserProfile: jest.fn<Promise<unknown>, [string, string]>(),
   };
-  const mockGoogleAuthService = {
-    getAuthorizationUrl: jest.fn(),
-    getUserProfile: jest.fn(),
+  const mockGoogleAuthService: {
+    getAuthorizationUrl: AuthorizationUrlMock;
+    getUserProfile: UserProfileMock;
+  } = {
+    getAuthorizationUrl: jest.fn<string, [string, string]>(),
+    getUserProfile: jest.fn<Promise<unknown>, [string, string]>(),
   };
   const mockAuthCookieService = {
-    getSafeOAuthReturnUrl: jest.fn(),
-    getBaseCookieOptions: jest.fn(),
+    getSafeOAuthReturnUrl: jest.fn<string | undefined, [unknown]>(),
+    getBaseCookieOptions: jest.fn<Record<string, unknown>, []>(),
   };
   const mockOAuthFlowService: {
     handleSocialCallback: jest.Mock<Promise<void>, [OAuthCallbackParams]>;
@@ -63,6 +72,8 @@ describe('AuthController', () => {
     mockGoogleAuthService.getAuthorizationUrl.mockReturnValue(
       'https://accounts.google.com/o/oauth2/v2/auth',
     );
+    mockKakaoAuthService.getUserProfile.mockResolvedValue({});
+    mockGoogleAuthService.getUserProfile.mockResolvedValue({});
     mockAuthCookieService.getSafeOAuthReturnUrl.mockReturnValue(undefined);
     mockAuthCookieService.getBaseCookieOptions.mockReturnValue({
       httpOnly: true,
@@ -79,19 +90,25 @@ describe('AuthController', () => {
 
   describe('OAuth callback URL', () => {
     it('builds a local callback URL from the request host', () => {
+      delete process.env.KAKAO_REDIRECT_URI;
       const request = {
         protocol: 'http',
         headers: {
           host: 'localhost:3000',
         },
       } as Request;
+      const response = createResponse();
 
-      expect(controller['getOAuthCallbackUrl'](request, 'kakao')).toBe(
+      controller.redirectToKakao(undefined, request, response);
+
+      expectAuthorizationRedirectUri(
+        mockKakaoAuthService.getAuthorizationUrl,
         'http://localhost:3000/api/v1/auth/kakao/callback',
       );
     });
 
     it('builds a deployed callback URL from forwarded proxy headers', () => {
+      delete process.env.GOOGLE_REDIRECT_URI;
       const request = {
         protocol: 'http',
         headers: {
@@ -100,8 +117,12 @@ describe('AuthController', () => {
           'x-forwarded-host': 'oiso-be-production.up.railway.app',
         },
       } as unknown as Request;
+      const response = createResponse();
 
-      expect(controller['getOAuthCallbackUrl'](request, 'google')).toBe(
+      controller.redirectToGoogle(undefined, request, response);
+
+      expectAuthorizationRedirectUri(
+        mockGoogleAuthService.getAuthorizationUrl,
         'https://oiso-be-production.up.railway.app/api/v1/auth/google/callback',
       );
     });
@@ -117,8 +138,12 @@ describe('AuthController', () => {
           'x-forwarded-host': 'oiso-be-production.up.railway.app',
         },
       } as unknown as Request;
+      const response = createResponse();
 
-      expect(controller['resolveOAuthRedirectUri'](request, 'kakao')).toBe(
+      controller.redirectToKakao(undefined, request, response);
+
+      expectAuthorizationRedirectUri(
+        mockKakaoAuthService.getAuthorizationUrl,
         'https://api.example.com/api/v1/auth/kakao/callback',
       );
     });
@@ -134,8 +159,12 @@ describe('AuthController', () => {
           'x-forwarded-host': 'oiso-be-production.up.railway.app',
         },
       } as unknown as Request;
+      const response = createResponse();
 
-      expect(controller['resolveOAuthRedirectUri'](request, 'google')).toBe(
+      controller.redirectToGoogle(undefined, request, response);
+
+      expectAuthorizationRedirectUri(
+        mockGoogleAuthService.getAuthorizationUrl,
         'https://api.example.com/api/v1/auth/google/callback',
       );
     });
@@ -148,13 +177,13 @@ describe('AuthController', () => {
 
       controller.redirectToKakao(undefined, request, response);
 
-      expect(mockKakaoAuthService.getAuthorizationUrl).toHaveBeenCalledWith(
-        expect.any(String),
+      expectAuthorizationRedirectUri(
+        mockKakaoAuthService.getAuthorizationUrl,
         'https://api.example.com/api/v1/auth/kakao/callback',
       );
-      expect(response.redirectMock).toHaveBeenCalledWith(
+      expect(getFirstMockCall(response.redirectMock)).toEqual([
         'https://kauth.kakao.com/oauth/authorize',
-      );
+      ]);
     });
 
     it('redirects to Google with the configured redirect URI', () => {
@@ -165,13 +194,13 @@ describe('AuthController', () => {
 
       controller.redirectToGoogle(undefined, request, response);
 
-      expect(mockGoogleAuthService.getAuthorizationUrl).toHaveBeenCalledWith(
-        expect.any(String),
+      expectAuthorizationRedirectUri(
+        mockGoogleAuthService.getAuthorizationUrl,
         'https://api.example.com/api/v1/auth/google/callback',
       );
-      expect(response.redirectMock).toHaveBeenCalledWith(
+      expect(getFirstMockCall(response.redirectMock)).toEqual([
         'https://accounts.google.com/o/oauth2/v2/auth',
-      );
+      ]);
     });
 
     it('passes the configured Kakao redirect URI to the callback profile lookup', async () => {
@@ -194,10 +223,10 @@ describe('AuthController', () => {
 
       await callbackParams.getProfile('validated-code');
 
-      expect(mockKakaoAuthService.getUserProfile).toHaveBeenCalledWith(
+      expect(getFirstMockCall(mockKakaoAuthService.getUserProfile)).toEqual([
         'validated-code',
         'https://api.example.com/api/v1/auth/kakao/callback',
-      );
+      ]);
     });
 
     it('passes the configured Google redirect URI to the callback profile lookup', async () => {
@@ -220,10 +249,10 @@ describe('AuthController', () => {
 
       await callbackParams.getProfile('validated-code');
 
-      expect(mockGoogleAuthService.getUserProfile).toHaveBeenCalledWith(
+      expect(getFirstMockCall(mockGoogleAuthService.getUserProfile)).toEqual([
         'validated-code',
         'https://api.example.com/api/v1/auth/google/callback',
-      );
+      ]);
     });
 
     it('rejects an invalid configured Kakao redirect URI', () => {
@@ -245,8 +274,8 @@ describe('AuthController', () => {
 
       controller.redirectToKakao(undefined, request, response);
 
-      expect(mockKakaoAuthService.getAuthorizationUrl).toHaveBeenCalledWith(
-        expect.any(String),
+      expectAuthorizationRedirectUri(
+        mockKakaoAuthService.getAuthorizationUrl,
         'https://oiso-be-production.up.railway.app/api/v1/auth/kakao/callback',
       );
     });
@@ -286,11 +315,33 @@ function createResponse(): MockResponse {
 function getFirstSocialCallbackParams(
   handleSocialCallback: jest.Mock<Promise<void>, [OAuthCallbackParams]>,
 ): OAuthCallbackParams {
-  const params = handleSocialCallback.mock.calls[0]?.[0];
+  const [params] = getFirstMockCall(handleSocialCallback);
 
   if (!params) {
     throw new Error('Expected OAuth callback params to be captured.');
   }
 
   return params;
+}
+
+function expectAuthorizationRedirectUri(
+  getAuthorizationUrl: AuthorizationUrlMock,
+  expectedRedirectUri: string,
+): void {
+  const [state, redirectUri] = getFirstMockCall(getAuthorizationUrl);
+
+  expect(typeof state).toBe('string');
+  expect(redirectUri).toBe(expectedRedirectUri);
+}
+
+function getFirstMockCall<TResult, TArgs extends unknown[]>(
+  mock: jest.Mock<TResult, TArgs>,
+): TArgs {
+  const firstCall = mock.mock.calls.at(0);
+
+  if (!firstCall) {
+    throw new Error('Expected mock to have been called.');
+  }
+
+  return firstCall;
 }
