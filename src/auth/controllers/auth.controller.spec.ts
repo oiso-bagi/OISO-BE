@@ -9,6 +9,21 @@ import type { GoogleAuthService } from '@/auth/services/google-auth.service';
 import type { KakaoAuthService } from '@/auth/services/kakao-auth.service';
 import type { OAuthFlowService } from '@/auth/services/oauth-flow.service';
 
+interface OAuthCallbackParams {
+  code: unknown;
+  state: unknown;
+  error: unknown;
+  request: Request;
+  response: Response;
+  providerName: string;
+  getProfile: (code: string) => Promise<unknown>;
+  login: (profile: unknown) => Promise<unknown>;
+}
+
+interface MockResponse extends Response {
+  redirectMock: jest.Mock<void, [string]>;
+}
+
 describe('AuthController', () => {
   const originalKakaoRedirectUri = process.env.KAKAO_REDIRECT_URI;
   const originalGoogleRedirectUri = process.env.GOOGLE_REDIRECT_URI;
@@ -28,8 +43,10 @@ describe('AuthController', () => {
     getSafeOAuthReturnUrl: jest.fn(),
     getBaseCookieOptions: jest.fn(),
   };
-  const mockOAuthFlowService = {
-    handleSocialCallback: jest.fn(),
+  const mockOAuthFlowService: {
+    handleSocialCallback: jest.Mock<Promise<void>, [OAuthCallbackParams]>;
+  } = {
+    handleSocialCallback: jest.fn<Promise<void>, [OAuthCallbackParams]>(),
   };
   let controller: AuthController;
 
@@ -135,7 +152,7 @@ describe('AuthController', () => {
         expect.any(String),
         'https://api.example.com/api/v1/auth/kakao/callback',
       );
-      expect(response.redirect).toHaveBeenCalledWith(
+      expect(response.redirectMock).toHaveBeenCalledWith(
         'https://kauth.kakao.com/oauth/authorize',
       );
     });
@@ -152,7 +169,7 @@ describe('AuthController', () => {
         expect.any(String),
         'https://api.example.com/api/v1/auth/google/callback',
       );
-      expect(response.redirect).toHaveBeenCalledWith(
+      expect(response.redirectMock).toHaveBeenCalledWith(
         'https://accounts.google.com/o/oauth2/v2/auth',
       );
     });
@@ -171,8 +188,9 @@ describe('AuthController', () => {
         response,
       );
 
-      const callbackParams = mockOAuthFlowService.handleSocialCallback.mock
-        .calls[0][0] as { getProfile: (code: string) => Promise<unknown> };
+      const callbackParams = getFirstSocialCallbackParams(
+        mockOAuthFlowService.handleSocialCallback,
+      );
 
       await callbackParams.getProfile('validated-code');
 
@@ -196,8 +214,9 @@ describe('AuthController', () => {
         response,
       );
 
-      const callbackParams = mockOAuthFlowService.handleSocialCallback.mock
-        .calls[0][0] as { getProfile: (code: string) => Promise<unknown> };
+      const callbackParams = getFirstSocialCallbackParams(
+        mockOAuthFlowService.handleSocialCallback,
+      );
 
       await callbackParams.getProfile('validated-code');
 
@@ -254,9 +273,24 @@ function createRailwayRequest(): Request {
   } as unknown as Request;
 }
 
-function createResponse(): Response {
+function createResponse(): MockResponse {
+  const redirectMock = jest.fn<void, [string]>();
+
   return {
     cookie: jest.fn(),
-    redirect: jest.fn(),
-  } as unknown as Response;
+    redirect: redirectMock,
+    redirectMock,
+  } as unknown as MockResponse;
+}
+
+function getFirstSocialCallbackParams(
+  handleSocialCallback: jest.Mock<Promise<void>, [OAuthCallbackParams]>,
+): OAuthCallbackParams {
+  const params = handleSocialCallback.mock.calls[0]?.[0];
+
+  if (!params) {
+    throw new Error('Expected OAuth callback params to be captured.');
+  }
+
+  return params;
 }
