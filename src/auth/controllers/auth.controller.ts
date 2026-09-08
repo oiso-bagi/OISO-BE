@@ -58,7 +58,7 @@ export class AuthController {
     @Req() request: Request,
     @Res() response: Response,
   ): void {
-    const redirectUri = this.getOAuthCallbackUrl(request, 'kakao');
+    const redirectUri = this.resolveOAuthRedirectUri(request, 'kakao');
 
     this.redirectToProvider(response, returnUrl, (state) =>
       this.kakaoAuthService.getAuthorizationUrl(state, redirectUri),
@@ -84,7 +84,7 @@ export class AuthController {
       getProfile: (validatedCode) =>
         this.kakaoAuthService.getUserProfile(
           validatedCode,
-          this.getOAuthCallbackUrl(request, 'kakao'),
+          this.resolveOAuthRedirectUri(request, 'kakao'),
         ),
       login: (profile) => this.authService.loginWithKakao(profile),
     });
@@ -97,7 +97,7 @@ export class AuthController {
     @Req() request: Request,
     @Res() response: Response,
   ): void {
-    const redirectUri = this.getOAuthCallbackUrl(request, 'google');
+    const redirectUri = this.resolveOAuthRedirectUri(request, 'google');
 
     this.redirectToProvider(response, returnUrl, (state) =>
       this.googleAuthService.getAuthorizationUrl(state, redirectUri),
@@ -123,7 +123,7 @@ export class AuthController {
       getProfile: (validatedCode) =>
         this.googleAuthService.getUserProfile(
           validatedCode,
-          this.getOAuthCallbackUrl(request, 'google'),
+          this.resolveOAuthRedirectUri(request, 'google'),
         ),
       login: (profile) => this.authService.loginWithGoogle(profile),
     });
@@ -196,6 +196,38 @@ export class AuthController {
       });
     }
     response.redirect(getAuthorizationUrl(state));
+  }
+
+  private resolveOAuthRedirectUri(
+    request: Request,
+    provider: 'kakao' | 'google',
+  ): string {
+    const configuredRedirectUri =
+      provider === 'kakao'
+        ? process.env.KAKAO_REDIRECT_URI
+        : process.env.GOOGLE_REDIRECT_URI;
+    const normalizedRedirectUri = configuredRedirectUri?.trim();
+
+    if (normalizedRedirectUri) {
+      this.assertValidUrl(normalizedRedirectUri, provider);
+
+      return normalizedRedirectUri;
+    }
+
+    return this.getOAuthCallbackUrl(request, provider);
+  }
+
+  private assertValidUrl(value: string, provider: 'kakao' | 'google'): void {
+    try {
+      new URL(value);
+    } catch {
+      const envName =
+        provider === 'kakao' ? 'KAKAO_REDIRECT_URI' : 'GOOGLE_REDIRECT_URI';
+
+      throw new InternalServerErrorException(
+        `${envName} must be a valid absolute URL.`,
+      );
+    }
   }
 
   private getOAuthCallbackUrl(
