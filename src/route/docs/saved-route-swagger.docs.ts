@@ -61,10 +61,7 @@ const savedRouteNotFoundExamples = {
 export const ApiSavedRouteControllerDocs = () => ApiTags('Saved Route');
 
 const applySavedRouteAuthDocs = () =>
-  applyDecorators(
-    ApiBearerAuth(),
-    ApiAccessTokenUnauthorizedResponseDocs(),
-  );
+  applyDecorators(ApiBearerAuth(), ApiAccessTokenUnauthorizedResponseDocs());
 
 export const ApiGetSavedRouteListDocs = () =>
   applyDecorators(
