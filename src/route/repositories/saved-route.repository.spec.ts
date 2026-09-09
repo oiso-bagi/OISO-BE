@@ -11,6 +11,10 @@ describe('SavedRouteRepository', () => {
       findFirst: jest.Mock;
       deleteMany: jest.Mock;
     };
+    route: {
+      findUnique: jest.Mock;
+      create: jest.Mock;
+    };
     $transaction: jest.Mock;
   };
 
@@ -20,6 +24,10 @@ describe('SavedRouteRepository', () => {
         findMany: jest.fn(),
         findFirst: jest.fn(),
         deleteMany: jest.fn(),
+      },
+      route: {
+        findUnique: jest.fn(),
+        create: jest.fn(),
       },
       $transaction: jest.fn(),
     };
@@ -185,6 +193,84 @@ describe('SavedRouteRepository', () => {
 
       expect(attempts).toBe(2);
       expect(result).toEqual(mockTrip);
+    });
+  });
+
+  describe('ensureRouteExistsFromStitched', () => {
+    it('creates stitched route with localContributionScore when not existing', async () => {
+      prismaService.route.findUnique.mockResolvedValue(null);
+      prismaService.route.create.mockResolvedValue({ id: 'stitched-1' });
+
+      const result: string = await repository.ensureRouteExistsFromStitched(
+        'stitched-1',
+        {
+          name: '통합 코스',
+          totalDistanceMeters: 5000,
+          estimatedSavingsWon: 2000,
+          score: 4.5,
+          localContributionScore: 70,
+          stops: [
+            {
+              placeId: 'place-1',
+              orderIndex: 0,
+              dayNumber: 1,
+            },
+          ],
+        },
+      );
+
+      expect(result).toBe('stitched-1');
+      expect(prismaService.route.create).toHaveBeenCalledWith({
+        data: {
+          id: 'stitched-1',
+          name: '통합 코스',
+          region: '부산',
+          estimatedCostWon: 0,
+          estimatedDurationMin: 0,
+          totalDistanceMeters: 5000,
+          estimatedSavingsWon: 2000,
+          localContributionScore: 70,
+          score: expect.any(Prisma.Decimal) as Prisma.Decimal,
+          routeType: 'RECOMMENDED',
+          isPublished: true,
+          stops: {
+            create: [
+              {
+                orderIndex: 0,
+                transitType: null,
+                travelMinutesFromPrev: null,
+                stayMinutes: null,
+                fareWon: null,
+                estimatedPriceWon: null,
+                placeId: 'place-1',
+                transitDetails: {
+                  dayNumber: 1,
+                  pathCoordinates: [],
+                },
+              },
+            ],
+          },
+        },
+        select: { id: true },
+      });
+    });
+
+    it('returns existing id without creating when route already exists', async () => {
+      prismaService.route.findUnique.mockResolvedValue({ id: 'stitched-1' });
+
+      const result: string = await repository.ensureRouteExistsFromStitched(
+        'stitched-1',
+        {
+          name: '통합 코스',
+          totalDistanceMeters: 5000,
+          estimatedSavingsWon: 2000,
+          score: 4.5,
+          stops: [],
+        },
+      );
+
+      expect(result).toBe('stitched-1');
+      expect(prismaService.route.create).not.toHaveBeenCalled();
     });
   });
 });

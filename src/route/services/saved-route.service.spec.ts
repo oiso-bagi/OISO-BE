@@ -252,6 +252,7 @@ describe('SavedRouteService', () => {
         totalDistanceKm: 5.0,
         savedCost: 2000,
         recommendScore: 4.5,
+        localContributionScore: 75,
         stops: [
           {
             placeName: '해운대',
@@ -303,6 +304,7 @@ describe('SavedRouteService', () => {
           totalDistanceMeters: 5000,
           estimatedSavingsWon: 2000,
           score: 4.5,
+          localContributionScore: 75,
           stops: [
             expect.objectContaining({
               placeId: 'place-1',

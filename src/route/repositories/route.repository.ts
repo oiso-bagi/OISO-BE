@@ -8,6 +8,7 @@ const routeWithStopsAndPlaceSelect = Prisma.validator<Prisma.RouteSelect>()({
   totalDistanceMeters: true,
   estimatedSavingsWon: true,
   score: true,
+  localContributionScore: true,
   routeType: true,
   congestionLevel: true,
   stops: {

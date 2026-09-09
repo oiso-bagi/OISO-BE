@@ -43,6 +43,7 @@ const getSavedRouteDetailSelect = (userId: string) =>
         totalDistanceMeters: true,
         estimatedSavingsWon: true,
         score: true,
+        localContributionScore: true,
         routeType: true,
         congestionLevel: true,
         stops: {
@@ -153,6 +154,7 @@ export class SavedRouteRepository {
       totalDistanceMeters: number;
       estimatedSavingsWon: number;
       score: number;
+      localContributionScore?: number;
       stops: Array<{
         placeId: string;
         orderIndex: number;
@@ -182,6 +184,7 @@ export class SavedRouteRepository {
           estimatedDurationMin: 0,
           totalDistanceMeters: stitchedDetail.totalDistanceMeters,
           estimatedSavingsWon: stitchedDetail.estimatedSavingsWon,
+          localContributionScore: stitchedDetail.localContributionScore ?? 0,
           score: new Prisma.Decimal(stitchedDetail.score),
           routeType: 'RECOMMENDED',
           isPublished: true,

@@ -20,6 +20,7 @@ describe('RecommendedRouteDetailResponseDto', () => {
     expect(dto.transportType).toBe('WALKING');
     expect(dto.savedCost).toBe(1000);
     expect(dto.recommendScore).toBe(0);
+    expect(dto.localContributionScore).toBe(0);
     expect(dto.isRecommended).toBe(true);
     expect(dto.totalCost).toBe(0);
     expect(dto.totalTimeMinutes).toBe(0);
@@ -34,6 +35,7 @@ describe('RecommendedRouteDetailResponseDto', () => {
       totalDistanceMeters: 5000,
       estimatedSavingsWon: 500,
       score: 4.7,
+      localContributionScore: 75,
       routeType: 'SAVED',
       stops: [
         {
@@ -50,6 +52,7 @@ describe('RecommendedRouteDetailResponseDto', () => {
 
     expect(dto.stopCount).toBe(1);
     expect(dto.transportType).toBe('BUS');
+    expect(dto.localContributionScore).toBe(75);
     expect(dto.stops[0].placeName).toBe('');
     expect(dto.stops[0].category).toBeNull();
     expect(dto.stops[0].openTime).toBeNull();
