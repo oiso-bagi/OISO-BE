@@ -25,6 +25,7 @@ export type RouteWithStops = Partial<Route> & {
   totalDistanceMeters?: number | null;
   estimatedSavingsWon?: number | null;
   score?: Route['score'];
+  localContributionScore?: number | null;
   routeType?: Route['routeType'];
   congestionLevel?: CongestionLevel | null;
   stops?: RouteStopWithPlace[];
@@ -363,6 +364,13 @@ export class RecommendedRouteDetailResponseDto {
   @ApiProperty({ description: '추천 점수', example: 87.5, type: Number })
   recommendScore!: number;
 
+  @ApiProperty({
+    description: '로컬(외곽·원도심 상권) 기여 지수 점수 (0~100)',
+    example: 65,
+    type: Number,
+  })
+  localContributionScore!: number;
+
   @ApiProperty({ description: '추천 루트 여부', example: true, type: Boolean })
   isRecommended!: boolean;
 
@@ -429,6 +437,7 @@ export class RecommendedRouteDetailResponseDto {
     dto.congestionLevel = route.congestionLevel ?? CongestionLevel.MEDIUM;
     dto.savedCost = route.estimatedSavingsWon ?? 0;
     dto.estimatedSavingsWon = route.estimatedSavingsWon ?? 0;
+    dto.localContributionScore = route.localContributionScore ?? 0;
     const recommendScore = route.score != null ? Number(route.score) : 0;
     dto.recommendScore = Number.isFinite(recommendScore) ? recommendScore : 0;
     dto.isRecommended = route.routeType === 'RECOMMENDED';

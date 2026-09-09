@@ -1,5 +1,8 @@
 import { PlaceCategory, TransitType } from '@prisma/client';
-import { SavedRouteStopDetailDto } from '@/route/dto/saved-route-detail-response.dto';
+import {
+  SavedRouteDetailResponseDto,
+  SavedRouteStopDetailDto,
+} from '@/route/dto/saved-route-detail-response.dto';
 
 describe('SavedRouteStopDetailDto', () => {
   describe('from', () => {
@@ -103,6 +106,43 @@ describe('SavedRouteStopDetailDto', () => {
       expect(dto.estimatedPriceWon).toBe(10000);
       expect(dto.touristPremiumWon).toBe(15400);
       expect(dto.savedPriceWon).toBe(5400);
+    });
+  });
+
+  describe('SavedRouteDetailResponseDto', () => {
+    it('maps localContributionScore correctly from raw route data', () => {
+      const dto = SavedRouteDetailResponseDto.from({
+        savedAt: new Date('2026-09-09T10:00:00.000Z'),
+        route: {
+          id: 'route-saved-1',
+          name: '부산 전통시장 코스',
+          totalDistanceMeters: 4500,
+          estimatedSavingsWon: 3000,
+          score: 4.8,
+          localContributionScore: 82,
+          routeType: 'RECOMMENDED',
+          stops: [],
+          tripLogs: [{ isCompleted: true }],
+        },
+      });
+
+      expect(dto.routeId).toBe('route-saved-1');
+      expect(dto.localContributionScore).toBe(82);
+      expect(dto.isCompleted).toBe(true);
+      expect(dto.savedCost).toBe(3000);
+    });
+
+    it('falls back localContributionScore to 0 when missing', () => {
+      const dto = SavedRouteDetailResponseDto.from({
+        savedAt: new Date('2026-09-09T10:00:00.000Z'),
+        route: {
+          id: 'route-saved-2',
+          name: '부산 일반 코스',
+          stops: [],
+        },
+      });
+
+      expect(dto.localContributionScore).toBe(0);
     });
   });
 });

@@ -138,6 +138,7 @@ export class SavedRouteService {
               Math.round((stitchedDetail.totalDistanceKm || 0) * 1000) || 0,
             estimatedSavingsWon: stitchedDetail.savedCost || 0,
             score: stitchedDetail.recommendScore || 0,
+            localContributionScore: stitchedDetail.localContributionScore ?? 0,
             stops: resolvedStops,
           },
         );

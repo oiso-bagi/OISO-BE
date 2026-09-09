@@ -99,6 +99,7 @@ describe('RouteService', () => {
         totalDistanceMeters: 2000,
         estimatedSavingsWon: 1000,
         score: 4.5,
+        localContributionScore: 60,
         routeType: 'RECOMMENDED',
         congestionLevel: 'MEDIUM',
         stops: [{ orderIndex: 0, place: { name: '해운대' } }],
@@ -109,6 +110,7 @@ describe('RouteService', () => {
         totalDistanceMeters: 3000,
         estimatedSavingsWon: 1500,
         score: 4.7,
+        localContributionScore: 80,
         routeType: 'RECOMMENDED',
         congestionLevel: 'MEDIUM',
         stops: [{ orderIndex: 0, place: { name: '광안리' } }],
@@ -120,6 +122,7 @@ describe('RouteService', () => {
     );
 
     expect(result.routeId).toBe('stitched-route-1_route-2');
+    expect(result.localContributionScore).toBe(70);
     const stops = result.stops;
     expect(stops).toBeDefined();
     expect(stops).toHaveLength(2);

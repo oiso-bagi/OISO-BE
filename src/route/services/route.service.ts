@@ -112,6 +112,13 @@ export class RouteService {
       0,
     );
     const avgScore = Number((totalScore / targetRoutes.length).toFixed(2));
+    const totalLocalContributionScore = targetRoutes.reduce(
+      (acc, r) => acc + (r.localContributionScore ?? 0),
+      0,
+    );
+    const avgLocalContributionScore = Math.round(
+      totalLocalContributionScore / targetRoutes.length,
+    );
     const durationDays = targetRoutes.length;
     const durationText = `${durationDays - 1}박 ${durationDays}일`;
 
@@ -123,6 +130,7 @@ export class RouteService {
       score: new Prisma.Decimal(avgScore),
       routeType: leadRoute?.routeType || 'RECOMMENDED',
       congestionLevel: leadRoute?.congestionLevel || 'MEDIUM',
+      localContributionScore: avgLocalContributionScore,
       stops: combinedStops,
     };
 
