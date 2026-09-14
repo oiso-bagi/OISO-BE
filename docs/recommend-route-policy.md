@@ -20,7 +20,7 @@
 | **관광지 마스터 (Place Scale)** 🆕 | **1,000개 장소** | 부산시 전체 음식점/카페/해변/전통시장/문화지 등 1,000개 마스터 데이터 적재 |
 | **테마별 대표 관광지 수 (Anchor Spots)** | **테마당 20개** *(총 120개 스팟)* | 6대 UI 마스터 테마별 대표 거점 스팟 (해운대, 감천문화마을 등) 선정 🆕 |
 | **테마별 루트 생성 목표** | **테마당 20개 코스** | 6대 테마 $\times$ 20개 코스 = **총 120개 마스터 추천 루트 사전 적재** 🆕 |
-| **전체 코스 경유지 수 (Total Stops)** | **약 420개 이상 경유지** | 120개 마스터 루트 $\times$ 3.5개 경유지 스팟 릴레이 구성 🆕 |
+| **전체 코스 경유지 수 (Total Stops)** | **약 480개 경유지** | 120개 마스터 루트 $\times$ 4개 경유지 스팟 릴레이 구성 🆕 |
 
 ---
 
@@ -30,7 +30,7 @@
 
 | 항목 (Parameter) | 최소값 (Min) | 표준/권장 (Avg) | 최대값 (Max) | 설명 및 기획 의도 |
 | --- | --- | --- | --- | --- |
-| **코스 1개당 경유 장소 수 (Spot Count)** | **3개 스팟** 🆕 | **3 ~ 4개 스팟** | **4개 스팟** | 하루 이동 피로 없이 현실적으로 알차게 즐기는 3~4개 스팟 (조합 다변화 극대화) |
+| **코스 1개당 경유 장소 수 (Spot Count)** | **4개 스팟** | **4개 스팟** | **4개 스팟** | 1일 코스 표준 골든 사이클(식사-카페-관광-식사/야경)을 완성하는 4개 스팟 표준 정규화 🆕 |
 | **코스 총 소요시간 (Duration)** | **180분 (3시간)** | **300분 (5시간)** | **480분 (8시간)** | 1일 기준 알찬 반일~당일 여행 소요시간 제한 |
 | **코스 총 이동거리 (Distance)** | **2.0 km** | **5.0 ~ 8.0 km** | **15.0 km** | 이동 동선 낭비를 막고 권역 내 동선 집중화 |
 | **일정 전체 총 예산 (totalBudgetWon)** | **10,000원** | **30,000 ~ 150,000원** | **500,000원** 🆕 | 1일 짠내 투어부터 5일 풀 여행(최대 50만원)까지 수용 |
@@ -60,12 +60,12 @@
 
 | 테마 slug | 슬롯 시퀀스 패턴 (Slot Sequence Pattern) | 핀포인트 조건 & 슬롯 구성 상세 |
 |---|---|---|
-| 🍱 **`local-food`** | **Slot 1**: FOOD ➡️ **Slot 2**: CAFE ➡️ **Slot 3**: FOOD/MARKET ➡️ **Slot 4(선택)**: VIEWPOINT/NATURE | 대표 맛집/노포 ➡️ 디저트 카페 ➡️ 시장 먹거리/맛집 ➡️ 산책/전망 |
-| ☕ **`emotion-cafe`** | **Slot 1**: CAFE ➡️ **Slot 2**: CULTURE/VIEWPOINT ➡️ **Slot 3**: FOOD ➡️ **Slot 4(선택)**: CAFE | 감성/뷰 카페 ➡️ 전시/포토존 ➡️ 대표 식당 ➡️ 디저트/로스터리 카페 |
-| 🌊 **`beach-tour`** | **Slot 1**: BEACH (NATURE/EXPERIENCE/VIEWPOINT) ➡️ **Slot 2**: FOOD ➡️ **Slot 3**: BEACH/CAFE ➡️ **Slot 4(선택)**: VIEWPOINT | 해수욕장/해양 ➡️ 해산물/식당 ➡️ 오션뷰 카페/해양레포츠 ➡️ 해안 전망대/야경 |
-| 📸 **`photo-spot`** | **Slot 1**: CULTURE ➡️ **Slot 2**: CAFE ➡️ **Slot 3**: VIEWPOINT ➡️ **Slot 4(선택)**: FOOD/MARKET | 전시/갤러리/문화재 ➡️ 감성 카페 ➡️ 포토존/전망대/야경 ➡️ 대표 먹거리 |
-| 🛍️ **`traditional-market`** | **Slot 1**: MARKET ➡️ **Slot 2**: CAFE ➡️ **Slot 3**: FOOD ➡️ **Slot 4(선택)**: CULTURE/VIEWPOINT | 대표 전통시장 ➡️ 시장 근처 카페 ➡️ 노포 맛집 ➡️ 문화/전망 |
-| 🌲 **`nature-walk`** | **Slot 1**: NATURE ➡️ **Slot 2**: FOOD/CAFE ➡️ **Slot 3**: NATURE ➡️ **Slot 4(선택)**: VIEWPOINT | 공원/해안산책로 ➡️ 힐링 식당/카페 ➡️ 숲길/자연/섬 ➡️ 전망대 |
+| 🍱 **`local-food`** | **Slot 1**: FOOD ➡️ **Slot 2**: CAFE ➡️ **Slot 3**: VIEWPOINT/NATURE ➡️ **Slot 4**: FOOD/MARKET | 대표 맛집/노포 ➡️ 디저트 카페 ➡️ 오후 산책/전망 ➡️ 저녁 맛집/야시장 |
+| ☕ **`emotion-cafe`** | **Slot 1**: CAFE ➡️ **Slot 2**: CULTURE/VIEWPOINT/EXPERIENCE ➡️ **Slot 3**: FOOD ➡️ **Slot 4**: CAFE | 감성/뷰 카페 ➡️ 전시/포토존/공방체험 ➡️ 대표 식당 ➡️ 디저트/로스터리 카페 |
+| 🌊 **`beach-tour`** | **Slot 1**: BEACH (NATURE/EXPERIENCE/VIEWPOINT) ➡️ **Slot 2**: FOOD ➡️ **Slot 3**: BEACH/CAFE ➡️ **Slot 4**: VIEWPOINT | 해수욕장/해양 ➡️ 해산물/식당 ➡️ 오션뷰 카페/해양레포츠 ➡️ 해안 전망대/야경 |
+| 📸 **`photo-spot`** | **Slot 1**: CULTURE/EXPERIENCE ➡️ **Slot 2**: CAFE ➡️ **Slot 3**: FOOD ➡️ **Slot 4**: VIEWPOINT | 전시/갤러리/체험관 ➡️ 감성 포토 카페 ➡️ 든든한 저녁 식사 ➡️ 노을/야경 전망대 (피날레) |
+| 🛍️ **`traditional-market`** | **Slot 1**: MARKET ➡️ **Slot 2**: FOOD ➡️ **Slot 3**: CAFE/CULTURE ➡️ **Slot 4**: MARKET/VIEWPOINT | 대표 전통시장 ➡️ 시장 노포 먹거리 ➡️ 레트로 카페/골목 ➡️ 전통시장 야시장/야경 |
+| 🌲 **`nature-walk`** | **Slot 1**: NATURE ➡️ **Slot 2**: FOOD ➡️ **Slot 3**: CAFE ➡️ **Slot 4**: VIEWPOINT/NATURE | 공원/해안산책로 ➡️ 든든한 점심 맛집 ➡️ 숲속/뷰 카페 ➡️ 일몰/전망대 |
 
 #### 🔄 N일차 다중 테마 롤테이션 체이닝 (Multi-Theme Rotation Chaining)
 - 사용자가 테마를 2개 이상 다중 선택한 경우(`travelStyleSlugs: ["local-food", "emotion-cafe"]`), 런타임 엔진은 요청한 테마 순서대로 **1일차는 1번째 테마 특화 코스, 2일차는 2번째 테마 특화 코스**로 체이닝하여 "하루는 먹방, 하루는 카페 투어"의 일차별 교차 경험을 제공합니다.
@@ -73,7 +73,7 @@
 ### 4.3 마스터 코스 장소 재조합 & Multi-Day 장소 중복 제거 및 체이닝 정책 (Place Deduplication & Soft Penalty Policy) 🆕
 
 - **규칙 1 (DB SEED 마스터 코스의 단위)**:
-  - 사전 적재된 각 마스터 추천 코스(`Route`)는 **1일치(당일치기 3~4개 스팟, 180~480분 소요)** 코스 모듈 단위로 구성됩니다. (총 120개 코스 적재)
+  - 사전 적재된 각 마스터 추천 코스(`Route`)는 **1일치(당일치기 4개 스팟 표준, 180~480분 소요)** 코스 모듈 단위로 구성됩니다. (총 120개 코스 적재)
 - **규칙 2 (Multi-Day N일차 결합 및 하버사인 체이닝 - Multi-Day Route Stitching)**:
   - 사용자가 `durationDays: N` (예: 2일, 3일 코스)을 요청하면, 시스템은 **1일치 코스 모듈 N개**를 최적의 동선 흐름으로 연결하여 1개의 통합 N일 여행 코스 패키지로 조합합니다.
   - **체이닝 조건**: 1일차 코스의 마지막 장소 좌표 $P_1(lat_1, lng_1)$에서 2일차 코스의 첫 번째 장소 좌표 $P_2(lat_2, lng_2)$까지의 **직선 거리(Haversine Distance)가 최소화**되는 1일 코스를 2일차 코스로 체이닝합니다.
@@ -106,9 +106,11 @@ N박 M일(다일) 추천 코스 응답 시, 프론트엔드 지도(Map Component
 - **도로 굴곡 좌표 데이터 규격 (`pathCoordinates`)**:
   - 각 경유지(`RouteStop`) 응답 객체에 이전 스팟부터 현재 스팟까지의 실제 도로 굴곡 좌표점들을 담은 `pathCoordinates: Array<{ latitude: number, longitude: number }>` 배열을 제공합니다. (첫 경유지는 빈 배열)
   - 카카오모빌리티 Directions API를 통해 SEED 단계에서 사전 적재되며, `WALKING` 도보 구간은 보행 보간 라인이 즉시 매핑됩니다.
-- **이동수단별 요금 정액 정책 (`fareWon`)**:
-  - `BUS` / `SUBWAY`: 1,500원 정액 대중교통 요금 자동 적용
-  - `WALKING` / `BIKING` / `DRIVING` / `TAXI`: 0원 정액 요금 적용
+- **이동수단별 요금 정책 (`fareWon`)**:
+  - `BUS`: 1,500원 (부산 시내버스 정액 요금)
+  - `SUBWAY`: 1,400원 (부산 도시철도 1구간 정액 요금)
+  - `TAXI`: 기본 4,800원 + 2,000m 초과 시 거리비례 요금(1.0원/m) 적용
+  - `WALKING` / `BIKING` / `DRIVING`: 0원 적용
 - **장소 식별자 규격 (`placeId`)**:
   - 추천 및 저장 경로 상세 조회 경유지 객체에 장소 고유 식별자 `placeId: string`를 100% 제공하여 프론트엔드의 장소 상세 팝업 및 페이지 연동을 지원합니다.
 - **프론트엔드 카카오맵 렌더링 (`kakao.maps.Polyline`)**:

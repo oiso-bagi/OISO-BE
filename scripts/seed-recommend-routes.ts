@@ -83,13 +83,46 @@ function classifyDistrictType(address: string | null): 'TOURIST' | 'LOCAL' {
 }
 
 /**
+ * 스팟(경유지)별 로컬 상권 기준 절약액 산출 헬퍼 함수 [C-3]
+ * 로컬 상권(LOCAL) 장소는 관광지 기준가(+35%) 대비 절약분을 스팟 레벨에 배분하여
+ * DashboardRepository.findSavingsCategorySummaryByUserId 집계가 정상 동작하도록 보장
+ */
+function calculateSpotSavingsWon(
+  price: number,
+  districtType: 'TOURIST' | 'LOCAL',
+): number {
+  if (districtType === 'LOCAL') {
+    return Math.round(price * 0.35);
+  }
+  return 0;
+}
+
+/**
+ * API Key 안전 디코딩 헬퍼 [M-6]
+ * - 이중 인코딩(공공데이터포털 이중 URL 인코딩) 방어
+ * - decodeURIComponent 실패 시 원본 반환으로 Crash 방지
+ */
+function safeDecodeApiKey(rawKey: string): string {
+  try {
+    const decoded = decodeURIComponent(rawKey);
+    // 디코딩 후 여전히 %XX 인코딩이 남아 있으면 한 번 더 디코딩 (이중 인코딩 방어)
+    if (/%[0-9A-Fa-f]{2}/.test(decoded)) {
+      return decodeURIComponent(decoded);
+    }
+    return decoded;
+  } catch {
+    return rawKey; // 디코딩 실패 시 원본 반환
+  }
+}
+
+/**
  * 한국관광공사 연관 관광지 정보 API (TarRlteTarService1) 수집 헬퍼 함수
  */
 async function fetchRelatedTourPlaces(): Promise<any[]> {
   const rawApiKey = process.env.VK_KORSERVICE2_API_KEY;
   if (!rawApiKey) return [];
 
-  const serviceKey = decodeURIComponent(rawApiKey);
+  const serviceKey = safeDecodeApiKey(rawApiKey);
   const endpoint =
     'https://apis.data.go.kr/B551011/TarRlteTarService1/areaBasedList1';
 
@@ -133,7 +166,7 @@ async function fetchTourApiPlaceHours(
   if (!rawApiKey || !contentId) return { openTime: null, closeTime: null };
 
   try {
-    const serviceKey = decodeURIComponent(rawApiKey);
+    const serviceKey = safeDecodeApiKey(rawApiKey);
     const endpoint = 'http://apis.data.go.kr/B551011/KorService1/detailIntro1';
 
     const res = await fetchWithRetry(() =>
@@ -197,106 +230,89 @@ interface SlotPattern {
   fallbackCategories?: PlaceCategory[];
 }
 
-function getThemeSlotPattern(themeSlug: string, targetStopCount: number): SlotPattern[] {
+function getThemeSlotPattern(themeSlug: string, _targetStopCount = 4): SlotPattern[] {
   if (themeSlug === 'local-food') {
-    // 1) local-food: Slot 1(FOOD 점심) -> Slot 2(CAFE 디저트) -> Slot 3(VIEWPOINT/CULTURE 산책) -> Slot 4(FOOD 저녁)
-    const pattern: SlotPattern[] = [
+    // 1) local-food: 정책 기준 식당/시장 2개 이상 보장 + 소화 시간을 고려한 현실적 여행 동선
+    // Slot 1(FOOD 점심 맛집) -> Slot 2(CAFE 디저트) -> Slot 3(VIEWPOINT/NATURE 오후 산책/전망) -> Slot 4(FOOD/MARKET 저녁 맛집/야시장)
+    return [
       { primaryCategories: [PlaceCategory.FOOD] },
       { primaryCategories: [PlaceCategory.CAFE] },
       {
-        primaryCategories: [
-          PlaceCategory.VIEWPOINT,
-          PlaceCategory.CULTURE,
-          PlaceCategory.NATURE,
-        ],
-        fallbackCategories: [PlaceCategory.EXPERIENCE, PlaceCategory.CAFE],
+        primaryCategories: [PlaceCategory.VIEWPOINT, PlaceCategory.NATURE],
+        fallbackCategories: [PlaceCategory.EXPERIENCE, PlaceCategory.CULTURE],
+      },
+      {
+        primaryCategories: [PlaceCategory.FOOD, PlaceCategory.MARKET],
+        fallbackCategories: [PlaceCategory.VIEWPOINT, PlaceCategory.CAFE],
       },
     ];
-    if (targetStopCount === 4) {
-      pattern.push({
-        primaryCategories: [PlaceCategory.FOOD, PlaceCategory.MARKET],
-        fallbackCategories: [PlaceCategory.EXPERIENCE, PlaceCategory.CAFE],
-      });
-    }
-    return pattern;
   }
 
   if (themeSlug === 'emotion-cafe') {
-    // 2) emotion-cafe: Slot 1(CAFE) -> Slot 2(CULTURE/VIEWPOINT) -> Slot 3(FOOD) -> Slot 4(CAFE)
-    const pattern: SlotPattern[] = [
+    // 2) emotion-cafe: Slot 1(CAFE) -> Slot 2(CULTURE/VIEWPOINT/EXPERIENCE 공방체험) -> Slot 3(FOOD) -> Slot 4(CAFE)
+    return [
       { primaryCategories: [PlaceCategory.CAFE] },
-      { primaryCategories: [PlaceCategory.CULTURE, PlaceCategory.VIEWPOINT] },
+      { primaryCategories: [PlaceCategory.CULTURE, PlaceCategory.VIEWPOINT, PlaceCategory.EXPERIENCE] },
       { primaryCategories: [PlaceCategory.FOOD] },
-    ];
-    if (targetStopCount === 4) {
-      pattern.push({
+      {
         primaryCategories: [PlaceCategory.CAFE],
         fallbackCategories: [PlaceCategory.VIEWPOINT, PlaceCategory.EXPERIENCE],
-      });
-    }
-    return pattern;
+      },
+    ];
   }
 
   if (themeSlug === 'beach-tour') {
     // 3) beach-tour: Slot 1(BEACH) -> Slot 2(FOOD) -> Slot 3(BEACH/CAFE) -> Slot 4(VIEWPOINT)
-    const pattern: SlotPattern[] = [
+    return [
       { isBeach: true, primaryCategories: [PlaceCategory.NATURE, PlaceCategory.EXPERIENCE, PlaceCategory.VIEWPOINT] },
       { primaryCategories: [PlaceCategory.FOOD] },
       { isBeach: true, primaryCategories: [PlaceCategory.CAFE, PlaceCategory.EXPERIENCE, PlaceCategory.NATURE] },
-    ];
-    if (targetStopCount === 4) {
-      pattern.push({
+      {
         primaryCategories: [PlaceCategory.VIEWPOINT],
         fallbackCategories: [PlaceCategory.NATURE, PlaceCategory.CAFE],
-      });
-    }
-    return pattern;
+      },
+    ];
   }
 
   if (themeSlug === 'photo-spot') {
-    // 4) photo-spot: Slot 1(CULTURE) -> Slot 2(CAFE) -> Slot 3(VIEWPOINT) -> Slot 4(FOOD/MARKET)
-    const pattern: SlotPattern[] = [
-      { primaryCategories: [PlaceCategory.CULTURE] },
+    // 4) photo-spot: Slot 1(CULTURE/EXPERIENCE 포토존/전시) -> Slot 2(CAFE 감성 포토 카페) -> Slot 3(FOOD 맛집/식사) -> Slot 4(VIEWPOINT 노을/야경 전망대)
+    return [
+      { primaryCategories: [PlaceCategory.CULTURE, PlaceCategory.EXPERIENCE] },
       { primaryCategories: [PlaceCategory.CAFE] },
-      { primaryCategories: [PlaceCategory.VIEWPOINT] },
+      {
+        primaryCategories: [PlaceCategory.FOOD],
+        fallbackCategories: [PlaceCategory.EXPERIENCE, PlaceCategory.CULTURE],
+      },
+      {
+        primaryCategories: [PlaceCategory.VIEWPOINT],
+        fallbackCategories: [PlaceCategory.CULTURE, PlaceCategory.EXPERIENCE],
+      },
     ];
-    if (targetStopCount === 4) {
-      pattern.push({
-        primaryCategories: [PlaceCategory.FOOD, PlaceCategory.MARKET],
-        fallbackCategories: [PlaceCategory.CULTURE, PlaceCategory.CAFE],
-      });
-    }
-    return pattern;
-  }
-    if (themeSlug === 'traditional-market') {
-    // 5) traditional-market: Slot 1(MARKET) -> Slot 2(CAFE) -> Slot 3(FOOD) -> Slot 4(CULTURE/VIEWPOINT)
-    const pattern: SlotPattern[] = [
-      { primaryCategories: [PlaceCategory.MARKET] },
-      { primaryCategories: [PlaceCategory.CAFE] },
-      { primaryCategories: [PlaceCategory.FOOD] },
-    ];
-    if (targetStopCount === 4) {
-      pattern.push({
-        primaryCategories: [PlaceCategory.CULTURE, PlaceCategory.VIEWPOINT],
-        fallbackCategories: [PlaceCategory.MARKET, PlaceCategory.FOOD],
-      });
-    }
-    return pattern;
   }
 
-  // 6) nature-walk: Slot 1(NATURE) -> Slot 2(FOOD/CAFE) -> Slot 3(NATURE) -> Slot 4(VIEWPOINT)
-  const pattern: SlotPattern[] = [
-    { primaryCategories: [PlaceCategory.NATURE] },
-    { primaryCategories: [PlaceCategory.FOOD, PlaceCategory.CAFE] },
-    { primaryCategories: [PlaceCategory.NATURE] },
-  ];
-  if (targetStopCount === 4) {
-    pattern.push({
-      primaryCategories: [PlaceCategory.VIEWPOINT],
-      fallbackCategories: [PlaceCategory.EXPERIENCE, PlaceCategory.CAFE],
-    });
+  if (themeSlug === 'traditional-market') {
+    // 5) traditional-market: Slot 1(MARKET 전통시장) -> Slot 2(FOOD 시장 노포 먹거리) -> Slot 3(CAFE/CULTURE 레트로 카페/골목) -> Slot 4(MARKET/VIEWPOINT 야시장/야경)
+    return [
+      { primaryCategories: [PlaceCategory.MARKET] },
+      { primaryCategories: [PlaceCategory.FOOD] },
+      { primaryCategories: [PlaceCategory.CAFE, PlaceCategory.CULTURE] },
+      {
+        primaryCategories: [PlaceCategory.MARKET],
+        fallbackCategories: [PlaceCategory.VIEWPOINT, PlaceCategory.CULTURE, PlaceCategory.FOOD],
+      },
+    ];
   }
-  return pattern;
+
+  // 6) nature-walk: Slot 1(NATURE 숲길/산책로) -> Slot 2(FOOD 점심 맛집) -> Slot 3(CAFE 힐링 카페) -> Slot 4(VIEWPOINT/NATURE 일몰/전망대)
+  return [
+    { primaryCategories: [PlaceCategory.NATURE] },
+    { primaryCategories: [PlaceCategory.FOOD] },
+    { primaryCategories: [PlaceCategory.CAFE] },
+    {
+      primaryCategories: [PlaceCategory.VIEWPOINT, PlaceCategory.NATURE],
+      fallbackCategories: [PlaceCategory.EXPERIENCE, PlaceCategory.CAFE],
+    },
+  ];
 }
 
 async function seedRecommendRoutes() {
@@ -334,10 +350,12 @@ async function seedRecommendRoutes() {
 
   console.log(`📌 DB 마스터 장소 ${allDbPlaces.length}건 기반으로 6대 테마 × 20개 코스 = 총 120개 코스 적재를 시작합니다.`);
 
-  // 이전 추천 루트 전체 멱등성 클린업 (오래된 데이터 잔여 방지)
-  await prisma.routeStop.deleteMany({ where: { route: { routeType: RouteType.RECOMMENDED } } });
-  await prisma.routeTheme.deleteMany({ where: { route: { routeType: RouteType.RECOMMENDED } } });
-  await prisma.route.deleteMany({ where: { routeType: RouteType.RECOMMENDED } });
+  // 이전 추천 루트 전체 멱등성 클린업 [C-5]
+  // Route.onDelete: Cascade → RouteStop/RouteTheme 자동 삭제되므로 Route만 삭제, 단일 트랜잭션으로 원자화
+  await prisma.$transaction(async (tx) => {
+    await tx.route.deleteMany({ where: { routeType: RouteType.RECOMMENDED } });
+  });
+  console.log('✅ 이전 추천 루트 전체 멱등성 클린업 완료 (트랜잭션)');
 
   let totalRouteCount = 0;
 
@@ -450,6 +468,14 @@ async function seedRecommendRoutes() {
         }
       }
 
+      // [정책 검증 C-2] 경유지 수 4개 미달 시 코스 SKIP (4개 스팟 표준 정규화)
+      if (selectedStops.length < targetStopCount) {
+        console.warn(
+          `⚠️ [코스 #${totalRouteCount}] 경유지 수 미달(${selectedStops.length}개 / 목표 ${targetStopCount}개) → 코스 SKIP (테마: ${theme.slug}, Anchor: ${anchor.name})`,
+        );
+        totalRouteCount--;
+        continue;
+      }
       const uniqueStops = selectedStops.slice(0, targetStopCount);
 
       // 결정론적 고유 해시 ID (SHA256)
@@ -541,7 +567,8 @@ async function seedRecommendRoutes() {
         } else if (place.category === PlaceCategory.MARKET) {
           price = 6000 + (placeNameHash % 8000); // 6,000 ~ 13,500원
         } else {
-          price = (placeNameHash % 3000); // 0 ~ 2,500원 (자연/전망대)
+          // NATURE, VIEWPOINT 등: 1,000 ~ 4,000원 (무료~소정 입장료) [M-2] 최소 1,000원 보장
+          price = 1000 + (placeNameHash % 3000);
         }
 
         if (place.category === PlaceCategory.FOOD || place.category === PlaceCategory.CAFE) {
@@ -580,6 +607,10 @@ async function seedRecommendRoutes() {
           );
         }
 
+        // [C-3] 스팟 레벨 절약액 산출 - DashboardRepository 카테고리별 집계 정상화
+        const spotDistrictType = classifyDistrictType(place.address);
+        const spotSavingsWon = calculateSpotSavingsWon(price, spotDistrictType);
+
         stopCreateInputs.push({
           placeId: place.id,
           orderIndex: i,
@@ -591,6 +622,7 @@ async function seedRecommendRoutes() {
           difficultyScore: new Prisma.Decimal(diffScore),
           fareWon,
           estimatedPriceWon: price,
+          savingsWon: spotSavingsWon,
           transitDetails: {
             dayNumber: 1,
             pathCoordinates,
@@ -599,6 +631,33 @@ async function seedRecommendRoutes() {
       }
 
       const estimatedCostWon = foodCostWon + experienceCostWon + transportCostWon;
+
+      // [M-4] 정책 비용 범위 검증 경고 (25,000원 ~ 45,500원)
+      const POLICY_MIN_COST = 25_000;
+      const POLICY_MAX_COST = 45_500;
+      if (estimatedCostWon < POLICY_MIN_COST || estimatedCostWon > POLICY_MAX_COST) {
+        console.warn(
+          `⚠️ [코스 #${totalRouteCount}] 비용 정책 범위 이탈: ${estimatedCostWon.toLocaleString()}원 (정책: ${POLICY_MIN_COST.toLocaleString()}~${POLICY_MAX_COST.toLocaleString()}원)`,
+        );
+      }
+
+      // [m-1] 이동거리 정책 범위 검증 경고 (2,000m ~ 15,000m)
+      const POLICY_MIN_DISTANCE_M = 2_000;
+      const POLICY_MAX_DISTANCE_M = 15_000;
+      if (totalDistanceMeters < POLICY_MIN_DISTANCE_M || totalDistanceMeters > POLICY_MAX_DISTANCE_M) {
+        console.warn(
+          `⚠️ [코스 #${totalRouteCount}] 이동거리 정책 범위 이탈: ${totalDistanceMeters.toLocaleString()}m (정책: ${POLICY_MIN_DISTANCE_M.toLocaleString()}~${POLICY_MAX_DISTANCE_M.toLocaleString()}m)`,
+        );
+      }
+
+      // [m-2] 소요시간 정책 범위 검증 경고 (180분 ~ 480분)
+      const POLICY_MIN_DURATION_MIN = 180;
+      const POLICY_MAX_DURATION_MIN = 480;
+      if (totalTimeMin < POLICY_MIN_DURATION_MIN || totalTimeMin > POLICY_MAX_DURATION_MIN) {
+        console.warn(
+          `⚠️ [코스 #${totalRouteCount}] 소요시간 정책 범위 이탈: ${totalTimeMin}분 (정책: ${POLICY_MIN_DURATION_MIN}~${POLICY_MAX_DURATION_MIN}분)`,
+        );
+      }
       const matchingThemes: string[] = [theme.slug];
       if (uniqueStops.some((p) => isBeachPlace(p)) && theme.slug !== 'beach-tour') {
         matchingThemes.push('beach-tour');
@@ -653,78 +712,79 @@ async function seedRecommendRoutes() {
         : 0;
       const estimatedSavingsWon = localSavingsWon + transitSavingsWon;
 
-      // 기존 릴레이션 cleanup 후 Upsert
-      await prisma.routeStop.deleteMany({ where: { route: { id: routeId } } });
-      await prisma.routeTheme.deleteMany({ where: { route: { id: routeId } } });
-
-      const route = await prisma.route.upsert({
-        where: { id: routeId },
-        update: {
-          name: routeName,
-          summary,
-          region: '부산광역시',
-          routeType: RouteType.RECOMMENDED,
-          isPublished: true,
-          congestionLevel:
-            totalRouteCount % 3 === 0
-              ? CongestionLevel.HIGH
-              : totalRouteCount % 2 === 0
-                ? CongestionLevel.MEDIUM
-                : CongestionLevel.LOW,
-          score: new Prisma.Decimal(calculatedScore),
-          estimatedCostWon,
-          foodCostWon,
-          experienceCostWon,
-          transportCostWon,
-          totalElevationGainMeters,
-          totalDifficultyScore: new Prisma.Decimal(
-            Number(totalDifficultyScore.toFixed(2)),
-          ),
-          estimatedDurationMin: totalTimeMin,
-          totalDistanceMeters,
-          estimatedSavingsWon,
-          localContributionScore,
-          stops: {
-            create: stopCreateInputs,
+      // 기존 릴레이션 cleanup 후 Upsert - 배열형 원자적 트랜잭션으로 RTT 단축 및 타임아웃 방지 [C-1]
+      const [, , route] = await prisma.$transaction([
+        prisma.routeStop.deleteMany({ where: { route: { id: routeId } } }),
+        prisma.routeTheme.deleteMany({ where: { route: { id: routeId } } }),
+        prisma.route.upsert({
+          where: { id: routeId },
+          update: {
+            name: routeName,
+            summary,
+            region: '부산광역시',
+            routeType: RouteType.RECOMMENDED,
+            isPublished: true,
+            congestionLevel:
+              totalRouteCount % 3 === 0
+                ? CongestionLevel.HIGH
+                : totalRouteCount % 2 === 0
+                  ? CongestionLevel.MEDIUM
+                  : CongestionLevel.LOW,
+            score: new Prisma.Decimal(calculatedScore),
+            estimatedCostWon,
+            foodCostWon,
+            experienceCostWon,
+            transportCostWon,
+            totalElevationGainMeters,
+            totalDifficultyScore: new Prisma.Decimal(
+              Number(totalDifficultyScore.toFixed(2)),
+            ),
+            estimatedDurationMin: totalTimeMin,
+            totalDistanceMeters,
+            estimatedSavingsWon,
+            localContributionScore,
+            stops: {
+              create: stopCreateInputs,
+            },
+            themes: {
+              create: themeConnections,
+            },
           },
-          themes: {
-            create: themeConnections,
+          create: {
+            id: routeId,
+            name: routeName,
+            summary,
+            region: '부산광역시',
+            routeType: RouteType.RECOMMENDED,
+            isPublished: true,
+            congestionLevel:
+              totalRouteCount % 3 === 0
+                ? CongestionLevel.HIGH
+                : totalRouteCount % 2 === 0
+                  ? CongestionLevel.MEDIUM
+                  : CongestionLevel.LOW,
+            score: new Prisma.Decimal(calculatedScore),
+            estimatedCostWon,
+            foodCostWon,
+            experienceCostWon,
+            transportCostWon,
+            totalElevationGainMeters,
+            totalDifficultyScore: new Prisma.Decimal(
+              Number(totalDifficultyScore.toFixed(2)),
+            ),
+            estimatedDurationMin: totalTimeMin,
+            totalDistanceMeters,
+            estimatedSavingsWon,
+            localContributionScore,
+            stops: {
+              create: stopCreateInputs,
+            },
+            themes: {
+              create: themeConnections,
+            },
           },
-        },
-        create: {
-          id: routeId,
-          name: routeName,
-          summary,
-          region: '부산광역시',
-          routeType: RouteType.RECOMMENDED,
-          isPublished: true,
-          congestionLevel:
-            totalRouteCount % 3 === 0
-              ? CongestionLevel.HIGH
-              : totalRouteCount % 2 === 0
-                ? CongestionLevel.MEDIUM
-                : CongestionLevel.LOW,
-          score: new Prisma.Decimal(calculatedScore),
-          estimatedCostWon,
-          foodCostWon,
-          experienceCostWon,
-          transportCostWon,
-          totalElevationGainMeters,
-          totalDifficultyScore: new Prisma.Decimal(
-            Number(totalDifficultyScore.toFixed(2)),
-          ),
-          estimatedDurationMin: totalTimeMin,
-          totalDistanceMeters,
-          estimatedSavingsWon,
-          localContributionScore,
-          stops: {
-            create: stopCreateInputs,
-          },
-          themes: {
-            create: themeConnections,
-          },
-        },
-      });
+        }),
+      ]);
 
       console.log(
         `✅ [코스 #${totalRouteCount}/120] "${route.name}" (테마: ${theme.slug}, 경유지: ${uniqueStops.length}개, 비용: ${estimatedCostWon}원, 고도상승: ${totalElevationGainMeters}m)`,
