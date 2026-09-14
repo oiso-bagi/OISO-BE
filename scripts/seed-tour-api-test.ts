@@ -25,16 +25,6 @@ function parseTimeString(text: string): { openTime: string | null; closeTime: st
   if (!text) return { openTime: null, closeTime: null };
   const cleanText = String(text).trim();
 
-  // 0) 상시 개방 / 24시간 / 연중무휴 텍스트 감지 [M-7]
-  if (
-    cleanText.includes('상시') ||
-    cleanText.includes('24시간') ||
-    cleanText.includes('연중무휴')
-  ) {
-    // '24:00'은 ISO 8601 비표준 → '23:59'로 표준화
-    return { openTime: '00:00', closeTime: '23:59' };
-  }
-
   // 1) 09:00 ~ 21:00 형태 매칭 (한자리 시도 포함: 9:00 -> 09:00)
   const timeMatch = cleanText.match(/(\d{1,2}:\d{2})/g);
   if (timeMatch && timeMatch.length >= 2) {
@@ -68,6 +58,12 @@ function parseTimeString(text: string): { openTime: string | null; closeTime: st
   if (timeMatch && timeMatch.length === 1) {
     const t = timeMatch[0];
     return { openTime: t.length === 4 ? `0${t}` : t, closeTime: null };
+  }
+
+  // 4) 시간 표기 없이 '상시 개방' 또는 '24시간' 단독 표기인 경우만 23:59 표준화
+  // ('연중무휴'는 휴무일 정보이므로 24시간 영업으로 오파싱하지 않음)
+  if (cleanText.includes('상시') || cleanText.includes('24시간')) {
+    return { openTime: '00:00', closeTime: '23:59' };
   }
 
   return { openTime: null, closeTime: null };
@@ -355,6 +351,15 @@ async function seedTourApiTest() {
 
     const lng = parseFloat(mapX);
     const lat = parseFloat(mapY);
+
+    // 유한수(Finite number) 검사: NaN인 경우 경계 비교가 항상 false가 되어 필터링을 우회하는 문제 차단
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      console.warn(
+        `⚠️ 유효하지 않은 숫자(NaN) 좌표 제외: "${item.title}" (mapX: ${mapX}, mapY: ${mapY})`,
+      );
+      skipCount++;
+      continue;
+    }
 
     // [m-4] 부산 바운딩 박스 좌표 필터 (타 지역 데이터 혼입 방지)
     const BUSAN_BOUNDS = { minLat: 34.88, maxLat: 35.40, minLng: 128.74, maxLng: 129.32 };

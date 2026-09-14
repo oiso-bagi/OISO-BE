@@ -232,18 +232,18 @@ interface SlotPattern {
 
 function getThemeSlotPattern(themeSlug: string, _targetStopCount = 4): SlotPattern[] {
   if (themeSlug === 'local-food') {
-    // 1) local-food: 정책 기준 식당/시장 2개 이상 보장 + 소화 시간을 고려한 현실적 여행 동선
-    // Slot 1(FOOD 점심 맛집) -> Slot 2(CAFE 디저트) -> Slot 3(VIEWPOINT/NATURE 오후 산책/전망) -> Slot 4(FOOD/MARKET 저녁 맛집/야시장)
+    // 1) local-food: Issue #109 AC 준수 (Slot 3 식사/시장) + 전 테마 Slot 4 일몰/야경 피날레 표준화
+    // Slot 1(FOOD 점심 맛집) -> Slot 2(CAFE 디저트 카페) -> Slot 3(FOOD/MARKET 저녁 맛집/시장 먹거리) -> Slot 4(VIEWPOINT/NATURE 일몰/야경 전망대)
     return [
       { primaryCategories: [PlaceCategory.FOOD] },
       { primaryCategories: [PlaceCategory.CAFE] },
       {
-        primaryCategories: [PlaceCategory.VIEWPOINT, PlaceCategory.NATURE],
-        fallbackCategories: [PlaceCategory.EXPERIENCE, PlaceCategory.CULTURE],
-      },
-      {
         primaryCategories: [PlaceCategory.FOOD, PlaceCategory.MARKET],
         fallbackCategories: [PlaceCategory.VIEWPOINT, PlaceCategory.CAFE],
+      },
+      {
+        primaryCategories: [PlaceCategory.VIEWPOINT, PlaceCategory.NATURE],
+        fallbackCategories: [PlaceCategory.EXPERIENCE, PlaceCategory.CULTURE],
       },
     ];
   }
@@ -350,14 +350,8 @@ async function seedRecommendRoutes() {
 
   console.log(`📌 DB 마스터 장소 ${allDbPlaces.length}건 기반으로 6대 테마 × 20개 코스 = 총 120개 코스 적재를 시작합니다.`);
 
-  // 이전 추천 루트 전체 멱등성 클린업 [C-5]
-  // Route.onDelete: Cascade → RouteStop/RouteTheme 자동 삭제되므로 Route만 삭제, 단일 트랜잭션으로 원자화
-  await prisma.$transaction(async (tx) => {
-    await tx.route.deleteMany({ where: { routeType: RouteType.RECOMMENDED } });
-  });
-  console.log('✅ 이전 추천 루트 전체 멱등성 클린업 완료 (트랜잭션)');
-
   let totalRouteCount = 0;
+  const createdRouteIds: string[] = [];
 
   // 4. 6대 테마 각각 마다 20개 코스씩 총 120개 마스터 코스 100% 동적 생성
   for (const theme of masterThemes) {
@@ -786,9 +780,24 @@ async function seedRecommendRoutes() {
         }),
       ]);
 
+      createdRouteIds.push(route.id);
+
       console.log(
         `✅ [코스 #${totalRouteCount}/120] "${route.name}" (테마: ${theme.slug}, 경유지: ${uniqueStops.length}개, 비용: ${estimatedCostWon}원, 고도상승: ${totalElevationGainMeters}m)`,
       );
+    }
+  }
+
+  // 120개 코스 적재가 100% 온전히 완료된 직후에만 생성된 ID 외의 레거시 추천 코스 일괄 정리 [Zero-Downtime Swap]
+  if (createdRouteIds.length === 120) {
+    const cleanupResult = await prisma.route.deleteMany({
+      where: {
+        routeType: RouteType.RECOMMENDED,
+        id: { notIn: createdRouteIds },
+      },
+    });
+    if (cleanupResult.count > 0) {
+      console.log(`🧹 미사용/레거시 추천 코스 ${cleanupResult.count}건 안전 정리 완료 (Zero-Downtime Swap)`);
     }
   }
 

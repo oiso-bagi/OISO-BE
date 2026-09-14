@@ -59,8 +59,7 @@
 사용자가 6대 마스터 테마 선택 시, 비즈니스 정책을 100% 반영하는 슬롯 시퀀스 구조를 적용하고 `FOOD->FOOD`, `CAFE->CAFE` 동일 카테고리 연속을 엄격히 방어합니다.
 
 | 테마 slug | 슬롯 시퀀스 패턴 (Slot Sequence Pattern) | 핀포인트 조건 & 슬롯 구성 상세 |
-|---|---|---|
-| 🍱 **`local-food`** | **Slot 1**: FOOD ➡️ **Slot 2**: CAFE ➡️ **Slot 3**: VIEWPOINT/NATURE ➡️ **Slot 4**: FOOD/MARKET | 대표 맛집/노포 ➡️ 디저트 카페 ➡️ 오후 산책/전망 ➡️ 저녁 맛집/야시장 |
+| 🍱 **`local-food`** | **Slot 1**: FOOD ➡️ **Slot 2**: CAFE ➡️ **Slot 3**: FOOD/MARKET ➡️ **Slot 4**: VIEWPOINT/NATURE | 대표 맛집/노포 ➡️ 디저트 카페 ➡️ 저녁 맛집/야시장 ➡️ 일몰/야경 전망대 (피날레) |
 | ☕ **`emotion-cafe`** | **Slot 1**: CAFE ➡️ **Slot 2**: CULTURE/VIEWPOINT/EXPERIENCE ➡️ **Slot 3**: FOOD ➡️ **Slot 4**: CAFE | 감성/뷰 카페 ➡️ 전시/포토존/공방체험 ➡️ 대표 식당 ➡️ 디저트/로스터리 카페 |
 | 🌊 **`beach-tour`** | **Slot 1**: BEACH (NATURE/EXPERIENCE/VIEWPOINT) ➡️ **Slot 2**: FOOD ➡️ **Slot 3**: BEACH/CAFE ➡️ **Slot 4**: VIEWPOINT | 해수욕장/해양 ➡️ 해산물/식당 ➡️ 오션뷰 카페/해양레포츠 ➡️ 해안 전망대/야경 |
 | 📸 **`photo-spot`** | **Slot 1**: CULTURE/EXPERIENCE ➡️ **Slot 2**: CAFE ➡️ **Slot 3**: FOOD ➡️ **Slot 4**: VIEWPOINT | 전시/갤러리/체험관 ➡️ 감성 포토 카페 ➡️ 든든한 저녁 식사 ➡️ 노을/야경 전망대 (피날레) |
@@ -98,8 +97,8 @@ N박 M일(다일) 추천 코스 응답 시, 프론트엔드 지도(Map Component
   - `SavedRouteStopDetailDto`에도 `dayNumber` 필드를 포함하여 저장된 다일 코스의 일차별 탭/마커 색상 구분을 동일하게 지원합니다.
 - **예시**:
   - `dayNumber: 1` ➡️ 1일차 경유지 (스팟 1~4번)
-  - `dayNumber: 2` ➡️ 2일차 경유지 (스팟 5~9번)
-  - `dayNumber: 3` ➡️ 3일차 경유지 (스팟 10~13번)
+  - `dayNumber: 2` ➡️ 2일차 경유지 (스팟 5~8번)
+  - `dayNumber: 3` ➡️ 3일차 경유지 (스팟 9~12번)
 
 ### 5.2 `pathCoordinates` 및 이동수단별 요금(`fareWon`) / `placeId` 규격 🆕
 
@@ -134,7 +133,7 @@ N박 M일(다일) 추천 코스 응답 시, 프론트엔드 지도(Map Component
 
 | 시스템 컴포넌트 | 본 정책 문서 연동 역할 |
 | --- | --- |
-| **`scripts/seed-recommend-routes.ts`** | 본 수치 정책에 따라 6대 테마 × 20개 코스 = 총 120개 마스터 추천 코스 및 약 420개 이상 경유지 자동 연산 및 SEED 저장 |
+| **`scripts/seed-recommend-routes.ts`** | 본 수치 정책에 따라 6대 테마 × 20개 코스 = 총 120개 마스터 추천 코스 및 480개 경유지(코스당 4개 스팟 고정) 자동 연산 및 SEED 저장 |
 | **`RecommendRouteRequestDto`** | 공개 입력 `dailyBudgetWon`을 전달받아 파생된 총예산(`totalBudgetWon`) 10,000원 ~ 500,000원 유효성 검증 레인지 설정 (`RecommendationService.validateTotalBudgetWon`) |
 | **`RecommendedRouteListResponseDto` → `RouteStopLocationDto`** | 실시간 추천 경유지 객체 내 `dayNumber` 필드를 포함하여 프론트 지도 Color Coding 연동 지원 |
 | **`SavedRouteDetailResponseDto` → `SavedRouteStopDetailDto`** | 저장된 다일 코스 경유지 객체 내 `dayNumber` 필드를 포함하여 일차별 탭 및 지도 마커 색상 구분 지원 |
