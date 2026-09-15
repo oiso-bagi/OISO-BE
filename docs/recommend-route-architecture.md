@@ -90,8 +90,10 @@ flowchart TD
   - `photo-spot`: 문화(전시/갤러리) + 전망(포토존/야경) 스팟 하루 2개 이상 필수 포함
   - `traditional-market`: 전통시장(`MARKET`) 1개 이상 필수 포함
   - `nature-walk`: 자연/공원/산책 스팟 2개 이상 필수 포함
-- **하이브리드 동선 정렬 (Category Flow + Nearest Neighbor)**:
-  - 카테고리 시퀀스 흐름(`[관광/자연/문화 ➡️ 식사/시장 ➡️ 카페/체험 ➡️ 일몰/야경/전망]`)과 지리적 최근접 이동 거리(`Nearest Neighbor`)를 통합 조합하여 낭비 없는 자연스러운 동선 순서(`orderIndex`) 자동 산출
+- **하이브리드 동선 정렬 (Theme Slot Sequence + Nearest Neighbor)**:
+  - 공통 카테고리 흐름보다 **각 테마별 4-슬롯 시퀀스(Slot Sequence Pattern)가 최우선 적용**됩니다.
+  - 각 슬롯 내부에서는 **직전 경유지 기준 지리적 최근접 이동 거리(`Nearest Neighbor`)** 순으로 후보를 선별하여 낭비 없는 자연스러운 동선 순서(`orderIndex`)를 자동 산출합니다.
+  - 해당 슬롯의 1차 조건(`primaryCategories`)에 부합하는 후보가 없을 경우, 사전에 정의된 **다단계 대체 카테고리(`fallbackCategories`) 규칙**을 적용하여 코스 조립 가용성을 100% 보장합니다.
 - **이동 순서 오르막 상승분 (`RouteStop.elevationGainMeters`) 역정규화 적재 이유**:
   - 장소 고도(`Place.elevationMeters`)는 정적 절대값인 반면, 오르막 피로도(`elevationGainMeters`)는 **어느 이동 순서(Order)로 이동하느냐에 의존하는 상대값** (오르막만 피로도 차감, 내리막 0m)
   - SEED 시점에 `RouteStop.elevationGainMeters` 및 `Route.totalElevationGainMeters`에 사전 계산 저장함으로써 **런타임 외부 API 추가 호출 0회 (0-Call) & DB 읽기 속도 O(1) 최적화 달성**
