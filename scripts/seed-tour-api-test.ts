@@ -6,20 +6,36 @@ dotenv.config();
 
 const prisma = new PrismaClient();
 
+/**
+ * API Key 안전 디코딩 헬퍼 [M-6]
+ */
+function safeDecodeApiKey(rawKey: string): string {
+  try {
+    const decoded = decodeURIComponent(rawKey);
+    if (/%[0-9A-Fa-f]{2}/.test(decoded)) {
+      return decodeURIComponent(decoded);
+    }
+    return decoded;
+  } catch {
+    return rawKey;
+  }
+}
+
 function parseTimeString(text: string): { openTime: string | null; closeTime: string | null } {
   if (!text) return { openTime: null, closeTime: null };
   const cleanText = String(text).trim();
-
-  // 0) 상시 개방 / 24시간 / 연중무휴 텍스트 감지
-  if (cleanText.includes('상시') || cleanText.includes('24시간')) {
-    return { openTime: '00:00', closeTime: '24:00' };
-  }
 
   // 1) 09:00 ~ 21:00 형태 매칭 (한자리 시도 포함: 9:00 -> 09:00)
   const timeMatch = cleanText.match(/(\d{1,2}:\d{2})/g);
   if (timeMatch && timeMatch.length >= 2) {
     const formatTime = (t: string) => (t.length === 4 ? `0${t}` : t);
-    return { openTime: formatTime(timeMatch[0]), closeTime: formatTime(timeMatch[1]) };
+    const openTime = formatTime(timeMatch[0]);
+    const closeTime = formatTime(timeMatch[1]);
+    // [M-7] 야간 영업 감지 (closeTime < openTime 시 익일 영업)
+    if (closeTime < openTime) {
+      console.warn(`⚠️ [영업시간 야간형] openTime: ${openTime} > closeTime: ${closeTime} (익일 마감) → DB 저장 후 어플리케이션 연산 주의`);
+    }
+    return { openTime, closeTime };
   }
 
   // 2) 9시 30분 ~ 21시 30분 / 09시~21시 형태 매칭
@@ -44,6 +60,12 @@ function parseTimeString(text: string): { openTime: string | null; closeTime: st
     return { openTime: t.length === 4 ? `0${t}` : t, closeTime: null };
   }
 
+  // 4) 시간 표기 없이 '상시 개방' 또는 '24시간' 단독 표기인 경우만 23:59 표준화
+  // ('연중무휴'는 휴무일 정보이므로 24시간 영업으로 오파싱하지 않음)
+  if (cleanText.includes('상시') || cleanText.includes('24시간')) {
+    return { openTime: '00:00', closeTime: '23:59' };
+  }
+
   return { openTime: null, closeTime: null };
 }
 
@@ -55,7 +77,7 @@ async function fetchTourApiPlaceHours(
   if (!rawApiKey || !contentId) return { openTime: null, closeTime: null };
 
   try {
-    const serviceKey = decodeURIComponent(rawApiKey);
+    const serviceKey = safeDecodeApiKey(rawApiKey);
     const endpoint = 'https://apis.data.go.kr/B551011/KorService2/detailIntro2';
 
     const res = await axios.get(endpoint, {
@@ -105,41 +127,44 @@ function mapItemToCategory(item: any): PlaceCategory {
   const cat2 = String(item?.cat2 ?? '');
   const cat3 = String(item?.cat3 ?? '');
 
-  if (
-    cat3 === 'A05020900' ||
-    titleText.includes('카페') ||
-    titleText.includes('커피') ||
-    titleText.toLowerCase().includes('cafe') ||
-    titleText.includes('디저트') ||
-    titleText.includes('베이커리') ||
-    titleText.includes('제과') ||
-    titleText.includes('찻집') ||
-    titleText.includes('로스터리') ||
-    titleText.includes('에스프레소') ||
-    titleText.includes('아뜰리에')
-  ) {
-    return PlaceCategory.CAFE;
+  // [M-3] 분류 우선순위: ETC(숙박) → VIEWPOINT → CAFE → CULTURE → EXPERIENCE → MARKET → FOOD → NATURE
+
+  // 0순위: 숙박 명시 제외 (추천 코스 조립 대상 외)
+  if (code === '32') {
+    return PlaceCategory.ETC;
   }
 
+  // 1순위: VIEWPOINT - 전망/야경 명소 (이전 CAFE보다 늦어 shadowing 발생하던 오류 수정)
   if (
     titleText.includes('전망대') ||
-    titleText.includes('타워') ||
-    titleText.includes('야경') ||
     titleText.includes('스카이워크') ||
+    titleText.includes('야경') ||
     titleText.includes('루프탑') ||
     titleText.includes('포토존') ||
-    titleText.includes('전망') ||
-    titleText.includes('해넘이') ||
-    titleText.includes('일출') ||
     titleText.includes('케이블카') ||
-    titleText.includes('해변') ||
-    titleText.includes('해수욕장') ||
-    titleText.includes('포구') ||
-    titleText.includes('항')
+    titleText.includes('타워') ||
+    titleText.includes('해넘이') ||
+    titleText.includes('일출')
   ) {
     return PlaceCategory.VIEWPOINT;
   }
 
+  // 2순위: CAFE (소분류 코드 기반 우선, '카페거리' 등 오분류 예외 처리)
+  if (
+    cat3 === 'A05020900' ||
+    titleText.includes('로스터리') ||
+    titleText.includes('에스프레소') ||
+    titleText.includes('베이커리') ||
+    titleText.includes('제과') ||
+    titleText.includes('찻집') ||
+    titleText.includes('디저트') ||
+    titleText.toLowerCase().includes('cafe') ||
+    (titleText.includes('카페') && !titleText.includes('카페거리'))
+  ) {
+    return PlaceCategory.CAFE;
+  }
+
+  // 3순위: CULTURE
   if (
     code === '14' ||
     cat1 === 'A02' ||
@@ -156,6 +181,7 @@ function mapItemToCategory(item: any): PlaceCategory {
     return PlaceCategory.CULTURE;
   }
 
+  // 4순위: EXPERIENCE
   if (
     code === '15' ||
     code === '28' ||
@@ -181,6 +207,7 @@ function mapItemToCategory(item: any): PlaceCategory {
     return PlaceCategory.EXPERIENCE;
   }
 
+  // 5순위: MARKET
   if (
     code === '38' ||
     cat2 === 'A0401' ||
@@ -193,16 +220,19 @@ function mapItemToCategory(item: any): PlaceCategory {
     return PlaceCategory.MARKET;
   }
 
+  // 6순위: FOOD (기본 음식점)
   if (code === '39' || cat1 === 'A05') {
     return PlaceCategory.FOOD;
   }
 
+  // 7순위: NATURE
   if (code === '12' || cat1 === 'A01') {
     return PlaceCategory.NATURE;
   }
 
   return PlaceCategory.ETC;
 }
+
 
 async function fetchWithRetry<T>(
   fn: () => Promise<T>,
@@ -233,7 +263,7 @@ async function seedTourApiTest() {
     process.exit(1);
   }
 
-  const serviceKey = decodeURIComponent(rawApiKey);
+  const serviceKey = safeDecodeApiKey(rawApiKey);
   const areaEndpoint = 'https://apis.data.go.kr/B551011/KorService2/areaBasedList2';
   const searchEndpoint = 'https://apis.data.go.kr/B551011/KorService2/searchKeyword2';
 
@@ -319,10 +349,35 @@ async function seedTourApiTest() {
       continue;
     }
 
+    const lng = parseFloat(mapX);
+    const lat = parseFloat(mapY);
+
+    // 유한수(Finite number) 검사: NaN인 경우 경계 비교가 항상 false가 되어 필터링을 우회하는 문제 차단
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      console.warn(
+        `⚠️ 유효하지 않은 숫자(NaN) 좌표 제외: "${item.title}" (mapX: ${mapX}, mapY: ${mapY})`,
+      );
+      skipCount++;
+      continue;
+    }
+
+    // [m-4] 부산 바운딩 박스 좌표 필터 (타 지역 데이터 혼입 방지)
+    const BUSAN_BOUNDS = { minLat: 34.88, maxLat: 35.40, minLng: 128.74, maxLng: 129.32 };
+    if (
+      lat < BUSAN_BOUNDS.minLat || lat > BUSAN_BOUNDS.maxLat ||
+      lng < BUSAN_BOUNDS.minLng || lng > BUSAN_BOUNDS.maxLng
+    ) {
+      console.warn(
+        `⚠️ [m-4] 부산 바운딩 박스 외부 좌표 제외: "${item.title}" (lat: ${lat}, lng: ${lng})`,
+      );
+      skipCount++;
+      continue;
+    }
+
     validItems.push({
       item,
-      lng: parseFloat(mapX),
-      lat: parseFloat(mapY),
+      lng,
+      lat,
     });
   }
 
@@ -331,9 +386,9 @@ async function seedTourApiTest() {
   const elevationsMap: Record<string, number> = {};
 
   if (googleKey && validItems.length > 0) {
-    const chunkSize = 100;
-    for (let i = 0; i < validItems.length; i += chunkSize) {
-      const chunk = validItems.slice(i, i + chunkSize);
+    const ELEVATION_CHUNK_SIZE = 30; // [C-4] 아키텍처 문서 기준 30개 (URL 길이 초과 방지)
+    for (let i = 0; i < validItems.length; i += ELEVATION_CHUNK_SIZE) {
+      const chunk = validItems.slice(i, i + ELEVATION_CHUNK_SIZE);
       try {
         const locationsStr = chunk.map((v) => `${v.lat},${v.lng}`).join('|');
         const elevUrl = `https://maps.googleapis.com/maps/api/elevation/json?locations=${encodeURIComponent(
@@ -341,16 +396,27 @@ async function seedTourApiTest() {
         )}&key=${googleKey}`;
         const elevRes = await axios.get(elevUrl, { timeout: 10000 });
 
+        // [C-4] API 비정상 응답 방어 (INVALID_REQUEST, OVER_QUERY_LIMIT 등)
+        if (elevRes.data?.status !== 'OK') {
+          console.warn(
+            `⚠️ Elevation API 비정상 응답 (배치 ${i}~${i + ELEVATION_CHUNK_SIZE}): ${elevRes.data?.status}`,
+          );
+          continue;
+        }
+
         if (Array.isArray(elevRes.data?.results)) {
           elevRes.data.results.forEach((res: any, idx: number) => {
             if (res?.elevation != null && chunk[idx]) {
               const contentId = String(chunk[idx].item.contentid);
-              elevationsMap[contentId] = Math.round(res.elevation);
+              // [C-4] 음수 고도 방어: 간척지·해수면 아래 좌표는 0m 보정
+              elevationsMap[contentId] = Math.max(0, Math.round(res.elevation));
             }
           });
         }
       } catch (err: any) {
-        console.warn(`⚠️ Elevation API 지연`);
+        console.warn(
+          `⚠️ Elevation API 지연 (배치 ${i}~${i + ELEVATION_CHUNK_SIZE}): ${err?.message}`,
+        );
       }
     }
     console.log(`🏔️ Google Elevation API 수집 완료 (${Object.keys(elevationsMap).length}개 고도 획득)`);
