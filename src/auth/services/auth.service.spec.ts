@@ -9,6 +9,7 @@ import { Prisma } from '@prisma/client';
 import { AuthRepository } from '@/auth/repositories/auth.repository';
 import { AuthService } from '@/auth/services/auth.service';
 import { AuthTokenService } from '@/auth/services/auth-token.service';
+import { PasswordHashService } from '@/auth/services/password-hash.service';
 import { SocialAuthService } from '@/auth/services/social-auth.service';
 
 describe('AuthService', () => {
@@ -18,12 +19,16 @@ describe('AuthService', () => {
     createSocialUser: jest.fn(),
     updateSocialUser: jest.fn(),
     findUserById: jest.fn(),
+    findLocalUserByEmail: jest.fn(),
   };
   const mockAuthTokenService = {
     issueAccessToken: jest.fn(),
     issueRefreshToken: jest.fn(),
     verifyAccessToken: jest.fn(),
     verifyRefreshToken: jest.fn(),
+  };
+  const mockPasswordHashService = {
+    verifyPassword: jest.fn(),
   };
   let service: AuthService;
   let socialAuthService: SocialAuthService;
@@ -38,9 +43,85 @@ describe('AuthService', () => {
       mockAuthRepository as unknown as AuthRepository,
       mockAuthTokenService as unknown as AuthTokenService,
       socialAuthService,
+      mockPasswordHashService as unknown as PasswordHashService,
     );
     mockAuthTokenService.issueAccessToken.mockReturnValue('access-token');
     mockAuthTokenService.issueRefreshToken.mockReturnValue('refresh-token');
+  });
+
+  describe('loginWithEmail', () => {
+    it('issues access and refresh tokens for a local user', async () => {
+      mockAuthRepository.findLocalUserByEmail.mockResolvedValue({
+        id: 'admin-id',
+        provider: 'LOCAL',
+        passwordHash: 'hash',
+        isActive: true,
+      });
+      mockPasswordHashService.verifyPassword.mockReturnValue(true);
+
+      await expect(
+        service.loginWithEmail({
+          email: ' REVIEW-ADMIN@OISO.COM ',
+          password: 'correct-password',
+        }),
+      ).resolves.toEqual({
+        tokens: {
+          accessToken: 'access-token',
+          refreshToken: 'refresh-token',
+        },
+      });
+      expect(mockAuthRepository.findLocalUserByEmail).toHaveBeenCalledWith(
+        'review-admin@oiso.com',
+      );
+      expect(mockPasswordHashService.verifyPassword).toHaveBeenCalledWith(
+        'correct-password',
+        'hash',
+      );
+      expect(mockAuthTokenService.issueAccessToken).toHaveBeenCalledWith(
+        'admin-id',
+        'LOCAL',
+      );
+      expect(mockAuthTokenService.issueRefreshToken).toHaveBeenCalledWith(
+        'admin-id',
+        'LOCAL',
+      );
+    });
+
+    it('rejects invalid local credentials', async () => {
+      mockAuthRepository.findLocalUserByEmail.mockResolvedValue({
+        id: 'admin-id',
+        provider: 'LOCAL',
+        passwordHash: 'hash',
+        isActive: true,
+      });
+      mockPasswordHashService.verifyPassword.mockReturnValue(false);
+
+      await expect(
+        service.loginWithEmail({
+          email: 'review-admin@oiso.com',
+          password: 'wrong-password',
+        }),
+      ).rejects.toThrow(UnauthorizedException);
+      expect(mockAuthTokenService.issueAccessToken).not.toHaveBeenCalled();
+      expect(mockAuthTokenService.issueRefreshToken).not.toHaveBeenCalled();
+    });
+
+    it('rejects inactive local accounts', async () => {
+      mockAuthRepository.findLocalUserByEmail.mockResolvedValue({
+        id: 'admin-id',
+        provider: 'LOCAL',
+        passwordHash: 'hash',
+        isActive: false,
+      });
+      mockPasswordHashService.verifyPassword.mockReturnValue(true);
+
+      await expect(
+        service.loginWithEmail({
+          email: 'review-admin@oiso.com',
+          password: 'correct-password',
+        }),
+      ).rejects.toThrow(UnauthorizedException);
+    });
   });
 
   describe('loginWithKakao', () => {

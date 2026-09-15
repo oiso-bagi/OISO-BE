@@ -1,6 +1,7 @@
 import { applyDecorators } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiBody,
   ApiCookieAuth,
   ApiFoundResponse,
   ApiInternalServerErrorResponse,
@@ -14,6 +15,7 @@ import { REFRESH_TOKEN_COOKIE } from '@/auth/auth.constants';
 import { AuthSessionResponseDto } from '@/auth/dto/auth-session-response.dto';
 import { AuthTokenResponseDto } from '@/auth/dto/auth-token-response.dto';
 import { CurrentUserResponseDto } from '@/auth/dto/current-user-response.dto';
+import { LocalLoginRequestDto } from '@/auth/dto/local-login-request.dto';
 import {
   ApiAccessTokenUnauthorizedResponseDocs,
   ApiJwtAccessTokenInternalServerErrorResponseDocs,
@@ -130,6 +132,28 @@ const internalServerErrorExamples = {
 };
 
 export const ApiAuthControllerDocs = () => ApiTags('Auth');
+
+export const ApiLoginWithEmailDocs = () =>
+  applyDecorators(
+    ApiBody({ type: LocalLoginRequestDto }),
+    ApiOperation({
+      summary: 'Local email login',
+      description: [
+        'Issues an access token and refresh-token cookie for a local account.',
+        '',
+        'This endpoint is intended for reviewer or administrator accounts that cannot rely on external social-login approval flows.',
+      ].join('\n'),
+    }),
+    ApiOkResponse({
+      description:
+        'Returns an access token and stores the refresh token in an HttpOnly cookie.',
+      type: AuthTokenResponseDto,
+    }),
+    ApiUnauthorizedResponse({
+      description:
+        'Returned when the email/password pair is invalid or the account is inactive.',
+    }),
+  );
 
 export const ApiRedirectToKakaoDocs = () =>
   applyDecorators(

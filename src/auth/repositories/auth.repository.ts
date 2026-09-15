@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import type { User } from '@prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
 import type {
+  LocalAuthUser,
   SocialAuthLookupUser,
   SocialAuthUser,
   UserIdOnly,
@@ -59,6 +60,18 @@ export class AuthRepository {
       where: { nickname },
       select: {
         id: true,
+      },
+    });
+  }
+
+  findLocalUserByEmail(email: string): Promise<LocalAuthUser | null> {
+    return this.prisma.user.findUnique({
+      where: { email },
+      select: {
+        id: true,
+        provider: true,
+        passwordHash: true,
+        isActive: true,
       },
     });
   }
