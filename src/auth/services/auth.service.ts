@@ -1,9 +1,15 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { UserProvider } from '@prisma/client';
 import type { User } from '@prisma/client';
+import { LocalLoginRequestDto } from '@/auth/dto/local-login-request.dto';
 import { AuthRepository } from '@/auth/repositories/auth.repository';
+import { PasswordHashService } from '@/auth/services/password-hash.service';
 import { SocialAuthService } from '@/auth/services/social-auth.service';
 import { AuthTokenService } from '@/auth/services/auth-token.service';
-import type { SocialLoginResult } from '@/auth/types/auth-result.types';
+import type {
+  LocalLoginResult,
+  SocialLoginResult,
+} from '@/auth/types/auth-result.types';
 import type { GoogleUserProfile } from '@/auth/types/google-auth.types';
 import type { KakaoUserProfile } from '@/auth/types/kakao-auth.types';
 import { SOCIAL_PROVIDER } from '@/auth/types/social-auth.types';
@@ -18,6 +24,7 @@ export class AuthService {
     private readonly authRepository: AuthRepository,
     private readonly authTokenService: AuthTokenService,
     private readonly socialAuthService: SocialAuthService,
+    private readonly passwordHashService: PasswordHashService,
   ) {}
 
   async loginWithKakao(profile: KakaoUserProfile): Promise<SocialLoginResult> {
@@ -28,6 +35,41 @@ export class AuthService {
     profile: GoogleUserProfile,
   ): Promise<SocialLoginResult> {
     return this.loginWithSocialProvider(SOCIAL_PROVIDER.GOOGLE, profile);
+  }
+
+  async loginWithEmail(
+    loginRequest: LocalLoginRequestDto,
+  ): Promise<LocalLoginResult> {
+    const email = loginRequest.email.trim().toLowerCase();
+    const user = await this.authRepository.findLocalUserByEmail(email);
+
+    if (
+      !user ||
+      user.provider !== UserProvider.LOCAL ||
+      !this.passwordHashService.verifyPassword(
+        loginRequest.password,
+        user.passwordHash,
+      )
+    ) {
+      throw new UnauthorizedException('Email or password is incorrect.');
+    }
+
+    if (user.isActive === false) {
+      throw new UnauthorizedException('Account is suspended.');
+    }
+
+    return {
+      tokens: {
+        accessToken: this.authTokenService.issueAccessToken(
+          user.id,
+          user.provider,
+        ),
+        refreshToken: this.authTokenService.issueRefreshToken(
+          user.id,
+          user.provider,
+        ),
+      },
+    };
   }
 
   async getCurrentUser(accessToken: string | undefined): Promise<User> {

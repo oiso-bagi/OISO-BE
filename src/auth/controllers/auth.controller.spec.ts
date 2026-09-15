@@ -21,6 +21,7 @@ interface OAuthCallbackParams {
 }
 
 interface MockResponse extends Response {
+  cookieMock: jest.Mock;
   redirectMock: jest.Mock<void, [string]>;
 }
 
@@ -33,6 +34,10 @@ describe('AuthController', () => {
   const mockAuthService = {
     loginWithKakao: jest.fn<Promise<unknown>, [unknown]>(),
     loginWithGoogle: jest.fn<Promise<unknown>, [unknown]>(),
+    loginWithEmail: jest.fn<
+      Promise<{ tokens: { accessToken: string; refreshToken: string } }>,
+      [{ email: string; password: string }]
+    >(),
   };
   const mockKakaoAuthService: {
     getAuthorizationUrl: AuthorizationUrlMock;
@@ -51,6 +56,7 @@ describe('AuthController', () => {
   const mockAuthCookieService = {
     getSafeOAuthReturnUrl: jest.fn<string | undefined, [unknown]>(),
     getBaseCookieOptions: jest.fn<Record<string, unknown>, []>(),
+    getDurationMilliseconds: jest.fn<number, [string]>(),
   };
   const mockOAuthFlowService: {
     handleSocialCallback: jest.Mock<Promise<void>, [OAuthCallbackParams]>;
@@ -77,6 +83,13 @@ describe('AuthController', () => {
     mockAuthCookieService.getSafeOAuthReturnUrl.mockReturnValue(undefined);
     mockAuthCookieService.getBaseCookieOptions.mockReturnValue({
       httpOnly: true,
+    });
+    mockAuthCookieService.getDurationMilliseconds.mockReturnValue(1209600000);
+    mockAuthService.loginWithEmail.mockResolvedValue({
+      tokens: {
+        accessToken: 'access-token',
+        refreshToken: 'refresh-token',
+      },
     });
     mockOAuthFlowService.handleSocialCallback.mockResolvedValue(undefined);
     controller = new AuthController(
@@ -280,6 +293,38 @@ describe('AuthController', () => {
       );
     });
   });
+
+  describe('loginWithEmail', () => {
+    it('returns an access token and sets the refresh token cookie', async () => {
+      const response = createResponse();
+
+      await expect(
+        controller.loginWithEmail(
+          {
+            email: 'review-admin@oiso.com',
+            password: 'correct-password',
+          },
+          response,
+        ),
+      ).resolves.toEqual({
+        accessToken: 'access-token',
+        tokenType: 'Bearer',
+      });
+
+      expect(mockAuthService.loginWithEmail).toHaveBeenCalledWith({
+        email: 'review-admin@oiso.com',
+        password: 'correct-password',
+      });
+      expect(response.cookieMock).toHaveBeenCalledWith(
+        'oiso_refresh_token',
+        'refresh-token',
+        {
+          httpOnly: true,
+          maxAge: 1209600000,
+        },
+      );
+    });
+  });
 });
 
 function restoreEnv(name: string, value: string | undefined): void {
@@ -303,10 +348,12 @@ function createRailwayRequest(): Request {
 }
 
 function createResponse(): MockResponse {
+  const cookieMock = jest.fn();
   const redirectMock = jest.fn<void, [string]>();
 
   return {
-    cookie: jest.fn(),
+    cookie: cookieMock,
+    cookieMock,
     redirect: redirectMock,
     redirectMock,
   } as unknown as MockResponse;

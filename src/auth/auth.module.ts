@@ -8,6 +8,7 @@ import { AuthTokenService } from '@/auth/services/auth-token.service';
 import { GoogleAuthService } from '@/auth/services/google-auth.service';
 import { KakaoAuthService } from '@/auth/services/kakao-auth.service';
 import { OAuthFlowService } from '@/auth/services/oauth-flow.service';
+import { PasswordHashService } from '@/auth/services/password-hash.service';
 import { SocialAuthService } from '@/auth/services/social-auth.service';
 import { AuthGuard } from '@/common/guards/auth.guard';
 import { RolesGuard } from '@/common/guards/roles.guard';
@@ -21,12 +22,19 @@ import { RolesGuard } from '@/common/guards/roles.guard';
     AuthTokenService,
     AuthCookieService,
     OAuthFlowService,
+    PasswordHashService,
     SocialAuthService,
     KakaoAuthService,
     GoogleAuthService,
     AuthGuard,
     RolesGuard,
   ],
-  exports: [AuthService, AuthCookieService, AuthGuard, RolesGuard],
+  exports: [
+    AuthService,
+    AuthCookieService,
+    PasswordHashService,
+    AuthGuard,
+    RolesGuard,
+  ],
 })
 export class AuthModule {}

@@ -1,4 +1,5 @@
 import {
+  Body,
   Controller,
   Get,
   HttpCode,
@@ -24,6 +25,7 @@ import {
   ApiGetSessionDocs,
   ApiHandleGoogleCallbackDocs,
   ApiHandleKakaoCallbackDocs,
+  ApiLoginWithEmailDocs,
   ApiLogoutDocs,
   ApiRedirectToGoogleDocs,
   ApiRedirectToKakaoDocs,
@@ -32,6 +34,7 @@ import {
 import { AuthSessionResponseDto } from '@/auth/dto/auth-session-response.dto';
 import { AuthTokenResponseDto } from '@/auth/dto/auth-token-response.dto';
 import { CurrentUserResponseDto } from '@/auth/dto/current-user-response.dto';
+import { LocalLoginRequestDto } from '@/auth/dto/local-login-request.dto';
 import { AuthCookieService } from '@/auth/services/auth-cookie.service';
 import { AuthService } from '@/auth/services/auth.service';
 import { GoogleAuthService } from '@/auth/services/google-auth.service';
@@ -129,6 +132,20 @@ export class AuthController {
     });
   }
 
+  @Post('auth/login')
+  @HttpCode(200)
+  @ApiLoginWithEmailDocs()
+  async loginWithEmail(
+    @Body() loginRequest: LocalLoginRequestDto,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<AuthTokenResponseDto> {
+    const { tokens } = await this.authService.loginWithEmail(loginRequest);
+
+    this.setRefreshTokenCookie(response, tokens.refreshToken);
+
+    return AuthTokenResponseDto.from(tokens.accessToken);
+  }
+
   @Get('me')
   @UseGuards(AuthGuard)
   @ApiGetCurrentUserDocs()
@@ -196,6 +213,18 @@ export class AuthController {
       });
     }
     response.redirect(getAuthorizationUrl(state));
+  }
+
+  private setRefreshTokenCookie(
+    response: Response,
+    refreshToken: string,
+  ): void {
+    response.cookie(REFRESH_TOKEN_COOKIE, refreshToken, {
+      ...this.authCookieService.getBaseCookieOptions(),
+      maxAge: this.authCookieService.getDurationMilliseconds(
+        process.env.JWT_REFRESH_EXPIRES_IN ?? '14d',
+      ),
+    });
   }
 
   private resolveOAuthRedirectUri(
