@@ -94,6 +94,11 @@ flowchart TD
   - 공통 카테고리 흐름보다 **각 테마별 4-슬롯 시퀀스(Slot Sequence Pattern)가 최우선 적용**됩니다.
   - 각 슬롯 내부에서는 **직전 경유지 기준 지리적 최근접 이동 거리(`Nearest Neighbor`)** 순으로 후보를 선별하여 낭비 없는 자연스러운 동선 순서(`orderIndex`)를 자동 산출합니다.
   - 해당 슬롯의 1차 조건(`primaryCategories`)에 부합하는 후보가 없을 경우, 사전에 정의된 **다단계 대체 카테고리(`fallbackCategories`) 규칙**을 적용하여 코스 조립 가용성을 100% 보장합니다.
+- **다일 결합 패키지 순서 및 인덱스 정규화 규칙 (Multi-Day Stitching & Ordering Rule)**:
+  - 1일 단위 모듈 N개를 체이닝 결합할 때, 각 모듈에 속한 경유지별로 `dayNumber`를 `1`부터 순차 자동 부여(`dayNumber: 1, 2, ... N`)합니다.
+  - 결합된 전체 경유지의 `orderIndex`는 일차 구분 없이 `0`부터 연속 증가(`0, 1, 2, 3...`)하도록 일괄 재정렬하여 단일 순차 이동 동선으로 정규화합니다.
+  - 모든 경유지 객체는 개별 `dayNumber` 메타데이터를 계속 유지하여 프론트엔드 지도의 일차별 Color-coding 및 탭 분기를 지원합니다.
+  - 생성된 다일 패키지 후보군들을 종합 점수(`score`) 기준 내림차순으로 정렬한 뒤, 최종 상위 3개(`Top 3`) 코스만 선별하여 사용자에게 응답합니다.
 - **이동 순서 오르막 상승분 (`RouteStop.elevationGainMeters`) 역정규화 적재 이유**:
   - 장소 고도(`Place.elevationMeters`)는 정적 절대값인 반면, 오르막 피로도(`elevationGainMeters`)는 **어느 이동 순서(Order)로 이동하느냐에 의존하는 상대값** (오르막만 피로도 차감, 내리막 0m)
   - SEED 시점에 `RouteStop.elevationGainMeters` 및 `Route.totalElevationGainMeters`에 사전 계산 저장함으로써 **런타임 외부 API 추가 호출 0회 (0-Call) & DB 읽기 속도 O(1) 최적화 달성**
