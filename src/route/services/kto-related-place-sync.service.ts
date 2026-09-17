@@ -13,8 +13,9 @@ export interface KtoRelatedItem {
 export interface KtoRelatedApiResponse {
   response?: {
     body?: {
+      totalCount?: number;
       items?: {
-        item?: KtoRelatedItem[];
+        item?: KtoRelatedItem | KtoRelatedItem[];
       };
     };
   };
@@ -96,7 +97,7 @@ export class KtoRelatedPlaceSyncService {
    * 한국관광공사 연관관광지 정보(TarRlteTarService1) 일일 정기 동기화
    * 공사 데이터 갱신(07:30) 이후 매일 08:00에 실행
    */
-  @Cron('0 8 * * *')
+  @Cron('0 8 * * *', { timeZone: 'Asia/Seoul' })
   async handleCronRelatedPlaceSync(): Promise<void> {
     try {
       await this.handleRelatedPlaceSync();
@@ -148,68 +149,108 @@ export class KtoRelatedPlaceSyncService {
 
     const endpoint =
       'https://apis.data.go.kr/B551011/TarRlteTarService1/areaBasedList1';
+    const ROWS_PER_PAGE = 50;
+    const MAX_PAGES = 10;
+    let lastErrorMsg: string | null = null;
 
     try {
-      apiCallCount++;
-      this.dailyApiUsage++;
+      let pageNo = 1;
+      while (pageNo <= MAX_PAGES) {
+        try {
+          apiCallCount++;
+          this.dailyApiUsage++;
 
-      const response = await axios.get<KtoRelatedApiResponse>(endpoint, {
-        params: {
-          serviceKey,
-          numOfRows: 50,
-          pageNo: 1,
-          MobileOS: 'ETC',
-          MobileApp: 'OISO',
-          _type: 'json',
-          areaCode: '6', // 부산광역시
-        },
-        timeout: 8000,
-      });
+          const response = await axios.get<KtoRelatedApiResponse>(endpoint, {
+            params: {
+              serviceKey,
+              numOfRows: ROWS_PER_PAGE,
+              pageNo,
+              MobileOS: 'ETC',
+              MobileApp: 'OISO',
+              _type: 'json',
+              areaCode: '6', // 부산광역시
+            },
+            timeout: 8000,
+          });
 
-      const items = response.data?.response?.body?.items?.item;
+          const body = response.data?.response?.body;
+          const rawItems = body?.items?.item;
+          const items = Array.isArray(rawItems)
+            ? rawItems
+            : rawItems
+              ? [rawItems]
+              : [];
 
-      if (Array.isArray(items)) {
-        collectedCount = items.length;
-
-        for (const item of items) {
-          try {
-            // rlteTatsNm 또는 tatsNm 장소명 확인
-            const placeName = String(
-              item.rlteTatsNm || item.tatsNm || '',
-            ).trim();
-            if (!placeName) continue;
-
-            const existingPlace =
-              await this.routeRepository.findPlaceByName(placeName);
-            if (existingPlace) {
-              matchedPlaceCount++;
-              // 연관 순위에 따른 프리미엄 지수 가중치 산정 (1위~50위)
-              const rank = Number(item.rlteRank) || 25;
-              const calculatedPremium = Math.max(50, Math.min(99, 100 - rank));
-              await this.routeRepository.updatePlacePremiumIndex(
-                existingPlace.id,
-                calculatedPremium,
-              );
-            }
-          } catch (itemErr: unknown) {
-            failureCount++;
-            const errMsg =
-              itemErr instanceof Error ? itemErr.message : String(itemErr);
-            this.logger.warn(`연관 관광지 매칭 실패: ${errMsg}`);
+          if (items.length === 0) {
+            break;
           }
+
+          collectedCount += items.length;
+
+          for (const item of items) {
+            try {
+              // rlteTatsNm 또는 tatsNm 장소명 확인
+              const placeName = String(
+                item.rlteTatsNm || item.tatsNm || '',
+              ).trim();
+              if (!placeName) continue;
+
+              const existingPlace =
+                await this.routeRepository.findPlaceByName(placeName);
+              if (existingPlace) {
+                matchedPlaceCount++;
+                // 연관 순위에 따른 프리미엄 지수 가중치 산정 (1위~50위)
+                const rank = Number(item.rlteRank) || 25;
+                const calculatedPremium = Math.max(
+                  50,
+                  Math.min(99, 100 - rank),
+                );
+                await this.routeRepository.updatePlacePremiumIndex(
+                  existingPlace.id,
+                  calculatedPremium,
+                );
+              }
+            } catch (itemErr: unknown) {
+              failureCount++;
+              const errMsg =
+                itemErr instanceof Error ? itemErr.message : String(itemErr);
+              this.logger.warn(`연관 관광지 매칭 실패: ${errMsg}`);
+            }
+          }
+
+          const totalCount = body?.totalCount ?? 0;
+          if (
+            pageNo * ROWS_PER_PAGE >= totalCount ||
+            items.length < ROWS_PER_PAGE
+          ) {
+            break;
+          }
+
+          pageNo++;
+        } catch (apiErr: unknown) {
+          failureCount++;
+          const errMsg =
+            apiErr instanceof Error ? apiErr.message : String(apiErr);
+          lastErrorMsg = errMsg;
+          this.logger.error(
+            `TarRlteTarService1 (page ${pageNo}) API 호출 실패: ${errMsg}`,
+          );
+          break;
         }
       }
 
       this.lastCollectedAt = new Date();
       this.matchedPlaceCount = matchedPlaceCount;
-      this.lastResult = failureCount === 0 ? 'SUCCESS' : 'PARTIAL_SUCCESS';
-      this.lastMessage = `한국관광공사 연관관광지 동기화 완료 (수집: ${collectedCount}건, DB매칭: ${matchedPlaceCount}건)`;
-    } catch (apiErr: unknown) {
-      failureCount++;
-      this.lastResult = 'FAILURE';
-      const errMsg = apiErr instanceof Error ? apiErr.message : String(apiErr);
-      this.lastMessage = `TarRlteTarService1 API 호출 실패: ${errMsg}`;
-      this.logger.error(this.lastMessage);
+      this.lastResult =
+        failureCount === 0
+          ? 'SUCCESS'
+          : collectedCount > 0
+            ? 'PARTIAL_SUCCESS'
+            : 'FAILURE';
+      this.lastMessage =
+        collectedCount === 0 && failureCount > 0
+          ? `TarRlteTarService1 API 호출 실패: ${lastErrorMsg ?? '알 수 없는 오류'}`
+          : `한국관광공사 연관관광지 동기화 완료 (수집: ${collectedCount}건, DB매칭: ${matchedPlaceCount}건)`;
     } finally {
       this.isRunning = false;
     }

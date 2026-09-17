@@ -244,7 +244,7 @@ export class KtoPlaceSyncService {
     };
   }
 
-  @Cron('0 5 * * *')
+  @Cron('0 5 * * *', { timeZone: 'Asia/Seoul' })
   async handleCronPlaceSync(): Promise<void> {
     try {
       await this.handlePlaceSync();

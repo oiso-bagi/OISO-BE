@@ -161,7 +161,9 @@ export class RouteRepository {
     return this.prisma.place.count();
   }
 
-  async findPlaceByName(name: string) {
+  async findPlaceByName(
+    name: string,
+  ): Promise<{ id: string; name: string } | null> {
     const trimmed = name.trim();
     if (!trimmed) {
       return null;
@@ -173,33 +175,52 @@ export class RouteRepository {
         name: trimmed,
         isActive: true,
       },
+      select: {
+        id: true,
+        name: true,
+      },
     });
     if (exactMatch) {
       return exactMatch;
     }
 
-    // 2. 장소명 접두 일치 탐색
-    const startsWithMatch = await this.prisma.place.findFirst({
+    // 2. 장소명 접두 일치 탐색 (모호성 방지를 위해 단일 후보일 때만 매칭)
+    const startsWithCandidates = await this.prisma.place.findMany({
       where: {
         name: {
           startsWith: trimmed,
         },
         isActive: true,
       },
+      select: {
+        id: true,
+        name: true,
+      },
+      take: 2,
     });
-    if (startsWithMatch) {
-      return startsWithMatch;
+    if (startsWithCandidates.length === 1) {
+      return startsWithCandidates[0];
     }
 
-    // 3. Fallback: 포함 일치 탐색
-    return this.prisma.place.findFirst({
+    // 3. Fallback: 포함 일치 탐색 (모호성 방지를 위해 단일 후보일 때만 매칭)
+    const containsCandidates = await this.prisma.place.findMany({
       where: {
         name: {
           contains: trimmed,
         },
         isActive: true,
       },
+      select: {
+        id: true,
+        name: true,
+      },
+      take: 2,
     });
+    if (containsCandidates.length === 1) {
+      return containsCandidates[0];
+    }
+
+    return null;
   }
 
   async updatePlacePremiumIndex(placeId: string, premiumIndex: number) {

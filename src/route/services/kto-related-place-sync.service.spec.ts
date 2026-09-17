@@ -188,6 +188,39 @@ describe('KtoRelatedPlaceSyncService', () => {
       expect(status.lastMessage).toContain('Network Timeout');
     });
 
+    it('단일 객체(item이 배열이 아님) 응답도 배열로 정규화하여 정상 처리해야 한다', async () => {
+      process.env.VK_KORSERVICE2_API_KEY = 'test_key';
+
+      mockedAxios.get.mockResolvedValueOnce({
+        data: {
+          response: {
+            body: {
+              totalCount: 1,
+              items: {
+                item: {
+                  tatsNm: '해운대해수욕장',
+                  rlteTatsNm: '더베이101',
+                  rlteRank: 1,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      repository.findPlaceByName.mockResolvedValueOnce({
+        id: 'place-1',
+        name: '더베이101',
+      });
+      repository.updatePlacePremiumIndex.mockResolvedValueOnce({} as never);
+
+      const result = await service.handleRelatedPlaceSync();
+
+      expect(result.collectedCount).toBe(1);
+      expect(result.matchedPlaceCount).toBe(1);
+      expect(repository.findPlaceByName).toHaveBeenCalledWith('더베이101');
+    });
+
     it('날짜가 변경되면 dailyApiUsage가 0으로 초기화되어야 한다', () => {
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);

@@ -20,6 +20,7 @@ describe('RouteRepository', () => {
     place: {
       upsert: jest.Mock;
       findFirst: jest.Mock;
+      findMany: jest.Mock;
       update: jest.Mock;
       count: jest.Mock;
     };
@@ -36,6 +37,7 @@ describe('RouteRepository', () => {
       place: {
         upsert: mockPrismaPlaceUpsert,
         findFirst: jest.fn(),
+        findMany: jest.fn(),
         update: jest.fn(),
         count: jest.fn(),
       },
@@ -177,19 +179,33 @@ describe('RouteRepository', () => {
       expect(result).toBe(mockExact);
       expect(prismaService.place.findFirst).toHaveBeenCalledWith({
         where: { name: '해운대', isActive: true },
+        select: { id: true, name: true },
       });
     });
 
-    it('falls back to startsWith and contains if exact match not found', async () => {
-      const mockStartsWith = { id: 'p-2', name: '해운대 해수욕장' };
-      prismaService.place.findFirst
-        .mockResolvedValueOnce(null) // exact match 실패
-        .mockResolvedValueOnce(mockStartsWith); // startsWith 성공
+    it('falls back to single startsWith candidate if exact match not found', async () => {
+      const mockStartsWith = [{ id: 'p-2', name: '해운대 해수욕장' }];
+      prismaService.place.findFirst.mockResolvedValueOnce(null); // exact match 실패
+      prismaService.place.findMany.mockResolvedValueOnce(mockStartsWith); // startsWith 성공 (단일)
 
       const result = await repository.findPlaceByName('해운대');
 
-      expect(result).toBe(mockStartsWith);
-      expect(prismaService.place.findFirst).toHaveBeenCalledTimes(2);
+      expect(result).toEqual(mockStartsWith[0]);
+    });
+
+    it('skips when multiple partial candidates exist', async () => {
+      const multipleCandidates = [
+        { id: 'p-2', name: '해운대 해수욕장' },
+        { id: 'p-3', name: '해운대 블루라인파크' },
+      ];
+      prismaService.place.findFirst.mockResolvedValueOnce(null); // exact 실패
+      prismaService.place.findMany
+        .mockResolvedValueOnce(multipleCandidates) // startsWith 2개 -> 스킵
+        .mockResolvedValueOnce(multipleCandidates); // contains 2개 -> 스킵
+
+      const result = await repository.findPlaceByName('해운대');
+
+      expect(result).toBeNull();
     });
   });
 
