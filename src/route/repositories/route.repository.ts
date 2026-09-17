@@ -1,5 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { CongestionLevel, Prisma, RouteType } from '@prisma/client';
+import {
+  CongestionLevel,
+  PlaceCategory,
+  Prisma,
+  RouteType,
+} from '@prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
 
 const routeWithStopsAndPlaceSelect = Prisma.validator<Prisma.RouteSelect>()({
@@ -112,6 +117,57 @@ export class RouteRepository {
     return this.prisma.route.update({
       where: { id },
       data: { congestionLevel },
+    });
+  }
+
+  async upsertPlaceFromKto(
+    apiSourceId: string,
+    data: {
+      name: string;
+      address: string | null;
+      roadAddress: string | null;
+      region: string;
+      district: string | null;
+      category: PlaceCategory;
+      latitude: Prisma.Decimal;
+      longitude: Prisma.Decimal;
+      elevationMeters: number;
+      openTime: string | null;
+      closeTime: string | null;
+      isActive: boolean;
+    },
+  ) {
+    return this.prisma.place.upsert({
+      where: { apiSourceId },
+      update: data,
+      create: {
+        apiSourceId,
+        ...data,
+      },
+    });
+  }
+
+  async countPlaces(): Promise<number> {
+    return this.prisma.place.count();
+  }
+
+  async findPlaceByName(name: string) {
+    return this.prisma.place.findFirst({
+      where: {
+        name: {
+          contains: name,
+        },
+        isActive: true,
+      },
+    });
+  }
+
+  async updatePlacePremiumIndex(placeId: string, premiumIndex: number) {
+    return this.prisma.place.update({
+      where: { id: placeId },
+      data: {
+        premiumIndex: new Prisma.Decimal(premiumIndex),
+      },
     });
   }
 }
