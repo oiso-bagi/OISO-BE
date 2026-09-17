@@ -250,14 +250,40 @@ describe('KtoPlaceSyncService', () => {
       const yesterdayStr = yesterday.toISOString().slice(0, 10);
 
       (
-        service as unknown as { dailyApiUsage: number; usageDate: string }
+        service as unknown as {
+          dailyApiUsage: number;
+          lastApiUsageDate: string;
+        }
       ).dailyApiUsage = 500;
       (
-        service as unknown as { dailyApiUsage: number; usageDate: string }
-      ).usageDate = yesterdayStr;
+        service as unknown as {
+          dailyApiUsage: number;
+          lastApiUsageDate: string;
+        }
+      ).lastApiUsageDate = yesterdayStr;
 
       const status = service.getStatus();
       expect(status.dailyApiUsage).toBe(0);
+    });
+
+    it('retains daily usage when date matches today', () => {
+      const todayStr = new Date().toISOString().slice(0, 10);
+
+      (
+        service as unknown as {
+          dailyApiUsage: number;
+          lastApiUsageDate: string;
+        }
+      ).dailyApiUsage = 300;
+      (
+        service as unknown as {
+          dailyApiUsage: number;
+          lastApiUsageDate: string;
+        }
+      ).lastApiUsageDate = todayStr;
+
+      const status = service.getStatus();
+      expect(status.dailyApiUsage).toBe(300);
     });
   });
 });
