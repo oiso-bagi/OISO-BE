@@ -381,45 +381,61 @@ async function seedTourApiTest() {
     });
   }
 
-  // Google Elevation API 일괄 획득
-  const googleKey = process.env.GOOGLE_MAPS_API_KEY;
+  // Open-Elevation 오픈소스 API (NASA SRTM DEM 기반) 일괄 획득
+  const openElevationEndpoint =
+    process.env.OPEN_ELEVATION_API_URL ||
+    'https://api.open-elevation.com/api/v1/lookup';
   const elevationsMap: Record<string, number> = {};
 
-  if (googleKey && validItems.length > 0) {
-    const ELEVATION_CHUNK_SIZE = 30; // [C-4] 아키텍처 문서 기준 30개 (URL 길이 초과 방지)
+  if (validItems.length > 0) {
+    const ELEVATION_CHUNK_SIZE = 30; // [C-4] 오픈소스 API 서버 부하 방지를 위한 30개 단위 배치 청크
     for (let i = 0; i < validItems.length; i += ELEVATION_CHUNK_SIZE) {
       const chunk = validItems.slice(i, i + ELEVATION_CHUNK_SIZE);
       try {
-        const locationsStr = chunk.map((v) => `${v.lat},${v.lng}`).join('|');
-        const elevUrl = `https://maps.googleapis.com/maps/api/elevation/json?locations=${encodeURIComponent(
-          locationsStr,
-        )}&key=${googleKey}`;
-        const elevRes = await axios.get(elevUrl, { timeout: 10000 });
+        const payload = {
+          locations: chunk.map((v) => ({
+            latitude: v.lat,
+            longitude: v.lng,
+          })),
+        };
+        const elevRes = await axios.post<{
+          results?: Array<{
+            latitude: number;
+            longitude: number;
+            elevation: number;
+          }>;
+        }>(openElevationEndpoint, payload, {
+          headers: { 'Content-Type': 'application/json' },
+          timeout: 10000,
+        });
 
-        // [C-4] API 비정상 응답 방어 (INVALID_REQUEST, OVER_QUERY_LIMIT 등)
-        if (elevRes.data?.status !== 'OK') {
-          console.warn(
-            `⚠️ Elevation API 비정상 응답 (배치 ${i}~${i + ELEVATION_CHUNK_SIZE}): ${elevRes.data?.status}`,
+        const results = elevRes.data?.results;
+        if (!Array.isArray(results) || results.length !== chunk.length) {
+          throw new Error(
+            `불완전한 응답 결과 (요청: ${chunk.length}건, 수신: ${results?.length ?? 0}건)`,
           );
-          continue;
         }
 
-        if (Array.isArray(elevRes.data?.results)) {
-          elevRes.data.results.forEach((res: any, idx: number) => {
-            if (res?.elevation != null && chunk[idx]) {
-              const contentId = String(chunk[idx].item.contentid);
-              // [C-4] 음수 고도 방어: 간척지·해수면 아래 좌표는 0m 보정
-              elevationsMap[contentId] = Math.max(0, Math.round(res.elevation));
-            }
-          });
-        }
-      } catch (err: any) {
+        results.forEach((res, idx) => {
+          if (typeof res?.elevation !== 'number' || Number.isNaN(res.elevation)) {
+            throw new Error(`인덱스 ${idx}의 유효하지 않은 고도 값 (${res?.elevation})`);
+          }
+          if (chunk[idx]) {
+            const contentId = String(chunk[idx].item.contentid);
+            // [C-4] 음수 고도 방어: 간척지·해수면 아래 좌표는 0m 보정
+            elevationsMap[contentId] = Math.max(0, Math.round(res.elevation));
+          }
+        });
+      } catch (err: unknown) {
+        const errMsg = err instanceof Error ? err.message : String(err);
         console.warn(
-          `⚠️ Elevation API 지연 (배치 ${i}~${i + ELEVATION_CHUNK_SIZE}): ${err?.message}`,
+          `⚠️ Open-Elevation API 지연/오류 (배치 ${i}~${i + ELEVATION_CHUNK_SIZE}, 기존 DB 고도 보존): ${errMsg}`,
         );
       }
     }
-    console.log(`🏔️ Google Elevation API 수집 완료 (${Object.keys(elevationsMap).length}개 고도 획득)`);
+    console.log(
+      `🏔️ Open-Elevation 오픈 API 수집 완료 (${Object.keys(elevationsMap).length}개 고도 획득)`,
+    );
   }
 
   let successCount = 0;
@@ -428,13 +444,13 @@ async function seedTourApiTest() {
     const longitude = new Prisma.Decimal(lng);
     const latitude = new Prisma.Decimal(lat);
     const category = mapItemToCategory(item);
-    const elevationMeters = elevationsMap[contentId] ?? 15;
+    const freshElevation = elevationsMap[contentId];
     const { openTime, closeTime } = await fetchTourApiPlaceHours(
       contentId,
       String(item.contenttypeid ?? '39'),
     );
 
-    const placeData = {
+    const basePlaceData = {
       name: item.title ? String(item.title).trim() : '이름 없음',
       address: item.addr1 ? String(item.addr1).trim() : null,
       roadAddress: item.addr2 ? String(item.addr2).trim() : null,
@@ -443,7 +459,6 @@ async function seedTourApiTest() {
       category,
       latitude,
       longitude,
-      elevationMeters,
       openTime,
       closeTime,
       isActive: true,
@@ -451,10 +466,15 @@ async function seedTourApiTest() {
 
     await prisma.place.upsert({
       where: { apiSourceId: contentId },
-      update: placeData,
+      update: {
+        ...basePlaceData,
+        // Open-Elevation에서 새로 획득한 고도가 있을 때만 갱신, 실패/누락 시 기존 DB 값 보존
+        ...(freshElevation !== undefined ? { elevationMeters: freshElevation } : {}),
+      },
       create: {
         apiSourceId: contentId,
-        ...placeData,
+        ...basePlaceData,
+        elevationMeters: freshElevation ?? 15,
       },
     });
 

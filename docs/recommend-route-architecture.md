@@ -12,7 +12,7 @@
 flowchart TD
     subgraph Phase1["[Phase 1] Data ETL & SEED Pipeline (1회성/사전 적재)"]
         PublicAPI["한국관광공사 TourAPI 4.0 (KorService2 / areaBasedList2)"] -->|"인코딩/XML 방어 & 3회 Backoff Retry"| PlaceSeed["scripts/seed-tour-api-test.ts"]
-        GoogleAPI["Google Maps Elevation API (파이프| 일괄 수집)" ] -->|"1회성 Batch 획득 & Retry"| PlaceSeed
+        ElevationAPI["Open-Elevation 오픈 API (NASA SRTM DEM 일괄 수집)" ] -->|"1회성 Batch 획득 & Retry"| PlaceSeed
         PlaceSeed -->|"Upsert"| DB_Place[("Place 테이블 (위경도, 카테고리, 절대고도 elevationMeters)")]
         
         RelateAPI["연관 관광지 API (TarRlteTarService1)"] --> RouteSeed["scripts/seed-recommend-routes.ts"]
@@ -49,10 +49,10 @@ flowchart TD
 ### 2.1 관광지 마스터 ETL & Exponential Backoff Retry (`scripts/seed-tour-api-test.ts`)
 1. **API Key 이중 인코딩 방어**:
    - `decodeURIComponent(rawApiKey)` 처리를 통해 공공데이터포털 URL 파라미터 2중 인코딩에 의한 `500 Unexpected Errors` 원천 차단
-2. **Google Maps Elevation API 파이프(`|`) 1회성 일괄(Batch) 수집**:
-   - 장소별 개별 연쇄 호출 대신, 30개 장소의 위경도 좌표를 파이프(`|`) 문자로 묶어 **단 1회의 HTTP 일괄 요청으로 `Place.elevationMeters` (절대 해수면 고도) 사전 적재** (API 호출 횟수 96% 절감)
+2. **Open-Elevation 오픈 API 일괄(Batch) 수집**:
+   - 장소별 개별 연쇄 호출 대신, 30개 장소의 위경도 좌표를 일괄 요청으로 묶어 **단 1회의 HTTP 배치 요청으로 `Place.elevationMeters` (NASA SRTM DEM 절대 해수면 고도) 사전 적재** (호출 횟수 96% 절감 및 키 미요구)
 3. **외부 API 503 / 429 장애 방어 (Exponential Backoff Retry)**:
-   - 공공데이터포털 또는 Google API 호출 시 `503 Service Unavailable`, `429 Too Many Requests` (Rate Limit) 예외 발생 시 `1초 ➡️ 2초 ➡️ 4초` 지수 대기 기반 **최대 3회 자동 재시도(`fetchWithRetry`)**로 SEED 수행 데이터 가용성 100% 보장
+   - 공공데이터포털 또는 외부 지형 API 호출 시 `503 Service Unavailable`, `429 Too Many Requests` (Rate Limit) 예외 발생 시 `1초 ➡️ 2초 ➡️ 4초` 지수 대기 기반 **최대 3회 자동 재시도(`fetchWithRetry`)**로 SEED 수행 데이터 가용성 100% 보장
 4. **비정상 응답 (XML/HTML) 방어 & Prisma Upsert 멱등성 보장**:
    - `contentid` ➡️ `Place.apiSourceId` (@unique) 기준으로 멱등적 업데이트
 
@@ -345,7 +345,7 @@ flowchart TD
 | Exponential Backoff Retry | **PASS** | SEED 스크립트 외부 API 503/429 장애 시 3회 자동 재시도 적용 |
 | DTO 부동소수점 오차 방어 | **PASS** | `Math.abs(sum - 1.0) >= 0.001` 이면 예외 발생 (0.001 미만 오차 허용) |
 | Base Score 난이도 연동 | **PASS** | $\text{Base Score} = 3.2 + \min\left(0.90, \max\left(0, (\text{rawBaseScore} - 3.5) \times \frac{0.90}{1.5}\right)\right)$ 수식 명시 |
-| Google Elevation 파이프 일괄 수집 | **PASS** | `Place.elevationMeters` 1회성 일괄 수집 완료 |
+| Open-Elevation 일괄 수집 | **PASS** | `Place.elevationMeters` 1회성 일괄 수집 완료 |
 | 역정규화 고도 연산 | **PASS** | `RouteStop.elevationGainMeters` 이동 순서 상대값 0-Call 저장 |
 | UI 6대 테마 SEED | **PASS** | `local-food`, `beach-tour` 등 6종 테마 PlaceCategory 직접 필터 매핑 완료 |
 | `pnpm run build` | **PASS** | NestJS 및 Prisma Client 빌드 100% 성공 |
@@ -388,10 +388,11 @@ flowchart TD
    - **선정이유**: 과거 통계 및 지자체 단위 데이터인 `DataLabService` 대신, 개별 관광지 스팟 단위의 오늘/미래 예측 지수를 제공하여 추천 혼잡도 안내의 정교함 확보
    - **공식문서**: [공공데이터포털 관광지 집중률 예측 API](https://www.data.go.kr/data/15101588/openapi.do)
 
-4. **Google Maps Platform - Google Elevation API**
-   - **제공기관**: Google Cloud Platform (GCP)
-   - **사용목적**: 장소 위경도 좌표의 해수면 기준 절대 지형 고도(m) 1회성 파이프(`|`) Batch 수집 및 부산 산복도로 계단 보행 피로도 가중치($b=2.0$) 연산
-   - **공식문서**: [Google Maps Elevation API Developer Documentation](https://developers.google.com/maps/documentation/elevation/overview)
+4. **Open-Elevation 오픈소스 API (NASA SRTM DEM)**
+   - **제공기관**: Open-Elevation (오픈소스 지형 고도 서비스)
+   - **사용목적**: 장소 위경도 좌표의 해수면 기준 절대 지형 고도(m) 1회성 Batch 수집 및 부산 산복도로 계단 보행 피로도 가중치($b=2.0$) 연산
+   - **선정이유**: API 키 발급이 불필요하며 NASA Shuttle Radar Topography Mission (SRTM) 90m 정밀 지형 데이터셋 기반으로 라이선스 및 비용 제약 없는 100% 오픈 규격 확보
+   - **공식문서**: [Open-Elevation GitHub 및 공식 문서](https://github.com/Jorl17/open-elevation)
 
 5. **카카오모빌리티 - 길찾기 Directions API (`v1/directions`)**
    - **제공기관**: 카카오모빌리티 (Kakao Developers)
