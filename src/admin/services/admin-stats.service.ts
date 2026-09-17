@@ -9,6 +9,10 @@ import {
 import { PlaceCategory } from '@prisma/client';
 import {
   AdminKtoCollectResponseDto,
+  AdminKtoPlaceCollectResponseDto,
+  AdminKtoPlaceStatusResponseDto,
+  AdminKtoRelatedCollectResponseDto,
+  AdminKtoRelatedStatusResponseDto,
   AdminKtoStatusResponseDto,
 } from '@/admin/dto/admin-kto-status-response.dto';
 import {
@@ -18,6 +22,8 @@ import {
   AdminStatsOverviewResponseDto,
 } from '@/admin/dto/admin-stats-response.dto';
 import { AdminStatsRepository } from '@/admin/repositories/admin-stats.repository';
+import { KtoPlaceSyncService } from '@/route/services/kto-place-sync.service';
+import { KtoRelatedPlaceSyncService } from '@/route/services/kto-related-place-sync.service';
 import { RouteCongestionCronService } from '@/route/services/route-congestion-cron.service';
 
 export const CATEGORY_LABEL_MAP: Record<PlaceCategory, string> = {
@@ -40,10 +46,29 @@ export class AdminStatsService {
   private lastResult: 'SUCCESS' | 'PARTIAL_SUCCESS' | 'FAILURE' | null = null;
   private lastMessage: string | null = null;
 
+  private placeLastCollectedAt: Date | null = null;
+  private isPlaceCollecting = false;
+  private placeDailyApiUsage = 0;
+  private placeLastResult: 'SUCCESS' | 'PARTIAL_SUCCESS' | 'FAILURE' | null =
+    null;
+  private placeLastMessage: string | null = null;
+
+  private relatedLastCollectedAt: Date | null = null;
+  private isRelatedCollecting = false;
+  private relatedDailyApiUsage = 0;
+  private relatedLastResult: 'SUCCESS' | 'PARTIAL_SUCCESS' | 'FAILURE' | null =
+    null;
+  private relatedLastMessage: string | null = null;
+  private relatedMatchedPlaceCount = 0;
+
   constructor(
     private readonly adminStatsRepository: AdminStatsRepository,
     @Optional()
     private readonly routeCongestionCronService?: RouteCongestionCronService,
+    @Optional()
+    private readonly ktoPlaceSyncService?: KtoPlaceSyncService,
+    @Optional()
+    private readonly ktoRelatedPlaceSyncService?: KtoRelatedPlaceSyncService,
   ) {}
 
   async getStatsOverview(): Promise<AdminStatsOverviewResponseDto> {
@@ -225,6 +250,199 @@ export class AdminStatsService {
       throw err;
     } finally {
       this.isCollecting = false;
+    }
+  }
+
+  async getPlaceCollectionStatus(): Promise<AdminKtoPlaceStatusResponseDto> {
+    const totalPlaceCount =
+      await this.adminStatsRepository.getTargetPlaceCount();
+    return {
+      dailyApiUsage: this.placeDailyApiUsage,
+      dailyQuotaLimit: 1000,
+      lastCollectedAt: this.placeLastCollectedAt,
+      status: this.isPlaceCollecting ? 'RUNNING' : 'IDLE',
+      lastResult: this.placeLastResult,
+      lastMessage: this.placeLastMessage,
+      totalPlaceCount,
+    };
+  }
+
+  async triggerPlaceCollection(): Promise<AdminKtoPlaceCollectResponseDto> {
+    if (!this.ktoPlaceSyncService) {
+      throw new ServiceUnavailableException(
+        'KTO 관광지 마스터 수집 서비스를 이용할 수 없습니다.',
+      );
+    }
+
+    if (this.isPlaceCollecting) {
+      throw new HttpException(
+        '관광지 마스터 수집 작업이 이미 진행 중입니다.',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
+    const TEN_MINUTES_MS = 10 * 60 * 1000;
+    if (
+      this.placeLastCollectedAt &&
+      Date.now() - this.placeLastCollectedAt.getTime() < TEN_MINUTES_MS
+    ) {
+      const remainSeconds = Math.ceil(
+        (TEN_MINUTES_MS - (Date.now() - this.placeLastCollectedAt.getTime())) /
+          1000,
+      );
+      throw new HttpException(
+        `관광지 마스터 수동 수집 쿨타임이 진행 중입니다. (${remainSeconds}초 후 다시 시도해 주세요)`,
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
+    this.isPlaceCollecting = true;
+
+    try {
+      const { updatedCount, failureCount, apiCallCount } =
+        await this.ktoPlaceSyncService.handlePlaceSync();
+
+      this.placeDailyApiUsage = Math.min(
+        1000,
+        this.placeDailyApiUsage + apiCallCount,
+      );
+
+      if (updatedCount === 0 && failureCount > 0) {
+        this.placeLastResult = 'FAILURE';
+        this.placeLastMessage =
+          '한국관광공사 관광지 마스터 수동 수집이 실패하였습니다. 잠시 후 다시 시도해 주세요.';
+        throw new ServiceUnavailableException(this.placeLastMessage);
+      }
+
+      const completedAt: Date = new Date();
+      this.placeLastCollectedAt = completedAt;
+      this.placeLastResult = failureCount > 0 ? 'PARTIAL_SUCCESS' : 'SUCCESS';
+      this.placeLastMessage =
+        failureCount > 0
+          ? `한국관광공사 관광지 마스터 수동 수집이 부분 완료되었습니다. (성공: ${updatedCount}건, 실패: ${failureCount}건)`
+          : '한국관광공사 관광지 마스터 수동 수집이 성공적으로 완료되었습니다.';
+
+      return {
+        message: this.placeLastMessage,
+        collectedAt: completedAt,
+        updatedPlaceCount: updatedCount,
+        failureCount,
+        apiCallCount,
+      };
+    } catch (err) {
+      this.logger.error('관광지 마스터 수동 수집 실행 중 예외 발생', err);
+      if (!(err instanceof ServiceUnavailableException)) {
+        this.placeLastResult = 'FAILURE';
+        this.placeLastMessage =
+          '한국관광공사 관광지 마스터 수동 수집 도중 예외가 발생했습니다.';
+      }
+      throw err;
+    } finally {
+      this.isPlaceCollecting = false;
+    }
+  }
+
+  async getRelatedPlaceCollectionStatus(): Promise<AdminKtoRelatedStatusResponseDto> {
+    await Promise.resolve();
+    if (this.ktoRelatedPlaceSyncService) {
+      const syncStatus = this.ktoRelatedPlaceSyncService.getStatus();
+      return {
+        dailyApiUsage: syncStatus.dailyApiUsage,
+        dailyQuotaLimit: syncStatus.dailyQuotaLimit,
+        lastCollectedAt: syncStatus.lastCollectedAt,
+        status: syncStatus.status,
+        lastResult: syncStatus.lastResult,
+        lastMessage: syncStatus.lastMessage,
+        matchedPlaceCount: syncStatus.matchedPlaceCount,
+      };
+    }
+
+    return {
+      dailyApiUsage: this.relatedDailyApiUsage,
+      dailyQuotaLimit: 1000,
+      lastCollectedAt: this.relatedLastCollectedAt,
+      status: this.isRelatedCollecting ? 'RUNNING' : 'IDLE',
+      lastResult: this.relatedLastResult,
+      lastMessage: this.relatedLastMessage,
+      matchedPlaceCount: this.relatedMatchedPlaceCount,
+    };
+  }
+
+  async triggerRelatedPlaceCollection(): Promise<AdminKtoRelatedCollectResponseDto> {
+    if (!this.ktoRelatedPlaceSyncService) {
+      throw new ServiceUnavailableException(
+        'KTO 연관관광지 수집 서비스를 이용할 수 없습니다.',
+      );
+    }
+
+    if (this.isRelatedCollecting) {
+      throw new HttpException(
+        '연관관광지 수집 작업이 이미 진행 중입니다.',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
+    const TEN_MINUTES_MS = 10 * 60 * 1000;
+    if (
+      this.relatedLastCollectedAt &&
+      Date.now() - this.relatedLastCollectedAt.getTime() < TEN_MINUTES_MS
+    ) {
+      const remainSeconds = Math.ceil(
+        (TEN_MINUTES_MS -
+          (Date.now() - this.relatedLastCollectedAt.getTime())) /
+          1000,
+      );
+      throw new HttpException(
+        `연관관광지 수동 수집 쿨타임이 진행 중입니다. (${remainSeconds}초 후 다시 시도해 주세요)`,
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
+    this.isRelatedCollecting = true;
+
+    try {
+      const { collectedCount, matchedPlaceCount, failureCount, apiCallCount } =
+        await this.ktoRelatedPlaceSyncService.handleRelatedPlaceSync();
+
+      this.relatedDailyApiUsage = Math.min(
+        1000,
+        this.relatedDailyApiUsage + apiCallCount,
+      );
+
+      if (collectedCount === 0 && failureCount > 0) {
+        this.relatedLastResult = 'FAILURE';
+        this.relatedLastMessage =
+          '한국관광공사 연관관광지 수동 수집이 실패하였습니다. 잠시 후 다시 시도해 주세요.';
+        throw new ServiceUnavailableException(this.relatedLastMessage);
+      }
+
+      const completedAt: Date = new Date();
+      this.relatedLastCollectedAt = completedAt;
+      this.relatedMatchedPlaceCount = matchedPlaceCount;
+      this.relatedLastResult = failureCount > 0 ? 'PARTIAL_SUCCESS' : 'SUCCESS';
+      this.relatedLastMessage =
+        failureCount > 0
+          ? `한국관광공사 연관관광지 수동 수집이 부분 완료되었습니다. (수집: ${collectedCount}건, 매칭: ${matchedPlaceCount}건, 실패: ${failureCount}건)`
+          : '한국관광공사 연관관광지 수동 수집이 성공적으로 완료되었습니다.';
+
+      return {
+        message: this.relatedLastMessage,
+        collectedAt: completedAt,
+        collectedCount,
+        matchedPlaceCount,
+        failureCount,
+        apiCallCount,
+      };
+    } catch (err) {
+      this.logger.error('연관관광지 수동 수집 실행 중 예외 발생', err);
+      if (!(err instanceof ServiceUnavailableException)) {
+        this.relatedLastResult = 'FAILURE';
+        this.relatedLastMessage =
+          '한국관광공사 연관관광지 수동 수집 도중 예외가 발생했습니다.';
+      }
+      throw err;
+    } finally {
+      this.isRelatedCollecting = false;
     }
   }
 }

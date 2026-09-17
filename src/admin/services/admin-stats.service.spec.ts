@@ -7,12 +7,16 @@ import {
 import { Test, TestingModule } from '@nestjs/testing';
 import { AdminStatsRepository } from '@/admin/repositories/admin-stats.repository';
 import { AdminStatsService } from '@/admin/services/admin-stats.service';
+import { KtoPlaceSyncService } from '@/route/services/kto-place-sync.service';
+import { KtoRelatedPlaceSyncService } from '@/route/services/kto-related-place-sync.service';
 import { RouteCongestionCronService } from '@/route/services/route-congestion-cron.service';
 
 describe('AdminStatsService', () => {
   let service: AdminStatsService;
   let repository: jest.Mocked<AdminStatsRepository>;
   let cronService: jest.Mocked<RouteCongestionCronService>;
+  let placeSyncService: jest.Mocked<KtoPlaceSyncService>;
+  let relatedPlaceSyncService: jest.Mocked<KtoRelatedPlaceSyncService>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -34,12 +38,35 @@ describe('AdminStatsService', () => {
             handleRouteCongestionUpdate: jest.fn(),
           },
         },
+        {
+          provide: KtoPlaceSyncService,
+          useValue: {
+            handlePlaceSync: jest.fn(),
+          },
+        },
+        {
+          provide: KtoRelatedPlaceSyncService,
+          useValue: {
+            handleRelatedPlaceSync: jest.fn(),
+            getStatus: jest.fn().mockReturnValue({
+              dailyApiUsage: 1,
+              dailyQuotaLimit: 1000,
+              lastCollectedAt: new Date('2026-08-17T08:00:00Z'),
+              status: 'IDLE',
+              lastResult: 'SUCCESS',
+              lastMessage: '정상 완료',
+              matchedPlaceCount: 40,
+            }),
+          },
+        },
       ],
     }).compile();
 
     service = module.get<AdminStatsService>(AdminStatsService);
     repository = module.get(AdminStatsRepository);
     cronService = module.get(RouteCongestionCronService);
+    placeSyncService = module.get(KtoPlaceSyncService);
+    relatedPlaceSyncService = module.get(KtoRelatedPlaceSyncService);
   });
 
   it('should be defined', () => {
@@ -214,6 +241,61 @@ describe('AdminStatsService', () => {
         const httpErr = err as HttpException;
         expect(httpErr.getStatus()).toBe(HttpStatus.TOO_MANY_REQUESTS);
       }
+    });
+  });
+
+  describe('triggerPlaceCollection & getPlaceCollectionStatus', () => {
+    it('관광지 마스터 상태를 정상 반환해야 한다', async () => {
+      repository.getTargetPlaceCount.mockResolvedValue(300);
+
+      const status = await service.getPlaceCollectionStatus();
+
+      expect(status.totalPlaceCount).toBe(300);
+      expect(status.status).toBe('IDLE');
+    });
+
+    it('관광지 마스터 수동 수집을 정상 실행해야 한다', async () => {
+      placeSyncService.handlePlaceSync.mockResolvedValue({
+        updatedCount: 15,
+        failureCount: 0,
+        apiCallCount: 6,
+      });
+
+      const result = await service.triggerPlaceCollection();
+
+      expect(result.updatedPlaceCount).toBe(15);
+      expect(result.apiCallCount).toBe(6);
+      expect(placeSyncService.handlePlaceSync).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('triggerRelatedPlaceCollection & getRelatedPlaceCollectionStatus', () => {
+    it('연관관광지 상태를 정상 반환해야 한다', async () => {
+      const status = await service.getRelatedPlaceCollectionStatus();
+
+      expect(status.matchedPlaceCount).toBe(40);
+      expect(status.status).toBe('IDLE');
+      expect(status.dailyQuotaLimit).toBe(1000);
+      expect(status.dailyApiUsage).toBe(1);
+    });
+
+    it('연관관광지 수동 수집을 정상 실행해야 한다', async () => {
+      relatedPlaceSyncService.handleRelatedPlaceSync.mockResolvedValue({
+        collectedCount: 50,
+        matchedPlaceCount: 35,
+        failureCount: 0,
+        apiCallCount: 1,
+      });
+
+      const result = await service.triggerRelatedPlaceCollection();
+
+      expect(result.collectedCount).toBe(50);
+      expect(result.matchedPlaceCount).toBe(35);
+      expect(result.failureCount).toBe(0);
+      expect(result.apiCallCount).toBe(1);
+      expect(
+        relatedPlaceSyncService.handleRelatedPlaceSync,
+      ).toHaveBeenCalledTimes(1);
     });
   });
 });

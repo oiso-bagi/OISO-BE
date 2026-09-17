@@ -19,6 +19,10 @@ describe('AdminStatsController', () => {
             getSavingsBreakdown: jest.fn(),
             getKtoStatus: jest.fn(),
             triggerKtoCollection: jest.fn(),
+            getPlaceCollectionStatus: jest.fn(),
+            triggerPlaceCollection: jest.fn(),
+            getRelatedPlaceCollectionStatus: jest.fn(),
+            triggerRelatedPlaceCollection: jest.fn(),
           },
         },
       ],
@@ -82,6 +86,69 @@ describe('AdminStatsController', () => {
 
     const result = await controller.triggerKtoCollection();
     expect(service.triggerKtoCollection).toHaveBeenCalled();
+    expect(result).toEqual(mockResult);
+  });
+
+  it('GET /admin/kto/place-status 호출 시 service.getPlaceCollectionStatus를 호출해야 한다', async () => {
+    const mockResult = {
+      dailyApiUsage: 10,
+      dailyQuotaLimit: 1000,
+      lastCollectedAt: new Date(),
+      status: 'IDLE' as const,
+      totalPlaceCount: 150,
+    };
+    service.getPlaceCollectionStatus.mockResolvedValue(mockResult);
+
+    const result = await controller.getPlaceStatus();
+    expect(service.getPlaceCollectionStatus).toHaveBeenCalled();
+    expect(result).toEqual(mockResult);
+  });
+
+  it('POST /admin/kto/place-collect 호출 시 service.triggerPlaceCollection을 호출해야 한다', async () => {
+    const mockResult = {
+      message: '관광지 마스터 데이터 동기화가 성공적으로 완료되었습니다.',
+      collectedAt: new Date(),
+      updatedPlaceCount: 15,
+      failureCount: 0,
+      apiCallCount: 6,
+    };
+    service.triggerPlaceCollection.mockResolvedValue(mockResult);
+
+    const result = await controller.triggerPlaceCollection();
+    expect(service.triggerPlaceCollection).toHaveBeenCalled();
+    expect(result).toEqual(mockResult);
+  });
+
+  it('GET /admin/kto/related-status 호출 시 service.getRelatedPlaceCollectionStatus를 호출해야 한다', async () => {
+    const mockResult = {
+      dailyApiUsage: 1,
+      dailyQuotaLimit: 1000,
+      lastCollectedAt: new Date(),
+      status: 'IDLE' as const,
+      lastResult: 'SUCCESS' as const,
+      lastMessage: '정상 완료',
+      matchedPlaceCount: 45,
+    };
+    service.getRelatedPlaceCollectionStatus.mockResolvedValue(mockResult);
+
+    const result = await controller.getRelatedStatus();
+    expect(service.getRelatedPlaceCollectionStatus).toHaveBeenCalled();
+    expect(result).toEqual(mockResult);
+  });
+
+  it('POST /admin/kto/related-collect 호출 시 service.triggerRelatedPlaceCollection을 호출해야 한다', async () => {
+    const mockResult = {
+      message: '한국관광공사 연관관광지 수동 수집이 성공적으로 완료되었습니다.',
+      collectedAt: new Date(),
+      collectedCount: 50,
+      matchedPlaceCount: 45,
+      failureCount: 0,
+      apiCallCount: 1,
+    };
+    service.triggerRelatedPlaceCollection.mockResolvedValue(mockResult);
+
+    const result = await controller.triggerRelatedCollection();
+    expect(service.triggerRelatedPlaceCollection).toHaveBeenCalled();
     expect(result).toEqual(mockResult);
   });
 });
