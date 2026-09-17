@@ -137,14 +137,21 @@ export class RouteRepository {
       isActive: boolean;
     },
   ) {
-    const { isActive, elevationMeters, ...updateData } = data;
+    const { isActive, elevationMeters, openTime, closeTime, ...updateData } =
+      data;
     return this.prisma.place.upsert({
       where: { apiSourceId },
-      update: updateData,
+      update: {
+        ...updateData,
+        ...(openTime ? { openTime } : {}),
+        ...(closeTime ? { closeTime } : {}),
+      },
       create: {
         apiSourceId,
         isActive,
         elevationMeters,
+        openTime,
+        closeTime,
         ...updateData,
       },
     });
@@ -155,10 +162,40 @@ export class RouteRepository {
   }
 
   async findPlaceByName(name: string) {
+    const trimmed = name.trim();
+    if (!trimmed) {
+      return null;
+    }
+
+    // 1. 정확히 일치하는 장소명 우선 탐색
+    const exactMatch = await this.prisma.place.findFirst({
+      where: {
+        name: trimmed,
+        isActive: true,
+      },
+    });
+    if (exactMatch) {
+      return exactMatch;
+    }
+
+    // 2. 장소명 접두 일치 탐색
+    const startsWithMatch = await this.prisma.place.findFirst({
+      where: {
+        name: {
+          startsWith: trimmed,
+        },
+        isActive: true,
+      },
+    });
+    if (startsWithMatch) {
+      return startsWithMatch;
+    }
+
+    // 3. Fallback: 포함 일치 탐색
     return this.prisma.place.findFirst({
       where: {
         name: {
-          contains: name,
+          contains: trimmed,
         },
         isActive: true,
       },

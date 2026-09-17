@@ -160,6 +160,89 @@ describe('KtoPlaceSyncService', () => {
       expect(service.getLastAttemptAt()).toBeDefined();
     });
 
+    it('throws 429 HttpException when already running', async () => {
+      (service as unknown as { isRunning: boolean }).isRunning = true;
+
+      await expect(service.handlePlaceSync()).rejects.toThrow(
+        '관광지 마스터 동기화 작업이 이미 실행 중입니다.',
+      );
+    });
+
+    it('fetches multiple pages if totalCount exceeds page size', async () => {
+      // 1페이지 (100건 중 1건), totalCount: 150
+      mockedAxios.get
+        .mockResolvedValueOnce({
+          data: {
+            response: {
+              body: {
+                totalCount: 150,
+                items: {
+                  item: [
+                    {
+                      contentid: 'p-1',
+                      title: '해운대',
+                      addr1: '부산 해운대',
+                      contenttypeid: '12',
+                      mapx: '129.158',
+                      mapy: '35.158',
+                    },
+                  ],
+                },
+              },
+            },
+          },
+        })
+        // 2페이지 (남은 50건 중 1건)
+        .mockResolvedValueOnce({
+          data: {
+            response: {
+              body: {
+                totalCount: 150,
+                items: {
+                  item: [
+                    {
+                      contentid: 'p-2',
+                      title: '광안리',
+                      addr1: '부산 수영구',
+                      contenttypeid: '12',
+                      mapx: '129.118',
+                      mapy: '35.153',
+                    },
+                  ],
+                },
+              },
+            },
+          },
+        })
+        // 나머지 카테고리들 (빈 결과)
+        .mockResolvedValue({
+          data: {
+            response: {
+              body: {
+                totalCount: 0,
+                items: { item: [] },
+              },
+            },
+          },
+        });
+
+      routeRepositoryMock.upsertPlaceFromKto.mockResolvedValue({});
+
+      const result = await service.handlePlaceSync();
+
+      expect(result.updatedCount).toBe(2);
+      expect(result.failureCount).toBe(0);
+      expect(routeRepositoryMock.upsertPlaceFromKto).toHaveBeenCalledTimes(2);
+      // openTime, closeTime are null
+      expect(routeRepositoryMock.upsertPlaceFromKto).toHaveBeenCalledWith(
+        'p-1',
+        expect.objectContaining({
+          openTime: null,
+          closeTime: null,
+        }),
+      );
+    });
+
     it('resets daily usage when date changes', () => {
       // Simulate usage on yesterday
       const yesterday = new Date();

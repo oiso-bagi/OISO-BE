@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import axios from 'axios';
 import { RouteRepository } from '@/route/repositories/route.repository';
@@ -97,17 +97,24 @@ export class KtoRelatedPlaceSyncService {
    * 공사 데이터 갱신(07:30) 이후 매일 08:00에 실행
    */
   @Cron('0 8 * * *')
+  async handleCronRelatedPlaceSync(): Promise<void> {
+    try {
+      await this.handleRelatedPlaceSync();
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      this.logger.error(`연관관광지 정기 크론 실행 중 오류 발생: ${errMsg}`);
+    }
+  }
+
   async handleRelatedPlaceSync(): Promise<KtoRelatedSyncResult> {
     this.checkAndResetDailyUsage();
 
     if (this.isRunning) {
       this.logger.warn('연관관광지 동기화 작업이 이미 실행 중입니다.');
-      return {
-        collectedCount: 0,
-        matchedPlaceCount: 0,
-        failureCount: 0,
-        apiCallCount: 0,
-      };
+      throw new HttpException(
+        '연관관광지 동기화 작업이 이미 실행 중입니다.',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
     }
 
     this.isRunning = true;

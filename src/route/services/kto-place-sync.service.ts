@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { PlaceCategory, Prisma } from '@prisma/client';
 import axios from 'axios';
@@ -22,6 +22,7 @@ export interface KtoAreaBasedItem {
 export interface KtoApiResponse {
   response?: {
     body?: {
+      totalCount?: number;
       items?: {
         item?: KtoAreaBasedItem[];
       };
@@ -244,6 +245,15 @@ export class KtoPlaceSyncService {
   }
 
   @Cron('0 5 * * *')
+  async handleCronPlaceSync(): Promise<void> {
+    try {
+      await this.handlePlaceSync();
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      this.logger.error(`관광지 마스터 정기 크론 실행 중 오류 발생: ${errMsg}`);
+    }
+  }
+
   async handlePlaceSync(): Promise<{
     updatedCount: number;
     failureCount: number;
@@ -253,7 +263,10 @@ export class KtoPlaceSyncService {
 
     if (this.isRunning) {
       this.logger.warn('관광지 마스터 동기화 작업이 이미 실행 중입니다.');
-      return { updatedCount: 0, failureCount: 0, apiCallCount: 0 };
+      throw new HttpException(
+        '관광지 마스터 동기화 작업이 이미 실행 중입니다.',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
     }
 
     this.isRunning = true;
@@ -288,93 +301,131 @@ export class KtoPlaceSyncService {
       minLng: 128.74,
       maxLng: 129.32,
     };
+    const ROWS_PER_PAGE = 100;
+    const MAX_PAGES_PER_CATEGORY = 10;
 
-    for (const contentTypeId of contentTypes) {
-      try {
-        apiCallCount++;
-        const response = await axios.get<KtoApiResponse>(endpoint, {
-          params: {
-            serviceKey,
-            numOfRows: 30,
-            pageNo: 1,
-            MobileOS: 'ETC',
-            MobileApp: 'OISO',
-            _type: 'json',
-            areaCode: '6', // 부산광역시
-            contentTypeId,
-          },
-          timeout: 10000,
-        });
-
-        const items = response.data?.response?.body?.items?.item;
-        if (!Array.isArray(items)) {
-          continue;
-        }
-
-        for (const item of items) {
+    try {
+      for (const contentTypeId of contentTypes) {
+        let pageNo = 1;
+        while (pageNo <= MAX_PAGES_PER_CATEGORY) {
           try {
-            const contentId = item.contentid
-              ? String(item.contentid).trim()
-              : '';
-            const mapX = item.mapx ? String(item.mapx).trim() : '';
-            const mapY = item.mapy ? String(item.mapy).trim() : '';
-
-            if (!contentId || !mapX || !mapY) {
-              continue;
-            }
-
-            const lng = parseFloat(mapX);
-            const lat = parseFloat(mapY);
-
-            if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-              continue;
-            }
-
-            if (
-              lat < BUSAN_BOUNDS.minLat ||
-              lat > BUSAN_BOUNDS.maxLat ||
-              lng < BUSAN_BOUNDS.minLng ||
-              lng > BUSAN_BOUNDS.maxLng
-            ) {
-              continue;
-            }
-
-            const category = mapItemToCategory(item);
-            const hours = parseTimeString(String(item.title || ''));
-
-            await this.routeRepository.upsertPlaceFromKto(contentId, {
-              name: item.title ? String(item.title).trim() : '이름 없음',
-              address: item.addr1 ? String(item.addr1).trim() : null,
-              roadAddress: item.addr2 ? String(item.addr2).trim() : null,
-              region: '부산광역시',
-              district: item.sigungucode ? `시군구-${item.sigungucode}` : null,
-              category,
-              latitude: new Prisma.Decimal(lat),
-              longitude: new Prisma.Decimal(lng),
-              elevationMeters: 15,
-              openTime: hours.openTime,
-              closeTime: hours.closeTime,
-              isActive: true,
+            apiCallCount++;
+            const response = await axios.get<KtoApiResponse>(endpoint, {
+              params: {
+                serviceKey,
+                numOfRows: ROWS_PER_PAGE,
+                pageNo,
+                MobileOS: 'ETC',
+                MobileApp: 'OISO',
+                _type: 'json',
+                areaCode: '6', // 부산광역시
+                contentTypeId,
+              },
+              timeout: 10000,
             });
 
-            updatedCount++;
-          } catch (itemErr: unknown) {
+            const body = response.data?.response?.body;
+            const rawItems = body?.items?.item;
+            const items = Array.isArray(rawItems)
+              ? rawItems
+              : rawItems
+                ? [rawItems]
+                : [];
+
+            if (items.length === 0) {
+              break;
+            }
+
+            for (const item of items) {
+              try {
+                const contentId = item.contentid
+                  ? String(item.contentid).trim()
+                  : '';
+                const mapX = item.mapx ? String(item.mapx).trim() : '';
+                const mapY = item.mapy ? String(item.mapy).trim() : '';
+
+                if (!contentId || !mapX || !mapY) {
+                  continue;
+                }
+
+                const lng = parseFloat(mapX);
+                const lat = parseFloat(mapY);
+
+                if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+                  continue;
+                }
+
+                if (
+                  lat < BUSAN_BOUNDS.minLat ||
+                  lat > BUSAN_BOUNDS.maxLat ||
+                  lng < BUSAN_BOUNDS.minLng ||
+                  lng > BUSAN_BOUNDS.maxLng
+                ) {
+                  continue;
+                }
+
+                const category = mapItemToCategory(item);
+
+                await this.routeRepository.upsertPlaceFromKto(contentId, {
+                  name: item.title ? String(item.title).trim() : '이름 없음',
+                  address: item.addr1 ? String(item.addr1).trim() : null,
+                  roadAddress: item.addr2 ? String(item.addr2).trim() : null,
+                  region: '부산광역시',
+                  district: item.sigungucode
+                    ? `시군구-${item.sigungucode}`
+                    : null,
+                  category,
+                  latitude: new Prisma.Decimal(lat),
+                  longitude: new Prisma.Decimal(lng),
+                  elevationMeters: 15,
+                  openTime: null,
+                  closeTime: null,
+                  isActive: true,
+                });
+
+                updatedCount++;
+              } catch (itemErr: unknown) {
+                failureCount++;
+                const errMsg =
+                  itemErr instanceof Error ? itemErr.message : String(itemErr);
+                this.logger.warn(
+                  `장소 upsert 실패 (contentId: ${item?.contentid}): ${errMsg}`,
+                );
+              }
+            }
+
+            const totalCount = body?.totalCount ?? 0;
+            if (
+              pageNo * ROWS_PER_PAGE >= totalCount ||
+              items.length < ROWS_PER_PAGE
+            ) {
+              break;
+            }
+
+            pageNo++;
+          } catch (apiErr: unknown) {
             failureCount++;
             const errMsg =
-              itemErr instanceof Error ? itemErr.message : String(itemErr);
-            this.logger.warn(
-              `장소 upsert 실패 (contentId: ${item?.contentid}): ${errMsg}`,
+              apiErr instanceof Error ? apiErr.message : String(apiErr);
+            this.logger.error(
+              `KorService2 (${contentTypeId}, page ${pageNo}) 호출 실패: ${errMsg}`,
             );
+            break;
           }
         }
-      } catch (apiErr: unknown) {
-        failureCount++;
-        const errMsg =
-          apiErr instanceof Error ? apiErr.message : String(apiErr);
-        this.logger.error(
-          `KorService2 (${contentTypeId}) 호출 실패: ${errMsg}`,
-        );
       }
+
+      this.lastCollectedAt = new Date();
+      this.lastResult =
+        failureCount === 0
+          ? 'SUCCESS'
+          : updatedCount > 0
+            ? 'PARTIAL_SUCCESS'
+            : 'FAILURE';
+      this.lastMessage = `한국관광공사 관광지 마스터 동기화 완료 (갱신: ${updatedCount}건, 실패: ${failureCount}건)`;
+      this.dailyApiUsage = Math.min(1000, this.dailyApiUsage + apiCallCount);
+    } finally {
+      this.isRunning = false;
     }
 
     this.logger.log(

@@ -111,6 +111,88 @@ describe('RouteRepository', () => {
     });
   });
 
+  it('upsertPlaceFromKto preserves existing openTime and closeTime on update when null', async () => {
+    const mockPlace = { id: 'place-2' };
+    mockPrismaPlaceUpsert.mockResolvedValue(mockPlace);
+
+    const data = {
+      name: '해운대',
+      address: '해운대구',
+      roadAddress: null,
+      region: '부산광역시',
+      district: '해운대구',
+      category: PlaceCategory.NATURE,
+      latitude: new Prisma.Decimal(35.15),
+      longitude: new Prisma.Decimal(129.11),
+      elevationMeters: 15,
+      openTime: null,
+      closeTime: null,
+      isActive: true,
+    };
+
+    await repository.upsertPlaceFromKto('kto-200', data);
+
+    expect(mockPrismaPlaceUpsert).toHaveBeenCalledWith({
+      where: { apiSourceId: 'kto-200' },
+      update: {
+        name: '해운대',
+        address: '해운대구',
+        roadAddress: null,
+        region: '부산광역시',
+        district: '해운대구',
+        category: PlaceCategory.NATURE,
+        latitude: new Prisma.Decimal(35.15),
+        longitude: new Prisma.Decimal(129.11),
+        // openTime, closeTime are omitted from update to preserve existing DB values!
+      },
+      create: {
+        apiSourceId: 'kto-200',
+        name: '해운대',
+        address: '해운대구',
+        roadAddress: null,
+        region: '부산광역시',
+        district: '해운대구',
+        category: PlaceCategory.NATURE,
+        latitude: new Prisma.Decimal(35.15),
+        longitude: new Prisma.Decimal(129.11),
+        openTime: null,
+        closeTime: null,
+        isActive: true,
+        elevationMeters: 15,
+      },
+    });
+  });
+
+  describe('findPlaceByName', () => {
+    it('returns null if empty name', async () => {
+      expect(await repository.findPlaceByName('  ')).toBeNull();
+    });
+
+    it('prioritizes exact match', async () => {
+      const mockExact = { id: 'p-1', name: '해운대' };
+      prismaService.place.findFirst.mockResolvedValueOnce(mockExact);
+
+      const result = await repository.findPlaceByName('해운대');
+
+      expect(result).toBe(mockExact);
+      expect(prismaService.place.findFirst).toHaveBeenCalledWith({
+        where: { name: '해운대', isActive: true },
+      });
+    });
+
+    it('falls back to startsWith and contains if exact match not found', async () => {
+      const mockStartsWith = { id: 'p-2', name: '해운대 해수욕장' };
+      prismaService.place.findFirst
+        .mockResolvedValueOnce(null) // exact match 실패
+        .mockResolvedValueOnce(mockStartsWith); // startsWith 성공
+
+      const result = await repository.findPlaceByName('해운대');
+
+      expect(result).toBe(mockStartsWith);
+      expect(prismaService.place.findFirst).toHaveBeenCalledTimes(2);
+    });
+  });
+
   it('calls prisma.route.findListWithStops with RECOMMENDED routeType filter and returns result', async () => {
     const mockList = [{ id: 'route-1', name: '부산 야경 루트' }];
     prismaService.route.findMany.mockResolvedValue(mockList);

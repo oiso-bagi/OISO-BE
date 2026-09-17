@@ -92,15 +92,15 @@ describe('KtoRelatedPlaceSyncService', () => {
       expect(service.getLastAttemptAt()).toBeDefined();
     });
 
-    it('이미 실행 중일 때 중복 실행되지 않아야 한다', async () => {
+    it('이미 실행 중일 때 중복 실행되지 않고 429 예외를 던져야 한다', async () => {
       process.env.VK_KORSERVICE2_API_KEY = 'test_key';
 
       // 강제로 isRunning을 true로 설정
       (service as unknown as { isRunning: boolean }).isRunning = true;
 
-      const result = await service.handleRelatedPlaceSync();
-      expect(result.collectedCount).toBe(0);
-      expect(result.apiCallCount).toBe(0);
+      await expect(service.handleRelatedPlaceSync()).rejects.toThrow(
+        '연관관광지 동기화 작업이 이미 실행 중입니다.',
+      );
     });
 
     it('정상 응답 시 연관 관광지 수집 및 DB 매칭/갱신이 정상 동작해야 한다', async () => {
