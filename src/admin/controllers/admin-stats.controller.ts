@@ -9,12 +9,20 @@ import {
 import {
   ApiAdminStatsControllerDocs,
   ApiCollectAdminKtoDocs,
+  ApiCollectAdminKtoPlaceDocs,
+  ApiCollectAdminKtoRelatedDocs,
+  ApiGetAdminKtoPlaceStatusDocs,
+  ApiGetAdminKtoRelatedStatusDocs,
   ApiGetAdminKtoStatusDocs,
   ApiGetAdminSavingsBreakdownDocs,
   ApiGetAdminStatsOverviewDocs,
 } from '@/admin/docs/admin-stats-swagger.docs';
 import {
   AdminKtoCollectResponseDto,
+  AdminKtoPlaceCollectResponseDto,
+  AdminKtoPlaceStatusResponseDto,
+  AdminKtoRelatedCollectResponseDto,
+  AdminKtoRelatedStatusResponseDto,
   AdminKtoStatusResponseDto,
 } from '@/admin/dto/admin-kto-status-response.dto';
 import {
@@ -57,5 +65,31 @@ export class AdminStatsController {
   @ApiCollectAdminKtoDocs()
   async triggerKtoCollection(): Promise<AdminKtoCollectResponseDto> {
     return this.adminStatsService.triggerKtoCollection();
+  }
+
+  @Get('kto/place-status')
+  @ApiGetAdminKtoPlaceStatusDocs()
+  async getPlaceStatus(): Promise<AdminKtoPlaceStatusResponseDto> {
+    return this.adminStatsService.getPlaceCollectionStatus();
+  }
+
+  @Post('kto/place-collect')
+  @HttpCode(HttpStatus.OK)
+  @ApiCollectAdminKtoPlaceDocs()
+  async triggerPlaceCollection(): Promise<AdminKtoPlaceCollectResponseDto> {
+    return this.adminStatsService.triggerPlaceCollection();
+  }
+
+  @Get('kto/related-status')
+  @ApiGetAdminKtoRelatedStatusDocs()
+  async getRelatedStatus(): Promise<AdminKtoRelatedStatusResponseDto> {
+    return this.adminStatsService.getRelatedPlaceCollectionStatus();
+  }
+
+  @Post('kto/related-collect')
+  @HttpCode(HttpStatus.OK)
+  @ApiCollectAdminKtoRelatedDocs()
+  async triggerRelatedCollection(): Promise<AdminKtoRelatedCollectResponseDto> {
+    return this.adminStatsService.triggerRelatedPlaceCollection();
   }
 }

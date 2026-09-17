@@ -10,7 +10,7 @@ export class RouteCongestionCronService {
 
   constructor(private readonly routeRepository: RouteRepository) {}
 
-  @Cron('0 4 * * *')
+  @Cron('0 8 * * *', { timeZone: 'Asia/Seoul' })
   async handleRouteCongestionUpdate(): Promise<{
     updatedCount: number;
     failureCount: number;
