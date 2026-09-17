@@ -84,10 +84,12 @@ describe('KtoRelatedPlaceSyncService', () => {
       expect(result.collectedCount).toBe(0);
       expect(result.matchedPlaceCount).toBe(0);
       expect(result.apiCallCount).toBe(0);
+      expect(result.failureCount).toBe(1);
       expect(service.getStatus().lastResult).toBe('FAILURE');
       expect(service.getStatus().lastMessage).toBe(
         'API 키가 설정되지 않았습니다.',
       );
+      expect(service.getLastAttemptAt()).toBeDefined();
     });
 
     it('이미 실행 중일 때 중복 실행되지 않아야 한다', async () => {
@@ -184,6 +186,22 @@ describe('KtoRelatedPlaceSyncService', () => {
       const status = service.getStatus();
       expect(status.lastResult).toBe('FAILURE');
       expect(status.lastMessage).toContain('Network Timeout');
+    });
+
+    it('날짜가 변경되면 dailyApiUsage가 0으로 초기화되어야 한다', () => {
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = yesterday.toISOString().slice(0, 10);
+
+      (
+        service as unknown as { dailyApiUsage: number; usageDate: string }
+      ).dailyApiUsage = 800;
+      (
+        service as unknown as { dailyApiUsage: number; usageDate: string }
+      ).usageDate = yesterdayStr;
+
+      const status = service.getStatus();
+      expect(status.dailyApiUsage).toBe(0);
     });
   });
 });

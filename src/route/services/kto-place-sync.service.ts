@@ -182,9 +182,27 @@ export function parseTimeString(text: string): {
   return { openTime: null, closeTime: null };
 }
 
+export interface KtoPlaceSyncStatus {
+  dailyApiUsage: number;
+  dailyQuotaLimit: number;
+  lastCollectedAt: Date | null;
+  lastAttemptAt: Date | null;
+  status: 'IDLE' | 'RUNNING';
+  lastResult: 'SUCCESS' | 'PARTIAL_SUCCESS' | 'FAILURE' | null;
+  lastMessage: string | null;
+}
+
 @Injectable()
 export class KtoPlaceSyncService {
   private readonly logger = new Logger(KtoPlaceSyncService.name);
+
+  private isRunning = false;
+  private lastCollectedAt: Date | null = null;
+  private lastAttemptAt: Date | null = null;
+  private lastResult: 'SUCCESS' | 'PARTIAL_SUCCESS' | 'FAILURE' | null = null;
+  private lastMessage: string | null = null;
+  private dailyApiUsage = 0;
+  private lastApiUsageDate: string | null = null;
 
   constructor(private readonly routeRepository: RouteRepository) {}
 
@@ -200,12 +218,46 @@ export class KtoPlaceSyncService {
     }
   }
 
+  private checkAndResetDailyUsage(): void {
+    const today = new Date().toISOString().slice(0, 10);
+    if (this.lastApiUsageDate !== today) {
+      this.dailyApiUsage = 0;
+      this.lastApiUsageDate = today;
+    }
+  }
+
+  getLastAttemptAt(): Date | null {
+    return this.lastAttemptAt;
+  }
+
+  getStatus(): KtoPlaceSyncStatus {
+    this.checkAndResetDailyUsage();
+    return {
+      dailyApiUsage: this.dailyApiUsage,
+      dailyQuotaLimit: 1000,
+      lastCollectedAt: this.lastCollectedAt,
+      lastAttemptAt: this.lastAttemptAt,
+      status: this.isRunning ? 'RUNNING' : 'IDLE',
+      lastResult: this.lastResult,
+      lastMessage: this.lastMessage,
+    };
+  }
+
   @Cron('0 5 * * *')
   async handlePlaceSync(): Promise<{
     updatedCount: number;
     failureCount: number;
     apiCallCount: number;
   }> {
+    this.checkAndResetDailyUsage();
+
+    if (this.isRunning) {
+      this.logger.warn('관광지 마스터 동기화 작업이 이미 실행 중입니다.');
+      return { updatedCount: 0, failureCount: 0, apiCallCount: 0 };
+    }
+
+    this.isRunning = true;
+    this.lastAttemptAt = new Date();
     this.logger.log(
       '한국관광공사(KorService2) 관광지 마스터 정기 동기화를 시작합니다.',
     );
@@ -221,7 +273,10 @@ export class KtoPlaceSyncService {
       this.logger.warn(
         'VK_KORSERVICE2_API_KEY가 설정되지 않아 장소 동기화를 건너뜁니다.',
       );
-      return { updatedCount, failureCount, apiCallCount };
+      this.isRunning = false;
+      this.lastResult = 'FAILURE';
+      this.lastMessage = 'API 키가 설정되지 않았습니다.';
+      return { updatedCount, failureCount: 1, apiCallCount };
     }
 
     const contentTypes = ['12', '14', '15', '28', '38', '39'];

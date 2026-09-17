@@ -148,13 +148,33 @@ describe('KtoPlaceSyncService', () => {
       expect(routeRepositoryMock.upsertPlaceFromKto).not.toHaveBeenCalled();
     });
 
-    it('returns 0 if VK_KORSERVICE2_API_KEY is empty', async () => {
+    it('returns failureCount: 1 if VK_KORSERVICE2_API_KEY is empty', async () => {
       delete process.env.VK_KORSERVICE2_API_KEY;
 
       const result = await service.handlePlaceSync();
 
       expect(result.apiCallCount).toBe(0);
       expect(result.updatedCount).toBe(0);
+      expect(result.failureCount).toBe(1);
+      expect(service.getStatus().lastResult).toBe('FAILURE');
+      expect(service.getLastAttemptAt()).toBeDefined();
+    });
+
+    it('resets daily usage when date changes', () => {
+      // Simulate usage on yesterday
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = yesterday.toISOString().slice(0, 10);
+
+      (
+        service as unknown as { dailyApiUsage: number; usageDate: string }
+      ).dailyApiUsage = 500;
+      (
+        service as unknown as { dailyApiUsage: number; usageDate: string }
+      ).usageDate = yesterdayStr;
+
+      const status = service.getStatus();
+      expect(status.dailyApiUsage).toBe(0);
     });
   });
 });

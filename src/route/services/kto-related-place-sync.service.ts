@@ -31,6 +31,7 @@ export interface KtoRelatedSyncStatus {
   dailyApiUsage: number;
   dailyQuotaLimit: number;
   lastCollectedAt: Date | null;
+  lastAttemptAt: Date | null;
   status: 'IDLE' | 'RUNNING';
   lastResult: 'SUCCESS' | 'PARTIAL_SUCCESS' | 'FAILURE' | null;
   lastMessage: string | null;
@@ -43,6 +44,7 @@ export class KtoRelatedPlaceSyncService {
 
   private isRunning = false;
   private lastCollectedAt: Date | null = null;
+  private lastAttemptAt: Date | null = null;
   private lastResult: 'SUCCESS' | 'PARTIAL_SUCCESS' | 'FAILURE' | null = null;
   private lastMessage: string | null = null;
   private dailyApiUsage = 0;
@@ -72,12 +74,17 @@ export class KtoRelatedPlaceSyncService {
     }
   }
 
+  getLastAttemptAt(): Date | null {
+    return this.lastAttemptAt;
+  }
+
   getStatus(): KtoRelatedSyncStatus {
     this.checkAndResetDailyUsage();
     return {
       dailyApiUsage: this.dailyApiUsage,
       dailyQuotaLimit: 1000,
       lastCollectedAt: this.lastCollectedAt,
+      lastAttemptAt: this.lastAttemptAt,
       status: this.isRunning ? 'RUNNING' : 'IDLE',
       lastResult: this.lastResult,
       lastMessage: this.lastMessage,
@@ -104,6 +111,7 @@ export class KtoRelatedPlaceSyncService {
     }
 
     this.isRunning = true;
+    this.lastAttemptAt = new Date();
     this.logger.log(
       '한국관광공사(TarRlteTarService1) 연관관광지 정기 동기화를 시작합니다.',
     );
@@ -123,7 +131,12 @@ export class KtoRelatedPlaceSyncService {
       this.isRunning = false;
       this.lastResult = 'FAILURE';
       this.lastMessage = 'API 키가 설정되지 않았습니다.';
-      return { collectedCount, matchedPlaceCount, failureCount, apiCallCount };
+      return {
+        collectedCount,
+        matchedPlaceCount,
+        failureCount: 1,
+        apiCallCount,
+      };
     }
 
     const endpoint =

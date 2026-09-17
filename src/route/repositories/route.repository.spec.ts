@@ -1,24 +1,43 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { CongestionLevel, RouteType } from '@prisma/client';
+import {
+  CongestionLevel,
+  PlaceCategory,
+  Prisma,
+  RouteType,
+} from '@prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
 import { RouteRepository } from '@/route/repositories/route.repository';
 
 describe('RouteRepository', () => {
   let repository: RouteRepository;
+  let mockPrismaPlaceUpsert: jest.Mock;
   let prismaService: {
     route: {
       findUnique: jest.Mock;
       findMany: jest.Mock;
       update: jest.Mock;
     };
+    place: {
+      upsert: jest.Mock;
+      findFirst: jest.Mock;
+      update: jest.Mock;
+      count: jest.Mock;
+    };
   };
 
   beforeEach(async () => {
+    mockPrismaPlaceUpsert = jest.fn();
     prismaService = {
       route: {
         findUnique: jest.fn(),
         findMany: jest.fn(),
         update: jest.fn(),
+      },
+      place: {
+        upsert: mockPrismaPlaceUpsert,
+        findFirst: jest.fn(),
+        update: jest.fn(),
+        count: jest.fn(),
       },
     };
 
@@ -37,6 +56,59 @@ describe('RouteRepository', () => {
 
   it('should be defined', () => {
     expect(repository).toBeDefined();
+  });
+
+  it('upsertPlaceFromKto preserves isActive and elevationMeters on update', async () => {
+    const mockPlace = { id: 'place-1' };
+    mockPrismaPlaceUpsert.mockResolvedValue(mockPlace);
+
+    const data = {
+      name: '광안리',
+      address: '수영구',
+      roadAddress: null,
+      region: '부산광역시',
+      district: '수영구',
+      category: PlaceCategory.NATURE,
+      latitude: new Prisma.Decimal(35.15),
+      longitude: new Prisma.Decimal(129.11),
+      elevationMeters: 15,
+      openTime: '09:00',
+      closeTime: '18:00',
+      isActive: true,
+    };
+
+    await repository.upsertPlaceFromKto('kto-100', data);
+
+    expect(mockPrismaPlaceUpsert).toHaveBeenCalledWith({
+      where: { apiSourceId: 'kto-100' },
+      update: {
+        name: '광안리',
+        address: '수영구',
+        roadAddress: null,
+        region: '부산광역시',
+        district: '수영구',
+        category: PlaceCategory.NATURE,
+        latitude: new Prisma.Decimal(35.15),
+        longitude: new Prisma.Decimal(129.11),
+        openTime: '09:00',
+        closeTime: '18:00',
+      },
+      create: {
+        apiSourceId: 'kto-100',
+        name: '광안리',
+        address: '수영구',
+        roadAddress: null,
+        region: '부산광역시',
+        district: '수영구',
+        category: PlaceCategory.NATURE,
+        latitude: new Prisma.Decimal(35.15),
+        longitude: new Prisma.Decimal(129.11),
+        openTime: '09:00',
+        closeTime: '18:00',
+        isActive: true,
+        elevationMeters: 15,
+      },
+    });
   });
 
   it('calls prisma.route.findListWithStops with RECOMMENDED routeType filter and returns result', async () => {

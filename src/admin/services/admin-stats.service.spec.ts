@@ -42,12 +42,22 @@ describe('AdminStatsService', () => {
           provide: KtoPlaceSyncService,
           useValue: {
             handlePlaceSync: jest.fn(),
+            getLastAttemptAt: jest.fn().mockReturnValue(null),
+            getStatus: jest.fn().mockReturnValue({
+              dailyApiUsage: 0,
+              dailyQuotaLimit: 1000,
+              lastCollectedAt: null,
+              status: 'IDLE',
+              lastResult: null,
+              lastMessage: null,
+            }),
           },
         },
         {
           provide: KtoRelatedPlaceSyncService,
           useValue: {
             handleRelatedPlaceSync: jest.fn(),
+            getLastAttemptAt: jest.fn().mockReturnValue(null),
             getStatus: jest.fn().mockReturnValue({
               dailyApiUsage: 1,
               dailyQuotaLimit: 1000,
@@ -267,6 +277,29 @@ describe('AdminStatsService', () => {
       expect(result.apiCallCount).toBe(6);
       expect(placeSyncService.handlePlaceSync).toHaveBeenCalledTimes(1);
     });
+
+    it('관광지 마스터 10분 쿨타임 이내 재요청 시 429 TOO_MANY_REQUESTS 예외를 던져야 한다', async () => {
+      placeSyncService.getLastAttemptAt.mockReturnValue(
+        new Date(Date.now() - 60 * 1000),
+      );
+
+      await expect(service.triggerPlaceCollection()).rejects.toThrow(
+        HttpException,
+      );
+    });
+
+    it('관광지 마스터 전면 실패 시 ServiceUnavailableException을 던져야 한다', async () => {
+      placeSyncService.getLastAttemptAt.mockReturnValue(null);
+      placeSyncService.handlePlaceSync.mockResolvedValue({
+        updatedCount: 0,
+        failureCount: 1,
+        apiCallCount: 0,
+      });
+
+      await expect(service.triggerPlaceCollection()).rejects.toThrow(
+        ServiceUnavailableException,
+      );
+    });
   });
 
   describe('triggerRelatedPlaceCollection & getRelatedPlaceCollectionStatus', () => {
@@ -296,6 +329,30 @@ describe('AdminStatsService', () => {
       expect(
         relatedPlaceSyncService.handleRelatedPlaceSync,
       ).toHaveBeenCalledTimes(1);
+    });
+
+    it('연관관광지 10분 쿨타임 이내 재요청 시 429 TOO_MANY_REQUESTS 예외를 던져야 한다', async () => {
+      relatedPlaceSyncService.getLastAttemptAt.mockReturnValue(
+        new Date(Date.now() - 60 * 1000),
+      );
+
+      await expect(service.triggerRelatedPlaceCollection()).rejects.toThrow(
+        HttpException,
+      );
+    });
+
+    it('연관관광지 전면 실패 시 ServiceUnavailableException을 던져야 한다', async () => {
+      relatedPlaceSyncService.getLastAttemptAt.mockReturnValue(null);
+      relatedPlaceSyncService.handleRelatedPlaceSync.mockResolvedValue({
+        collectedCount: 0,
+        matchedPlaceCount: 0,
+        failureCount: 1,
+        apiCallCount: 0,
+      });
+
+      await expect(service.triggerRelatedPlaceCollection()).rejects.toThrow(
+        ServiceUnavailableException,
+      );
     });
   });
 });

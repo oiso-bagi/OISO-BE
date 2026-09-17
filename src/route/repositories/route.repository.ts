@@ -137,12 +137,15 @@ export class RouteRepository {
       isActive: boolean;
     },
   ) {
+    const { isActive, elevationMeters, ...updateData } = data;
     return this.prisma.place.upsert({
       where: { apiSourceId },
-      update: data,
+      update: updateData,
       create: {
         apiSourceId,
-        ...data,
+        isActive,
+        elevationMeters,
+        ...updateData,
       },
     });
   }
