@@ -1,6 +1,16 @@
-import { PrismaClient, PlaceCategory, RouteType, CongestionLevel, TransitType } from '@prisma/client';
+import {
+  PrismaClient,
+  PlaceCategory,
+  RouteType,
+  CongestionLevel,
+  TransitType,
+  UserRole,
+  UserProvider,
+} from '@prisma/client';
+import { PasswordHashService } from '../src/auth/services/password-hash.service';
 
 const prisma = new PrismaClient();
+const passwordHashService = new PasswordHashService();
 
 async function main() {
   console.log('🌱 더미 데이터 생성(Seed)을 시작합니다...');
@@ -23,6 +33,34 @@ async function main() {
       role: 'USER',
     },
   });
+
+  const reviewAdminEmail = process.env.REVIEW_ADMIN_EMAIL?.trim().toLowerCase();
+  const reviewAdminPassword = process.env.REVIEW_ADMIN_PASSWORD;
+  const reviewAdmin =
+    reviewAdminEmail && reviewAdminPassword
+      ? await prisma.user.upsert({
+          where: { email: reviewAdminEmail },
+          update: {
+            nickname: 'review-admin',
+            provider: UserProvider.LOCAL,
+            providerId: null,
+            role: UserRole.ADMIN,
+            passwordHash: passwordHashService.hashPassword(reviewAdminPassword),
+            isActive: true,
+          },
+          create: {
+            email: reviewAdminEmail,
+            nickname: 'review-admin',
+            provider: UserProvider.LOCAL,
+            role: UserRole.ADMIN,
+            passwordHash: passwordHashService.hashPassword(reviewAdminPassword),
+            isActive: true,
+          },
+          select: {
+            email: true,
+          },
+        })
+      : null;
 
   // 2. 더미 장소(Place) 데이터 생성 (실제 부산 위도/경도 좌표 포함)
   const placeHaeundae = await prisma.place.create({
@@ -232,6 +270,13 @@ async function main() {
 
   console.log('✅ 더미 데이터 생성(Seed)이 성공적으로 완료되었습니다!');
   console.log(`👤 테스트 유저 ID: ${user.id}`);
+  if (reviewAdmin) {
+    console.log('Review admin account seeded.');
+  } else {
+    console.log(
+      'Review admin account was not seeded because REVIEW_ADMIN_EMAIL or REVIEW_ADMIN_PASSWORD is missing.',
+    );
+  }
 }
 
 main()
