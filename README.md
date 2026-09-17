@@ -120,7 +120,7 @@ pnpm prisma migrate deploy
 #### 💡 [한 줄 완성 지름길 명령어]
 
 ```bash
-# 기본 시드 + TourAPI/Google고도 장소 수집 + 연관 추천 코스 동적 적재 통째로 실행
+# 기본 시드 + TourAPI/Open-Elevation 장소 수집 + 연관 추천 코스 동적 적재 통째로 실행
 pnpm run seed:all
 ```
 
@@ -136,14 +136,14 @@ pnpm run seed:all
 
    - 동의 항목, 기초 마스터 데이터 등 시스템 기본 레코드를 적재합니다.
 
-2. **2단계: 부산 관광지 마스터 & Google 고도 1회성 일괄 수집 (`scripts/seed-tour-api-test.ts`)**:
+2. **2단계: 부산 관광지 마스터 & Open-Elevation 고도 1회성 일괄 수집 (`scripts/seed-tour-api-test.ts`)**:
 
    ```bash
    pnpm run seed:places
    # (또는 npx ts-node scripts/seed-tour-api-test.ts)
    ```
 
-   - 한국관광공사 TourAPI(`KorService2`)로 부산 관광지/식당/상권 마스터 정보를 수집하고, **Google Elevation API 파이프(`|`) 일괄 호출로 해수면 절대 고도(`Place.elevationMeters`)를 DB `Place` 테이블에 1회성 사전 적재**합니다.
+   - 한국관광공사 TourAPI(`KorService2`)로 부산 관광지/식당/상권 마스터 정보를 수집하고, **Open-Elevation 오픈 API(NASA SRTM DEM 기반) 일괄 호출로 해수면 절대 고도(`Place.elevationMeters`)를 DB `Place` 테이블에 1회성 사전 적재**합니다.
 
 3. **3단계: TourAPI 연관 데이터 기반 추천 코스 동적 조립 적재 (`scripts/seed-recommend-routes.ts`)**:
 

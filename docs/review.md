@@ -10,7 +10,7 @@
 | # | 명세서 기준 | 코드 위치 | 정합 여부 |
 |---|---|---|---|
 | 1 | API Key 이중 인코딩 방어 `decodeURIComponent` | [seed-tour-api-test.ts:L73](file:///Users/kimdoyeon/Projects/UMC/2026-tour-contest/OISO-BE/scripts/seed-tour-api-test.ts#L73) | ✅ |
-| 2 | Google Elevation 파이프(`\|`) 일괄 Batch 수집 | [seed-tour-api-test.ts:L145-L147](file:///Users/kimdoyeon/Projects/UMC/2026-tour-contest/OISO-BE/scripts/seed-tour-api-test.ts#L145-L147) | ✅ |
+| 2 | Open-Elevation (NASA SRTM DEM) 일괄 Batch 수집 | [seed-tour-api-test.ts:L401-L420](file:///Users/kimdoyeon/Projects/UMC/2026-tour-contest/OISO-BE/scripts/seed-tour-api-test.ts#L401-L420) | ✅ |
 | 3 | Exponential Backoff Retry 3회 (1s→2s→4s) | [seed-tour-api-test.ts:L38-L56](file:///Users/kimdoyeon/Projects/UMC/2026-tour-contest/OISO-BE/scripts/seed-tour-api-test.ts#L38-L56) | ✅ |
 | 4 | XML/HTML 비정상 응답 방어 | [seed-tour-api-test.ts:L97-L106](file:///Users/kimdoyeon/Projects/UMC/2026-tour-contest/OISO-BE/scripts/seed-tour-api-test.ts#L97-L106) | ✅ |
 | 5 | Prisma Upsert 멱등성 (`apiSourceId` @unique) | [seed-tour-api-test.ts:L190-L197](file:///Users/kimdoyeon/Projects/UMC/2026-tour-contest/OISO-BE/scripts/seed-tour-api-test.ts#L190-L197) + [schema.prisma:L116](file:///Users/kimdoyeon/Projects/UMC/2026-tour-contest/OISO-BE/prisma/schema.prisma#L116) | ✅ |
