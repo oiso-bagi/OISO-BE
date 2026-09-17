@@ -271,7 +271,7 @@ async function main() {
   console.log('✅ 더미 데이터 생성(Seed)이 성공적으로 완료되었습니다!');
   console.log(`👤 테스트 유저 ID: ${user.id}`);
   if (reviewAdmin) {
-    console.log(`Review admin account seeded: ${reviewAdmin.email}`);
+    console.log('Review admin account seeded: ');
   } else {
     console.log(
       'Review admin account was not seeded because REVIEW_ADMIN_EMAIL or REVIEW_ADMIN_PASSWORD is missing.',
