@@ -20,6 +20,9 @@
     },
     "incremental": true,
     "skipLibCheck": true,
+    "types": [
+      "node"
+    ],
     "strictNullChecks": true,
     "forceConsistentCasingInFileNames": true,
     "noImplicitAny": false,
@@ -28,11 +31,11 @@
   },
   "include": [
     "src/**/*",
-    "test/**/*"
+    "test/**/*",
+    "prisma/**/*"
   ],
   "exclude": [
     "node_modules",
-    "dist",
-    "prisma"
+    "dist"
   ]
 }
