@@ -44,6 +44,7 @@ import { KakaoAuthService } from '@/auth/services/kakao-auth.service';
 import { OAuthFlowService } from '@/auth/services/oauth-flow.service';
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
 import { AuthGuard } from '@/common/guards/auth.guard';
+import { Throttle } from '@nestjs/throttler';
 
 @ApiAuthControllerDocs()
 @Controller()
@@ -134,6 +135,7 @@ export class AuthController {
     });
   }
 
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('auth/login')
   @HttpCode(200)
   @ApiLoginWithEmailDocs()
