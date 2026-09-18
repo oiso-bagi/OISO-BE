@@ -195,8 +195,7 @@ export class SavingsDashboardResponseDto {
   static from(
     summary: SavingsDashboardSummaryRawData,
     categorySummaryOrTrips:
-      | SavingsDashboardCategoryRawData
-      | SavingsDashboardTripRawData[],
+      SavingsDashboardCategoryRawData | SavingsDashboardTripRawData[],
     recentTrips?: SavingsDashboardTripRawData[],
   ): SavingsDashboardResponseDto {
     const dto = new SavingsDashboardResponseDto();
@@ -211,7 +210,7 @@ export class SavingsDashboardResponseDto {
     );
     const trips = Array.isArray(categorySummaryOrTrips)
       ? categorySummaryOrTrips
-      : recentTrips ?? [];
+      : (recentTrips ?? []);
     dto.histories = trips.map((trip) => SavingsHistoryDto.from(trip));
 
     return dto;
