@@ -8,6 +8,11 @@ import {
   PlaceCategory,
 } from '@prisma/client';
 import { calculateTouristSavings } from '@/route/utils/tourist-savings.util';
+import {
+  calculateRouteCostIndices,
+  COST_INDEX_BASELINE,
+  getPlaceCostIndexType,
+} from '@/route/utils/cost-index.util';
 
 export type RouteStopWithPlace = Partial<RouteStop> & {
   orderIndex?: number | null;
@@ -40,6 +45,7 @@ export type RouteMetrics = {
     transportCost: number;
     placeCost: number;
   };
+  costIndex: CostIndexDto;
   metaTime: {
     pureTravelTime: number;
     stayTime: number;
@@ -60,6 +66,43 @@ export class MetaCostDto {
     type: Number,
   })
   placeCost!: number;
+}
+
+export class CostIndexDto {
+  @ApiProperty({
+    description: '식비 지수(국내 평균 1일 식비를 100으로 환산)',
+    example: 95,
+    type: Number,
+  })
+  foodCostIndex!: number;
+
+  @ApiProperty({
+    description: '교통비 지수(국내 평균 1일 교통비를 100으로 환산)',
+    example: 125,
+    type: Number,
+  })
+  transportCostIndex!: number;
+
+  @ApiProperty({
+    description: '체험비 지수(국내 평균 1일 체험비를 100으로 환산)',
+    example: 80,
+    type: Number,
+  })
+  activityCostIndex!: number;
+
+  @ApiProperty({
+    description: '평균 기준 지수값',
+    example: 100,
+    type: Number,
+  })
+  baselineIndex!: number;
+
+  @ApiProperty({
+    description: '지수 산정 기준 일수',
+    example: 1,
+    type: Number,
+  })
+  dayCount!: number;
 }
 
 export class MetaTimeDto {
@@ -89,6 +132,23 @@ export function buildRouteMetrics(stops: RouteStopWithPlace[]): RouteMetrics {
     (acc, stop) => acc + (stop.estimatedPriceWon ?? 0),
     0,
   );
+  const costAmounts = stops.reduce(
+    (acc, stop) => {
+      acc.transport += stop.fareWon ?? 0;
+      const costIndexType = getPlaceCostIndexType(stop.place?.category);
+      acc[costIndexType] += stop.estimatedPriceWon ?? 0;
+      return acc;
+    },
+    { food: 0, transport: 0, activity: 0 },
+  );
+  const dayCount = stops.reduce((maxDay, stop) => {
+    const dayNumber = stop.dayNumber;
+    return typeof dayNumber === 'number' &&
+      Number.isInteger(dayNumber) &&
+      dayNumber > maxDay
+      ? dayNumber
+      : maxDay;
+  }, 1);
   const pureTravelTime = stops.reduce(
     (acc, stop) => acc + (stop.travelMinutesFromPrev ?? 0),
     0,
@@ -108,6 +168,11 @@ export function buildRouteMetrics(stops: RouteStopWithPlace[]): RouteMetrics {
     totalTimeMinutes,
     totalTimeDisplay: hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`,
     metaCost: { transportCost, placeCost },
+    costIndex: {
+      ...calculateRouteCostIndices(costAmounts, dayCount),
+      baselineIndex: COST_INDEX_BASELINE,
+      dayCount,
+    },
     metaTime: { pureTravelTime, stayTime },
   };
 }
@@ -419,6 +484,12 @@ export class RecommendedRouteDetailResponseDto {
   metaCost!: MetaCostDto;
 
   @ApiProperty({
+    description: '비용 지수 정보(100 = 국내 평균)',
+    type: CostIndexDto,
+  })
+  costIndex!: CostIndexDto;
+
+  @ApiProperty({
     description: '시간 메타 정보',
     type: MetaTimeDto,
   })
@@ -459,6 +530,7 @@ export class RecommendedRouteDetailResponseDto {
     dto.totalTimeMinutes = metrics.totalTimeMinutes;
     dto.totalTimeDisplay = metrics.totalTimeDisplay;
     dto.metaCost = metrics.metaCost;
+    dto.costIndex = metrics.costIndex;
     dto.metaTime = metrics.metaTime;
     dto.stops = safeStops.map((stop) => RouteStopResponseDto.from(stop));
 

@@ -47,6 +47,13 @@ describe('RecommendedRouteListResponseDto', () => {
     expect(dto.totalDistanceKm).toBe(3.2);
     expect(dto.transitTypes).toEqual(['WALKING', 'BUS']);
     expect(dto.totalCost).toBe(12000);
+    expect(dto.costIndex).toEqual({
+      foodCostIndex: 0,
+      transportCostIndex: 25,
+      activityCostIndex: 53,
+      baselineIndex: 100,
+      dayCount: 1,
+    });
     expect(dto.totalTimeMinutes).toBe(60);
     expect(dto.congestionLevel).toBe(CongestionLevel.HIGH);
     expect(dto.estimatedSavingsWon).toBe(1000);
@@ -88,6 +95,13 @@ describe('RecommendedRouteListResponseDto', () => {
     expect(dto.totalDistanceKm).toBe(0);
     expect(dto.transitTypes).toEqual([]);
     expect(dto.totalCost).toBe(0);
+    expect(dto.costIndex).toEqual({
+      foodCostIndex: 0,
+      transportCostIndex: 0,
+      activityCostIndex: 0,
+      baselineIndex: 100,
+      dayCount: 1,
+    });
     expect(dto.totalTimeMinutes).toBe(0);
     expect(dto.congestionLevel).toBe(CongestionLevel.MEDIUM);
     expect(dto.estimatedSavingsWon).toBe(0);

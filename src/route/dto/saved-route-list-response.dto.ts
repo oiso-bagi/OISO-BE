@@ -1,6 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Place, RouteStop, TransitType } from '@prisma/client';
-import { buildRouteMetrics } from '@/route/dto/recommended-route-detail-response.dto';
+import {
+  buildRouteMetrics,
+  CostIndexDto,
+} from '@/route/dto/recommended-route-detail-response.dto';
 
 export type RouteStopMinimal = Partial<RouteStop> & {
   orderIndex?: number | null;
@@ -72,6 +75,12 @@ export class SavedRouteItemDto {
   totalCost!: number;
 
   @ApiProperty({
+    description: '비용 지수 정보(100 = 국내 평균)',
+    type: CostIndexDto,
+  })
+  costIndex!: CostIndexDto;
+
+  @ApiProperty({
     description: '예상 총 소요 시간(분)',
     example: 180,
     type: Number,
@@ -113,6 +122,7 @@ export class SavedRouteItemDto {
 
     const metrics = buildRouteMetrics(safeStops);
     dto.totalCost = metrics.totalCost;
+    dto.costIndex = metrics.costIndex;
     dto.totalTimeMinutes = metrics.totalTimeMinutes;
 
     dto.estimatedSavingsWon = route.estimatedSavingsWon ?? 0;

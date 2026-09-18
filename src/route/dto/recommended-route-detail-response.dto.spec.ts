@@ -23,6 +23,13 @@ describe('RecommendedRouteDetailResponseDto', () => {
     expect(dto.localContributionScore).toBe(0);
     expect(dto.isRecommended).toBe(true);
     expect(dto.totalCost).toBe(0);
+    expect(dto.costIndex).toEqual({
+      foodCostIndex: 0,
+      transportCostIndex: 0,
+      activityCostIndex: 0,
+      baselineIndex: 100,
+      dayCount: 1,
+    });
     expect(dto.totalTimeMinutes).toBe(0);
     expect(dto.totalTimeDisplay).toBe('0m');
     expect(dto.stops).toEqual([]);
@@ -60,6 +67,13 @@ describe('RecommendedRouteDetailResponseDto', () => {
     expect(dto.stops[0].nextTransportType).toBe('BUS');
     expect(dto.stops[0].nextTravelTimeMinutes).toBe(20);
     expect(dto.stops[0].estimatedPriceWon).toBe(9000);
+    expect(dto.costIndex).toEqual({
+      foodCostIndex: 0,
+      transportCostIndex: 25,
+      activityCostIndex: 45,
+      baselineIndex: 100,
+      dayCount: 1,
+    });
     expect(dto.stops[0].touristPremiumWon).toBe(13860);
     expect(dto.stops[0].savedPriceWon).toBe(4860);
     expect(dto.stops[0].address).toBeNull();

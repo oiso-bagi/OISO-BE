@@ -7,6 +7,7 @@ import {
 } from '@prisma/client';
 import {
   buildRouteMetrics,
+  CostIndexDto,
   MetaCostDto,
   MetaTimeDto,
   PathCoordinateDto,
@@ -327,6 +328,18 @@ export class SavedRouteDetailResponseDto {
   };
 
   @ApiProperty({
+    description: '비용 지수 정보(100 = 국내 평균)',
+    type: CostIndexDto,
+  })
+  costIndex: CostIndexDto = {
+    foodCostIndex: 0,
+    transportCostIndex: 0,
+    activityCostIndex: 0,
+    baselineIndex: 100,
+    dayCount: 1,
+  };
+
+  @ApiProperty({
     description: '시간 메타 정보',
     type: MetaTimeDto,
   })
@@ -389,6 +402,7 @@ export class SavedRouteDetailResponseDto {
     dto.totalTimeMinutes = metrics.totalTimeMinutes;
     dto.totalTimeDisplay = metrics.totalTimeDisplay;
     dto.metaCost = metrics.metaCost;
+    dto.costIndex = metrics.costIndex;
     dto.metaTime = metrics.metaTime;
 
     dto.stops = safeStops.map((stop) => SavedRouteStopDetailDto.from(stop));
