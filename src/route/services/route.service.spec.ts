@@ -122,6 +122,7 @@ describe('RouteService', () => {
     );
 
     expect(result.routeId).toBe('stitched-route-1_route-2');
+    expect(result.routeName).toBe('[1박 2일] 해운대 · 광안리 패키지');
     expect(result.localContributionScore).toBe(70);
     const stops = result.stops;
     expect(stops).toBeDefined();
@@ -149,6 +150,7 @@ describe('RouteService', () => {
       await service.getRecommendedRouteDetail('stitched-route-cmA');
 
     expect(result.routeId).toBe('stitched-route-cmA');
+    expect(result.routeName).toBe('단일 일차 코스');
     expect(result.stops).toHaveLength(1);
   });
 

@@ -480,7 +480,7 @@ async function seedRecommendRoutes() {
         .substring(0, 16);
       const routeId = `route-${hash}`;
 
-      const routeName = `${anchor.name} 릴레이 코스`;
+      const routeName = `${anchor.name} 코스`;
       const summary = `${anchor.name}을(를) 거점으로 둘러보는 ${uniqueStops.length}스팟 맞춤 동선`;
 
       let foodCostWon = 0;
