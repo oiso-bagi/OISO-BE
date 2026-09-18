@@ -5,7 +5,6 @@ import { DashboardService } from '@/dashboard/services/dashboard.service';
 describe('DashboardService', () => {
   const mockDashboardRepository = {
     findSavingsSummaryByUserId: jest.fn(),
-    findSavingsCategorySummaryByUserId: jest.fn(),
     findRecentCompletedSavingsTripsByUserId: jest.fn(),
     findCompletedSavingsTripsByUserId: jest.fn(),
   };
@@ -25,13 +24,6 @@ describe('DashboardService', () => {
       totalSavingsWon: 0,
       localContributionScore: 0,
     });
-    mockDashboardRepository.findSavingsCategorySummaryByUserId.mockResolvedValue(
-      {
-        foodSavingsWon: 0,
-        transportSavingsWon: 0,
-        experienceSavingsWon: 0,
-      },
-    );
     mockDashboardRepository.findRecentCompletedSavingsTripsByUserId.mockResolvedValue(
       [],
     );
@@ -42,12 +34,38 @@ describe('DashboardService', () => {
       mockDashboardRepository.findSavingsSummaryByUserId,
     ).toHaveBeenCalledWith('user-1');
     expect(
-      mockDashboardRepository.findSavingsCategorySummaryByUserId,
-    ).toHaveBeenCalledWith('user-1');
-    expect(
       mockDashboardRepository.findRecentCompletedSavingsTripsByUserId,
     ).toHaveBeenCalledWith('user-1');
     expect(result.totalSavingsWon).toBe(0);
+    expect(result.savingsByCategory[0].savingRatePercent).toBe(0);
+  });
+
+  it('computes category saving rates for completed trips', async () => {
+    mockDashboardRepository.findSavingsSummaryByUserId.mockResolvedValue({
+      tripCount: 2,
+      totalSavingsWon: 25000,
+      localContributionScore: 70,
+    });
+    mockDashboardRepository.findRecentCompletedSavingsTripsByUserId.mockResolvedValue(
+      [],
+    );
+
+    const result = await service.getSavingsDashboard('user-1');
+
+    expect(result.savingsByCategory).toEqual([
+      {
+        label: '식비',
+        savingRatePercent: 37,
+      },
+      {
+        label: '교통비',
+        savingRatePercent: 45,
+      },
+      {
+        label: '체험비',
+        savingRatePercent: 30,
+      },
+    ]);
   });
 
   it('rejects an empty user id', async () => {
@@ -56,9 +74,6 @@ describe('DashboardService', () => {
     );
     expect(
       mockDashboardRepository.findSavingsSummaryByUserId,
-    ).not.toHaveBeenCalled();
-    expect(
-      mockDashboardRepository.findSavingsCategorySummaryByUserId,
     ).not.toHaveBeenCalled();
     expect(
       mockDashboardRepository.findRecentCompletedSavingsTripsByUserId,
