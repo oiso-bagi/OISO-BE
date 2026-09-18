@@ -50,6 +50,15 @@ export class SavedRouteStopDetailDto {
 
   @ApiProperty({
     description:
+      '장소 주소 (도로명 주소 우선, 없으면 지번 주소, 둘 다 없으면 null)',
+    example: '부산광역시 수영구 광안해변로 219',
+    nullable: true,
+    type: String,
+  })
+  address: string | null = null;
+
+  @ApiProperty({
+    description:
       '장소 카테고리 (FOOD: 식당 | CAFE: 카페 | MARKET: 전통시장 | CULTURE: 문화 | NATURE: 자연 | EXPERIENCE: 체험 | VIEWPOINT: 전망대 | ETC: 기타)',
     enum: PlaceCategory,
     example: PlaceCategory.NATURE,
@@ -74,7 +83,7 @@ export class SavedRouteStopDetailDto {
   closeTime: string | null = null;
 
   @ApiProperty({
-    description: '다음 경유지까지 이동 수단',
+    description: '이전 경유지부터 현재 경유지까지의 이동 수단',
     enum: TransitType,
     example: 'BUS',
     nullable: true,
@@ -82,12 +91,20 @@ export class SavedRouteStopDetailDto {
   nextTransportType: TransitType | null = null;
 
   @ApiProperty({
-    description: '다음 경유지까지 예상 이동 시간(분)',
+    description: '이전 경유지부터 현재 경유지까지의 예상 이동 시간(분)',
     example: 15,
     nullable: true,
     type: Number,
   })
   nextTravelTimeMinutes: number | null = null;
+
+  @ApiProperty({
+    description: '장소 체류 소요 시간(분)',
+    example: 60,
+    nullable: true,
+    type: Number,
+  })
+  stayMinutes: number | null = null;
 
   @ApiProperty({
     description: '구간 교통비(원)',
@@ -175,11 +192,13 @@ export class SavedRouteStopDetailDto {
     dto.placeId =
       stop.placeId ?? (stop.place as { id?: string } | null)?.id ?? null;
     dto.placeName = stop.place?.name ?? '';
+    dto.address = stop.place?.roadAddress || stop.place?.address || null;
     dto.category = (stop.place?.category as PlaceCategory) ?? null;
     dto.openTime = stop.place?.openTime ?? null;
     dto.closeTime = stop.place?.closeTime ?? null;
     dto.nextTransportType = stop.transitType ?? null;
     dto.nextTravelTimeMinutes = stop.travelMinutesFromPrev ?? null;
+    dto.stayMinutes = stop.stayMinutes ?? null;
     dto.fareWon = stop.fareWon ?? null;
     dto.estimatedPriceWon = stop.estimatedPriceWon ?? null;
 

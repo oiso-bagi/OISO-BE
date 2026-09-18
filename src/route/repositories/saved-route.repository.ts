@@ -63,6 +63,8 @@ const getSavedRouteDetailSelect = (userId: string) =>
                 id: true,
                 name: true,
                 category: true,
+                address: true,
+                roadAddress: true,
                 openTime: true,
                 closeTime: true,
                 latitude: true,

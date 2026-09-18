@@ -62,5 +62,53 @@ describe('RecommendedRouteDetailResponseDto', () => {
     expect(dto.stops[0].estimatedPriceWon).toBe(9000);
     expect(dto.stops[0].touristPremiumWon).toBe(13860);
     expect(dto.stops[0].savedPriceWon).toBe(4860);
+    expect(dto.stops[0].address).toBeNull();
+  });
+
+  it('resolves address using roadAddress first, then address, then null', () => {
+    const withRoadAddress = RecommendedRouteDetailResponseDto.from({
+      id: 'route-addr-1',
+      stops: [
+        {
+          orderIndex: 0,
+          place: {
+            name: '해운대',
+            roadAddress: '부산 해운대구 해운대변로 1',
+            address: '부산 해운대구 우동 100',
+          },
+        },
+      ],
+    });
+    expect(withRoadAddress.stops[0].address).toBe('부산 해운대구 해운대변로 1');
+
+    const withJibunOnly = RecommendedRouteDetailResponseDto.from({
+      id: 'route-addr-2',
+      stops: [
+        {
+          orderIndex: 0,
+          place: {
+            name: '광안리',
+            roadAddress: null,
+            address: '부산 수영구 광안동 200',
+          },
+        },
+      ],
+    });
+    expect(withJibunOnly.stops[0].address).toBe('부산 수영구 광안동 200');
+
+    const withoutAnyAddress = RecommendedRouteDetailResponseDto.from({
+      id: 'route-addr-3',
+      stops: [
+        {
+          orderIndex: 0,
+          place: {
+            name: '태종대',
+            roadAddress: null,
+            address: null,
+          },
+        },
+      ],
+    });
+    expect(withoutAnyAddress.stops[0].address).toBeNull();
   });
 });
