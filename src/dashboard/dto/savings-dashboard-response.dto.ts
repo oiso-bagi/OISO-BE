@@ -45,10 +45,7 @@ const DEFAULT_DAILY_BUDGET_WON = 60000;
 const SAVINGS_STATUS_THRESHOLD_RATIO = 0.05;
 
 export type SavingsCategoryStatus =
-  | 'SAVED'
-  | 'NO_SAVINGS'
-  | 'OVER_BUDGET'
-  | 'NO_DATA';
+  'SAVED' | 'NO_SAVINGS' | 'OVER_BUDGET' | 'NO_DATA';
 
 export class SavingsCategoryDto {
   @ApiProperty({ description: '절약 카테고리 라벨', example: '식비' })
