@@ -8,6 +8,7 @@ import { RecommendRouteRequestDto } from '@/recommendation/dto/recommend-route-r
 import { RecommendationOptionsResponseDto } from '@/recommendation/dto/recommendation-options-response.dto';
 import { RecommendationService } from '@/recommendation/services/recommendation.service';
 import { RecommendedRouteListResponseDto } from '@/route/dto/recommended-route-list-response.dto';
+import { Throttle } from '@nestjs/throttler';
 
 @ApiRecommendationControllerDocs()
 @Controller('recommended-routes')
@@ -20,6 +21,7 @@ export class RecommendationController {
     return this.recommendationService.getOptions();
   }
 
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('recommend')
   @HttpCode(200)
   @ApiRecommendRoutesDocs()

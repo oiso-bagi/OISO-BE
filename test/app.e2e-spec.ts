@@ -24,6 +24,17 @@ describe('AppController (e2e)', () => {
   let app: INestApplication<App>;
   const routeFindMany = jest.fn();
 
+  const expectRequestPastLimitToReturnTooManyRequests = async (
+    sendRequest: () => request.Test,
+    limit: number,
+  ) => {
+    for (let index = 0; index < limit; index += 1) {
+      await sendRequest();
+    }
+
+    await sendRequest().expect(429);
+  };
+
   beforeEach(async () => {
     routeFindMany.mockReset();
 
@@ -37,6 +48,9 @@ describe('AppController (e2e)', () => {
         $disconnect: jest.fn(),
         route: {
           findMany: routeFindMany,
+        },
+        user: {
+          findUnique: jest.fn().mockResolvedValue(null),
         },
       })
       .compile();
@@ -117,6 +131,42 @@ describe('AppController (e2e)', () => {
       .expect(400);
 
     expect(routeFindMany).not.toHaveBeenCalled();
+  });
+
+  it('returns 429 when the global request limit is exceeded', async () => {
+    await expectRequestPastLimitToReturnTooManyRequests(
+      () => request(app.getHttpServer()).get('/'),
+      100,
+    );
+  });
+
+  it('returns 429 when the login request limit is exceeded', async () => {
+    await expectRequestPastLimitToReturnTooManyRequests(
+      () =>
+        request(app.getHttpServer()).post('/api/v1/auth/login').send({
+          email: 'user@example.com',
+          password: 'password123',
+        }),
+      5,
+    );
+  });
+
+  it('returns 429 when the recommendation generation request limit is exceeded', async () => {
+    routeFindMany.mockResolvedValue([]);
+
+    await expectRequestPastLimitToReturnTooManyRequests(
+      () =>
+        request(app.getHttpServer())
+          .post('/api/v1/recommended-routes/recommend')
+          .send({
+            travelStyleSlugs: ['local-food'],
+            durationDays: 1,
+            dailyBudgetWon: 60000,
+          }),
+      10,
+    );
+
+    expect(routeFindMany).toHaveBeenCalledTimes(10);
   });
 
   afterEach(async () => {

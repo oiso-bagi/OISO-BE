@@ -9,6 +9,7 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiTags,
+  ApiTooManyRequestsResponse,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { REFRESH_TOKEN_COOKIE } from '@/auth/auth.constants';
@@ -136,22 +137,32 @@ export const ApiAuthControllerDocs = () => ApiTags('Auth');
 export const ApiLoginWithEmailDocs = () =>
   applyDecorators(
     ApiBody({ type: LocalLoginRequestDto }),
+
     ApiOperation({
-      summary: 'Local email login',
+      summary: '이메일 로그인',
       description: [
-        'Issues an access token and refresh-token cookie for a local account.',
+        '로컬 계정의 이메일과 비밀번호를 사용해 로그인합니다.',
         '',
-        'This endpoint is intended for reviewer or administrator accounts that cannot rely on external social-login approval flows.',
+        '로그인에 성공하면 액세스 토큰을 응답으로 반환하고 리프레시 토큰을 HttpOnly 쿠키에 저장합니다.',
+        '외부 소셜 로그인 승인 절차를 사용할 수 없는 심사자 또는 관리자 계정을 위한 로그인 API입니다.',
+        '요청 제한: 60초당 최대 5회',
       ].join('\n'),
     }),
+
     ApiOkResponse({
       description:
-        'Returns an access token and stores the refresh token in an HttpOnly cookie.',
+        '로그인에 성공하면 액세스 토큰을 반환하고 리프레시 토큰을 HttpOnly 쿠키에 저장합니다.',
       type: AuthTokenResponseDto,
     }),
+
     ApiUnauthorizedResponse({
       description:
-        'Returned when the email/password pair is invalid or the account is inactive.',
+        '이메일 또는 비밀번호가 올바르지 않거나 비활성화된 계정인 경우 401 응답을 반환합니다.',
+    }),
+
+    ApiTooManyRequestsResponse({
+      description:
+        '로그인 요청이 60초당 5회를 초과하면 429 Too Many Requests를 반환합니다.',
     }),
   );
 
@@ -397,17 +408,17 @@ export const ApiWithdrawDocs = () =>
   applyDecorators(
     ApiBearerAuth(),
     ApiOperation({
-      summary: 'Withdraw current user account',
+      summary: '회원 탈퇴',
       description: [
-        'Deactivates the currently authenticated user account with a soft-delete flag.',
+        '현재 인증된 사용자 계정을 비활성화하여 탈퇴 처리합니다.',
         '',
-        'Authentication: Authorization: Bearer <accessToken>',
-        'Response: clears auth cookies and returns 204 with no body.',
+        '인증 방식: Authorization: Bearer <accessToken>',
+        '탈퇴 처리 후 인증 쿠키를 삭제하고 응답 본문 없이 204를 반환합니다.',
       ].join('\n'),
     }),
     ApiNoContentResponse({
       description:
-        'The authenticated user account is deactivated and auth cookies are cleared.',
+        '회원 탈퇴가 완료되면 사용자 계정을 비활성화하고 인증 쿠키를 삭제합니다.',
     }),
     ApiAccessTokenUnauthorizedResponseDocs(),
   );

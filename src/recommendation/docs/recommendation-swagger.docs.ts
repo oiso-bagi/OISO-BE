@@ -6,6 +6,7 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiTags,
+  ApiTooManyRequestsResponse,
 } from '@nestjs/swagger';
 import { createCommonErrorExample } from '@/common/docs/auth-error-swagger.docs';
 import { RecommendRouteRequestDto } from '@/recommendation/dto/recommend-route-request.dto';
@@ -142,6 +143,7 @@ export const ApiRecommendRoutesDocs = () =>
       summary: '추천 루트 목록 조회',
       description: [
         '사용자가 선택한 여행 스타일, 여행 기간, 1일 예산 및 선호 비용 비율을 기준으로 추천 루트 목록을 조회합니다.',
+        '추천 루트 생성 요청이 60초당 10회를 초과하면 429 Too Many Requests를 반환합니다.',
         '',
         '요청 파라미터: 없음',
         '요청 바디: 필요',
@@ -163,6 +165,7 @@ export const ApiRecommendRoutesDocs = () =>
         '  - 3일차 장소들: dayNumber = 3 (sequence: 6, 7, 8)',
         '',
         '인증: 필요 없음',
+        'Rate limit: 60초당 최대 10회',
       ].join('\n'),
     }),
     ApiBody({
@@ -204,5 +207,9 @@ export const ApiRecommendRoutesDocs = () =>
           examples: recommendationBadRequestExamples,
         },
       },
+    }),
+    ApiTooManyRequestsResponse({
+      description:
+        '추천 루트 생성 요청이 60초당 10회를 초과하면 429 Too Many Requests 응답을 반환합니다.',
     }),
   );
