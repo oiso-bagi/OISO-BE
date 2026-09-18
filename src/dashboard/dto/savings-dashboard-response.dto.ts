@@ -9,6 +9,17 @@ export type SavingsDashboardTripRawData = {
     id: string;
     name: string;
     estimatedSavingsWon: number | null;
+    foodCostWon?: number | null;
+    transportCostWon?: number | null;
+    experienceCostWon?: number | null;
+    stops?: Array<{
+      fareWon?: number | null;
+      estimatedPriceWon?: number | null;
+      transitDetails?: unknown;
+      place?: {
+        category?: string | null;
+      } | null;
+    }>;
   };
 };
 
@@ -24,11 +35,16 @@ export type SavingsDashboardCategoryRawData = {
   experienceSavingsWon: number;
 };
 
+const DEFAULT_DAILY_BUDGET_WON = 60000;
+
 export class SavingsCategoryDto {
   @ApiProperty({ description: '절약 카테고리 라벨', example: '식비' })
   label!: string;
 
-  @ApiProperty({ description: '카테고리별 절약 금액(원)', example: 12000 })
+  @ApiProperty({
+    description: '카테고리별 기준 예산 대비 예상 절약 효과 금액(원)',
+    example: 12000,
+  })
   amountWon!: number;
 
   static of(label: string, amountWon: number): SavingsCategoryDto {
@@ -82,7 +98,11 @@ export class SavingsHistoryDto {
   })
   trippedAt!: Date;
 
-  @ApiProperty({ description: '해당 여행에서 절약한 금액(원)', example: 15000 })
+  @ApiProperty({
+    description:
+      '해당 완료 여행의 기준 예산 대비 추천 코스 예상 절약 효과 금액(원)',
+    example: 15000,
+  })
   savedAmountWon!: number;
 
   static from(trip: SavingsDashboardTripRawData): SavingsHistoryDto {
@@ -165,17 +185,23 @@ export class SavingsHistoriesPageResponseDto {
 }
 
 export class SavingsDashboardResponseDto {
-  @ApiProperty({ description: '총 절약 금액(원)', example: 48000 })
+  @ApiProperty({
+    description: '총 기준 예산 대비 예상 절약 효과 금액(원)',
+    example: 48000,
+  })
   totalSavingsWon!: number;
 
   @ApiProperty({ description: '완료한 여행 수', example: 3 })
   tripCount!: number;
 
-  @ApiProperty({ description: '여행당 평균 절약 금액(원)', example: 16000 })
+  @ApiProperty({
+    description: '여행당 평균 기준 예산 대비 예상 절약 효과 금액(원)',
+    example: 16000,
+  })
   averageSavingsWon!: number;
 
   @ApiProperty({
-    description: '카테고리별 절약 금액 목록',
+    description: '카테고리별 기준 예산 대비 예상 절약 효과 목록',
     type: [SavingsCategoryDto],
   })
   savingsByCategory!: SavingsCategoryDto[];
@@ -187,7 +213,7 @@ export class SavingsDashboardResponseDto {
   localContribution!: LocalContributionDto;
 
   @ApiProperty({
-    description: '최근 완료 여행 절약 내역',
+    description: '최근 완료 여행의 기준 예산 대비 예상 절약 효과 내역',
     type: [SavingsHistoryDto],
   })
   histories!: SavingsHistoryDto[];
@@ -214,7 +240,69 @@ export class SavingsDashboardResponseDto {
 }
 
 function getTripSavingsWon(trip: SavingsDashboardTripRawData): number {
-  return trip.route.estimatedSavingsWon ?? 0;
+  const dayCount = getTripDayCount(trip);
+  const totalBudgetWon = DEFAULT_DAILY_BUDGET_WON * dayCount;
+  const costs = getTripEstimatedCosts(trip);
+  const estimatedCostWon = costs.food + costs.transport + costs.experience;
+
+  return Math.max(0, totalBudgetWon - estimatedCostWon);
+}
+
+function getTripEstimatedCosts(trip: SavingsDashboardTripRawData): {
+  food: number;
+  transport: number;
+  experience: number;
+} {
+  const routeCosts = {
+    food: trip.route.foodCostWon ?? 0,
+    transport: trip.route.transportCostWon ?? 0,
+    experience: trip.route.experienceCostWon ?? 0,
+  };
+  const hasRouteCosts =
+    routeCosts.food + routeCosts.transport + routeCosts.experience > 0;
+
+  if (hasRouteCosts) {
+    return routeCosts;
+  }
+
+  const stops = Array.isArray(trip.route.stops) ? trip.route.stops : [];
+
+  return stops.reduce(
+    (acc, stop) => {
+      acc.transport += stop.fareWon ?? 0;
+
+      if (isFoodCategory(stop.place?.category)) {
+        acc.food += stop.estimatedPriceWon ?? 0;
+      } else {
+        acc.experience += stop.estimatedPriceWon ?? 0;
+      }
+
+      return acc;
+    },
+    { food: 0, transport: 0, experience: 0 },
+  );
+}
+
+function isFoodCategory(category?: string | null): boolean {
+  return category === 'FOOD' || category === 'CAFE';
+}
+
+function getTripDayCount(trip: SavingsDashboardTripRawData): number {
+  const stops = Array.isArray(trip.route.stops) ? trip.route.stops : [];
+
+  return stops.reduce((maxDay, stop) => {
+    const transitDetails = stop.transitDetails;
+    const dayNumber =
+      transitDetails != null &&
+      typeof transitDetails === 'object' &&
+      'dayNumber' in transitDetails
+        ? Number((transitDetails as { dayNumber?: unknown }).dayNumber)
+        : 1;
+
+    return Number.isInteger(dayNumber) && dayNumber > maxDay
+      ? dayNumber
+      : maxDay;
+  }, 1);
 }
 
 function buildSavingsByCategory({

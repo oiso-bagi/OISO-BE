@@ -16,9 +16,29 @@ const savingsDashboardHistorySelect =
         id: true,
         name: true,
         estimatedSavingsWon: true,
+        foodCostWon: true,
+        transportCostWon: true,
+        experienceCostWon: true,
+        stops: {
+          select: {
+            fareWon: true,
+            estimatedPriceWon: true,
+            transitDetails: true,
+            place: {
+              select: {
+                category: true,
+              },
+            },
+          },
+        },
       },
     },
   });
+
+const DEFAULT_DAILY_BUDGET_WON = 60000;
+const DEFAULT_FOOD_BUDGET_RATIO = 0.35;
+const DEFAULT_TRANSPORT_BUDGET_RATIO = 0.4;
+const DEFAULT_EXPERIENCE_BUDGET_RATIO = 0.25;
 
 @Injectable()
 export class DashboardRepository {
@@ -28,14 +48,90 @@ export class DashboardRepository {
     userId: string,
   ): Promise<SavingsDashboardSummaryRawData> {
     const rows = await this.prisma.$queryRaw<SavingsDashboardSummaryRawData[]>`
+      WITH completed_trips AS (
+        SELECT
+          trip."id" AS "tripId",
+          CASE
+            WHEN COALESCE(route."foodCostWon", 0)
+              + COALESCE(route."transportCostWon", 0)
+              + COALESCE(route."experienceCostWon", 0) > 0
+              THEN COALESCE(route."foodCostWon", 0)
+            ELSE COALESCE(
+              SUM(
+                CASE
+                  WHEN place."category" IN ('FOOD', 'CAFE')
+                    THEN stop."estimatedPriceWon"
+                  ELSE 0
+                END
+              ),
+              0
+            )
+          END AS "foodCostWon",
+          CASE
+            WHEN COALESCE(route."foodCostWon", 0)
+              + COALESCE(route."transportCostWon", 0)
+              + COALESCE(route."experienceCostWon", 0) > 0
+              THEN COALESCE(route."transportCostWon", 0)
+            ELSE COALESCE(SUM(stop."fareWon"), 0)
+          END AS "transportCostWon",
+          CASE
+            WHEN COALESCE(route."foodCostWon", 0)
+              + COALESCE(route."transportCostWon", 0)
+              + COALESCE(route."experienceCostWon", 0) > 0
+              THEN COALESCE(route."experienceCostWon", 0)
+            ELSE COALESCE(
+              SUM(
+                CASE
+                  WHEN place."category" NOT IN ('FOOD', 'CAFE')
+                    OR place."category" IS NULL
+                    THEN stop."estimatedPriceWon"
+                  ELSE 0
+                END
+              ),
+              0
+            )
+          END AS "experienceCostWon",
+          COALESCE(route."localContributionScore", 0) AS "localContributionScore",
+          GREATEST(
+            1,
+            COALESCE(
+              MAX(
+                CASE
+                  WHEN stop."transitDetails"->>'dayNumber' ~ '^[0-9]+$'
+                    THEN (stop."transitDetails"->>'dayNumber')::int
+                  ELSE 1
+                END
+              ),
+              1
+            )
+          ) AS "dayCount"
+        FROM "RouteTrip" trip
+        INNER JOIN "Route" route ON route."id" = trip."routeId"
+        LEFT JOIN "RouteStop" stop ON stop."routeId" = route."id"
+        LEFT JOIN "Place" place ON place."id" = stop."placeId"
+        WHERE trip."userId" = ${userId}
+          AND trip."isCompleted" = true
+        GROUP BY
+          trip."id",
+          route."foodCostWon",
+          route."transportCostWon",
+          route."experienceCostWon",
+          route."localContributionScore"
+      )
       SELECT
         COUNT(*)::int AS "tripCount",
-        COALESCE(SUM(route."estimatedSavingsWon"), 0)::int AS "totalSavingsWon",
-        COALESCE(ROUND(AVG(route."localContributionScore")), 0)::int AS "localContributionScore"
-      FROM "RouteTrip" trip
-      INNER JOIN "Route" route ON route."id" = trip."routeId"
-      WHERE trip."userId" = ${userId}
-        AND trip."isCompleted" = true
+        COALESCE(
+          SUM(
+            GREATEST(
+              0,
+              (${DEFAULT_DAILY_BUDGET_WON} * "dayCount")
+                - ("foodCostWon" + "transportCostWon" + "experienceCostWon")
+            )
+          ),
+          0
+        )::int AS "totalSavingsWon",
+        COALESCE(ROUND(AVG("localContributionScore")), 0)::int AS "localContributionScore"
+      FROM completed_trips
     `;
 
     return (
@@ -51,40 +147,106 @@ export class DashboardRepository {
     userId: string,
   ): Promise<SavingsDashboardCategoryRawData> {
     const rows = await this.prisma.$queryRaw<SavingsDashboardCategoryRawData[]>`
+      WITH completed_trips AS (
+        SELECT
+          trip."id" AS "tripId",
+          CASE
+            WHEN COALESCE(route."foodCostWon", 0)
+              + COALESCE(route."transportCostWon", 0)
+              + COALESCE(route."experienceCostWon", 0) > 0
+              THEN COALESCE(route."foodCostWon", 0)
+            ELSE COALESCE(
+              SUM(
+                CASE
+                  WHEN place."category" IN ('FOOD', 'CAFE')
+                    THEN stop."estimatedPriceWon"
+                  ELSE 0
+                END
+              ),
+              0
+            )
+          END AS "foodCostWon",
+          CASE
+            WHEN COALESCE(route."foodCostWon", 0)
+              + COALESCE(route."transportCostWon", 0)
+              + COALESCE(route."experienceCostWon", 0) > 0
+              THEN COALESCE(route."transportCostWon", 0)
+            ELSE COALESCE(SUM(stop."fareWon"), 0)
+          END AS "transportCostWon",
+          CASE
+            WHEN COALESCE(route."foodCostWon", 0)
+              + COALESCE(route."transportCostWon", 0)
+              + COALESCE(route."experienceCostWon", 0) > 0
+              THEN COALESCE(route."experienceCostWon", 0)
+            ELSE COALESCE(
+              SUM(
+                CASE
+                  WHEN place."category" NOT IN ('FOOD', 'CAFE')
+                    OR place."category" IS NULL
+                    THEN stop."estimatedPriceWon"
+                  ELSE 0
+                END
+              ),
+              0
+            )
+          END AS "experienceCostWon",
+          GREATEST(
+            1,
+            COALESCE(
+              MAX(
+                CASE
+                  WHEN stop."transitDetails"->>'dayNumber' ~ '^[0-9]+$'
+                    THEN (stop."transitDetails"->>'dayNumber')::int
+                  ELSE 1
+                END
+              ),
+              1
+            )
+          ) AS "dayCount"
+        FROM "RouteTrip" trip
+        INNER JOIN "Route" route ON route."id" = trip."routeId"
+        LEFT JOIN "RouteStop" stop ON stop."routeId" = route."id"
+        LEFT JOIN "Place" place ON place."id" = stop."placeId"
+        WHERE trip."userId" = ${userId}
+          AND trip."isCompleted" = true
+        GROUP BY
+          trip."id",
+          route."foodCostWon",
+          route."transportCostWon",
+          route."experienceCostWon"
+      )
       SELECT
         COALESCE(
           SUM(
-            CASE
-              WHEN place."category" IN ('FOOD', 'CAFE')
-                THEN stop."savingsWon"
-              ELSE 0
-            END
+            GREATEST(
+              0,
+              ROUND(${DEFAULT_DAILY_BUDGET_WON} * "dayCount" * ${DEFAULT_FOOD_BUDGET_RATIO})::int
+                - "foodCostWon"
+            )
           ),
           0
         )::int AS "foodSavingsWon",
-        COALESCE(SUM(stop."fareWon"), 0)::int AS "transportSavingsWon",
         COALESCE(
           SUM(
-            CASE
-              WHEN place."category" IN (
-                'EXPERIENCE',
-                'CULTURE',
-                'NATURE',
-                'MARKET',
-                'VIEWPOINT',
-                'ETC'
-              )
-                THEN stop."savingsWon"
-              ELSE 0
-            END
+            GREATEST(
+              0,
+              ROUND(${DEFAULT_DAILY_BUDGET_WON} * "dayCount" * ${DEFAULT_TRANSPORT_BUDGET_RATIO})::int
+                - "transportCostWon"
+            )
+          ),
+          0
+        )::int AS "transportSavingsWon",
+        COALESCE(
+          SUM(
+            GREATEST(
+              0,
+              ROUND(${DEFAULT_DAILY_BUDGET_WON} * "dayCount" * ${DEFAULT_EXPERIENCE_BUDGET_RATIO})::int
+                - "experienceCostWon"
+            )
           ),
           0
         )::int AS "experienceSavingsWon"
-      FROM "RouteTrip" trip
-      INNER JOIN "RouteStop" stop ON stop."routeId" = trip."routeId"
-      LEFT JOIN "Place" place ON place."id" = stop."placeId"
-      WHERE trip."userId" = ${userId}
-        AND trip."isCompleted" = true
+      FROM completed_trips
     `;
 
     return (

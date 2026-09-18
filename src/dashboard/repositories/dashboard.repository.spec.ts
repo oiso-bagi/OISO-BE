@@ -255,7 +255,7 @@ describePostgresAggregations(
 
       expect(result).toEqual({
         tripCount: 2,
-        totalSavingsWon: 15000,
+        totalSavingsWon: 54000,
         localContributionScore: 70,
       });
     });
@@ -265,9 +265,9 @@ describePostgresAggregations(
         await repository.findSavingsCategorySummaryByUserId(targetUserId);
 
       expect(result).toEqual({
-        foodSavingsWon: 5000,
-        transportSavingsWon: 2000,
-        experienceSavingsWon: 10000,
+        foodSavingsWon: 10000,
+        transportSavingsWon: 36000,
+        experienceSavingsWon: 8000,
       });
     });
 
@@ -318,8 +318,16 @@ describePostgresAggregations(
 
       await prismaService.route.createMany({
         data: [
-          createRouteData(completedRouteAId, 10000, 80),
-          createRouteData(completedRouteBId, 5000, 60),
+          createRouteData(completedRouteAId, 10000, 80, {
+            foodCostWon: 12000,
+            transportCostWon: 4000,
+            experienceCostWon: 10000,
+          }),
+          createRouteData(completedRouteBId, 5000, 60, {
+            foodCostWon: 20000,
+            transportCostWon: 8000,
+            experienceCostWon: 12000,
+          }),
           createRouteData(incompleteRouteId, 99999, 100),
           createRouteData(savedOnlyRouteId, 88888, 100),
           createRouteData(otherUserRouteId, 77777, 100),
@@ -404,6 +412,11 @@ describePostgresAggregations(
       id: string,
       estimatedSavingsWon: number,
       localContributionScore: number,
+      costs: {
+        foodCostWon?: number;
+        transportCostWon?: number;
+        experienceCostWon?: number;
+      } = {},
     ) {
       return {
         id,
@@ -413,6 +426,9 @@ describePostgresAggregations(
         estimatedDurationMin: 120,
         totalDistanceMeters: 5000,
         estimatedSavingsWon,
+        foodCostWon: costs.foodCostWon ?? 0,
+        transportCostWon: costs.transportCostWon ?? 0,
+        experienceCostWon: costs.experienceCostWon ?? 0,
         localContributionScore,
       };
     }
