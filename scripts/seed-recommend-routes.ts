@@ -154,7 +154,7 @@ async function fetchRelatedTourPlaces(): Promise<any[]> {
 }
 
 /**
- * 한국관광공사 TourAPI 4.0 detailIntro1 (소개정보조회 API) 기반 영업시간(openTime, closeTime) 수집 헬퍼 함수
+ * 한국관광공사 TourAPI 4.0 detailIntro2 (소개정보조회 API) 기반 영업시간(openTime, closeTime) 수집 헬퍼 함수
  * - VK_KORSERVICE2_API_KEY 환경변수 활용
  * - contentId 기반으로 opentimefood / opentime / usetime 필드를 조회하여 HH:mm 파싱
  */
@@ -167,7 +167,7 @@ async function fetchTourApiPlaceHours(
 
   try {
     const serviceKey = safeDecodeApiKey(rawApiKey);
-    const endpoint = 'http://apis.data.go.kr/B551011/KorService1/detailIntro1';
+    const endpoint = 'https://apis.data.go.kr/B551011/KorService2/detailIntro2';
 
     const res = await fetchWithRetry(() =>
       axios.get(endpoint, {
@@ -480,11 +480,8 @@ async function seedRecommendRoutes() {
         .substring(0, 16);
       const routeId = `route-${hash}`;
 
-      const formattedThemeName = theme.name.startsWith('부산')
-        ? theme.name
-        : `부산 ${theme.name}`;
-      const routeName = `${formattedThemeName} - ${anchor.name} 릴레이 ${courseIdx + 1}호 코스`;
-      const summary = `${anchor.name}을(를) 거점으로 ${theme.name}의 매력을 만끽하는 ${uniqueStops.length}스팟 맞춤 동선`;
+      const routeName = `${anchor.name} 코스`;
+      const summary = `${anchor.name}을(를) 거점으로 둘러보는 ${uniqueStops.length}스팟 맞춤 동선`;
 
       let foodCostWon = 0;
       let experienceCostWon = 0;

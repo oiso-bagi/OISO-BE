@@ -276,13 +276,96 @@ describe('RecommendationService', () => {
     });
 
     expect(results.length).toBeGreaterThan(0);
-    const day1Result = results.find((r) => r.name.includes('Day 1'));
+    const day1Result = results.find(
+      (r) => r.name === '[1박 2일] Place 1 · Place 3 패키지',
+    );
     expect(day1Result).toBeDefined();
     const placeNames = (day1Result?.stopLocations || []).map(
       (s) => s.placeName,
     );
     expect(placeNames).toContain('Place 3');
     expect(placeNames).not.toContain('Place 2');
+  });
+
+  it('formats 3-day package title with 외 1곳 form', async () => {
+    const route1 = {
+      id: 'route-3d-1',
+      name: 'Place 1 코스',
+      totalDistanceMeters: 1000,
+      estimatedSavingsWon: 1000,
+      estimatedCostWon: 20000,
+      score: 90,
+      stops: [
+        {
+          placeId: 'p-1',
+          orderIndex: 0,
+          place: {
+            id: 'p-1',
+            name: 'Place 1',
+            latitude: 35.1,
+            longitude: 129.1,
+          },
+        },
+      ],
+      themes: [{ theme: { slug: 'local-food' } }],
+    };
+    const route2 = {
+      id: 'route-3d-2',
+      name: 'Place 2 코스',
+      totalDistanceMeters: 1000,
+      estimatedSavingsWon: 1000,
+      estimatedCostWon: 20000,
+      score: 85,
+      stops: [
+        {
+          placeId: 'p-2',
+          orderIndex: 0,
+          place: {
+            id: 'p-2',
+            name: 'Place 2',
+            latitude: 35.11,
+            longitude: 129.11,
+          },
+        },
+      ],
+      themes: [{ theme: { slug: 'local-food' } }],
+    };
+    const route3 = {
+      id: 'route-3d-3',
+      name: 'Place 3 코스',
+      totalDistanceMeters: 1000,
+      estimatedSavingsWon: 1000,
+      estimatedCostWon: 20000,
+      score: 80,
+      stops: [
+        {
+          placeId: 'p-3',
+          orderIndex: 0,
+          place: {
+            id: 'p-3',
+            name: 'Place 3',
+            latitude: 35.12,
+            longitude: 129.12,
+          },
+        },
+      ],
+      themes: [{ theme: { slug: 'local-food' } }],
+    };
+
+    mockRecommendationRepository.findRecommendedRoutes.mockResolvedValue([
+      route1,
+      route2,
+      route3,
+    ]);
+
+    const results = await service.recommendRoutes({
+      travelStyleSlugs: ['local-food'],
+      durationDays: 3,
+      dailyBudgetWon: 50000,
+    });
+
+    expect(results.length).toBeGreaterThan(0);
+    expect(results[0].name).toBe('[2박 3일] Place 1 · Place 2 외 1곳 패키지');
   });
 
   it('supports fully provided, partially provided, and wholly missing ratios', async () => {
