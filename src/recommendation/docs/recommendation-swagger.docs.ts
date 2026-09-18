@@ -6,6 +6,7 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiTags,
+  ApiTooManyRequestsResponse,
 } from '@nestjs/swagger';
 import { createCommonErrorExample } from '@/common/docs/auth-error-swagger.docs';
 import { RecommendRouteRequestDto } from '@/recommendation/dto/recommend-route-request.dto';
@@ -206,5 +207,9 @@ export const ApiRecommendRoutesDocs = () =>
           examples: recommendationBadRequestExamples,
         },
       },
+    }),
+    ApiTooManyRequestsResponse({
+      description:
+        '추천 루트 생성 요청이 60초당 10회를 초과하면 429 Too Many Requests 응답을 반환합니다.',
     }),
   );
