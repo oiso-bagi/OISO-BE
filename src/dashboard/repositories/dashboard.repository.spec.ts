@@ -16,6 +16,7 @@ describe('DashboardRepository', () => {
     $queryRaw: QueryRawMock;
     routeTrip: {
       findMany: jest.Mock;
+      count: jest.Mock;
     };
     savedRoute: {
       findMany: jest.Mock;
@@ -27,6 +28,7 @@ describe('DashboardRepository', () => {
       $queryRaw: jest.fn<ReturnType<QueryRawFn>, Parameters<QueryRawFn>>(),
       routeTrip: {
         findMany: jest.fn(),
+        count: jest.fn(),
       },
       savedRoute: {
         findMany: jest.fn(),
@@ -74,6 +76,51 @@ describe('DashboardRepository', () => {
           startedAt: 'desc',
         },
         take: 3,
+      }),
+    );
+    expect(prismaService.savedRoute.findMany).not.toHaveBeenCalled();
+  });
+
+  it('loads paginated savings histories and total count from completed route trips', async () => {
+    const pagedTrips = [
+      {
+        id: 'trip-page-2',
+        startedAt: new Date('2026-08-02T00:00:00.000Z'),
+        route: {
+          id: 'route-page-2',
+          name: 'Paged route',
+          estimatedSavingsWon: 20000,
+        },
+      },
+    ];
+    prismaService.routeTrip.count.mockResolvedValue(25);
+    prismaService.routeTrip.findMany.mockResolvedValue(pagedTrips);
+
+    const result = await repository.findCompletedSavingsTripsByUserId(
+      'user-1',
+      2,
+      10,
+    );
+
+    expect(result).toEqual({
+      items: pagedTrips,
+      totalCount: 25,
+    });
+    expect(prismaService.routeTrip.count).toHaveBeenCalledWith({
+      where: {
+        userId: 'user-1',
+        isCompleted: true,
+      },
+    });
+    expect(prismaService.routeTrip.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          userId: 'user-1',
+          isCompleted: true,
+        },
+        skip: 10,
+        take: 10,
+        orderBy: [{ startedAt: 'desc' }, { id: 'desc' }],
       }),
     );
     expect(prismaService.savedRoute.findMany).not.toHaveBeenCalled();

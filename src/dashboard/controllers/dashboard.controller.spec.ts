@@ -4,6 +4,7 @@ import { DashboardService } from '@/dashboard/services/dashboard.service';
 describe('DashboardController', () => {
   const mockDashboardService = {
     getSavingsDashboard: jest.fn(),
+    getSavingsHistories: jest.fn(),
   };
 
   let controller: DashboardController;
@@ -35,6 +36,26 @@ describe('DashboardController', () => {
     ).resolves.toBe(response);
     expect(mockDashboardService.getSavingsDashboard).toHaveBeenCalledWith(
       'user-1',
+    );
+  });
+
+  it('delegates savings history page retrieval with the current user id and query', async () => {
+    const query = { page: 1, size: 10 };
+    const response = {
+      items: [],
+      page: 1,
+      size: 10,
+      totalCount: 0,
+      totalPages: 1,
+    };
+    mockDashboardService.getSavingsHistories.mockResolvedValue(response);
+
+    await expect(
+      controller.getSavingsHistories({ id: 'user-1' } as never, query),
+    ).resolves.toBe(response);
+    expect(mockDashboardService.getSavingsHistories).toHaveBeenCalledWith(
+      'user-1',
+      query,
     );
   });
 });
