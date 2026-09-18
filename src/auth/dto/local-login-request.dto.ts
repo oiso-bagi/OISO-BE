@@ -1,16 +1,16 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsString, MaxLength, MinLength } from 'class-validator';
 
 export class LocalLoginRequestDto {
   @ApiProperty({
-    description: 'Local account email.',
+    description: '로컬 계정 로그인 아이디',
   })
-  @IsEmail()
+  @IsString()
   @MaxLength(255)
   email!: string;
 
   @ApiProperty({
-    description: 'Local account password.',
+    description: '로컬 계정 비밀번호',
     minLength: 8,
   })
   @IsString()
