@@ -1,5 +1,4 @@
 import {
-  SavingsDashboardCategoryRawData,
   SavingsDashboardResponseDto,
   SavingsDashboardSummaryRawData,
   SavingsDashboardTripRawData,
@@ -14,7 +13,6 @@ describe('SavingsDashboardResponseDto', () => {
         totalSavingsWon: 30000,
         localContributionScore: 0,
       }),
-      createCategorySummary(),
       [
         createTrip({
           id: 'trip-1',
@@ -63,11 +61,6 @@ describe('SavingsDashboardResponseDto', () => {
         totalSavingsWon: 20000,
         localContributionScore: 70,
       }),
-      createCategorySummary({
-        foodSavingsWon: 10000,
-        transportSavingsWon: 2700,
-        experienceSavingsWon: 9000,
-      }),
       [],
     );
 
@@ -93,11 +86,7 @@ describe('SavingsDashboardResponseDto', () => {
   });
 
   it('returns a stable empty dashboard when the user has no trips', () => {
-    const result = SavingsDashboardResponseDto.from(
-      createSummary(),
-      createCategorySummary(),
-      [],
-    );
+    const result = SavingsDashboardResponseDto.from(createSummary(), []);
 
     expect(result).toEqual({
       totalSavingsWon: 0,
@@ -174,17 +163,6 @@ function createSummary(
     tripCount: 0,
     totalSavingsWon: 0,
     localContributionScore: 0,
-    ...overrides,
-  };
-}
-
-function createCategorySummary(
-  overrides: Partial<SavingsDashboardCategoryRawData> = {},
-): SavingsDashboardCategoryRawData {
-  return {
-    foodSavingsWon: 0,
-    transportSavingsWon: 0,
-    experienceSavingsWon: 0,
     ...overrides,
   };
 }

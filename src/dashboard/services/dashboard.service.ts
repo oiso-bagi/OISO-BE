@@ -14,21 +14,14 @@ export class DashboardService {
     userId: string,
   ): Promise<SavingsDashboardResponseDto> {
     const normalizedUserId = this.validateUserId(userId);
-    const [summary, categorySummary, recentTrips] = await Promise.all([
+    const [summary, recentTrips] = await Promise.all([
       this.dashboardRepository.findSavingsSummaryByUserId(normalizedUserId),
-      this.dashboardRepository.findSavingsCategorySummaryByUserId(
-        normalizedUserId,
-      ),
       this.dashboardRepository.findRecentCompletedSavingsTripsByUserId(
         normalizedUserId,
       ),
     ]);
 
-    return SavingsDashboardResponseDto.from(
-      summary,
-      categorySummary,
-      recentTrips,
-    );
+    return SavingsDashboardResponseDto.from(summary, recentTrips);
   }
 
   async getSavingsHistories(

@@ -5,7 +5,6 @@ import { DashboardService } from '@/dashboard/services/dashboard.service';
 describe('DashboardService', () => {
   const mockDashboardRepository = {
     findSavingsSummaryByUserId: jest.fn(),
-    findSavingsCategorySummaryByUserId: jest.fn(),
     findRecentCompletedSavingsTripsByUserId: jest.fn(),
     findCompletedSavingsTripsByUserId: jest.fn(),
   };
@@ -25,13 +24,6 @@ describe('DashboardService', () => {
       totalSavingsWon: 0,
       localContributionScore: 0,
     });
-    mockDashboardRepository.findSavingsCategorySummaryByUserId.mockResolvedValue(
-      {
-        foodSavingsWon: 0,
-        transportSavingsWon: 0,
-        experienceSavingsWon: 0,
-      },
-    );
     mockDashboardRepository.findRecentCompletedSavingsTripsByUserId.mockResolvedValue(
       [],
     );
@@ -40,9 +32,6 @@ describe('DashboardService', () => {
 
     expect(
       mockDashboardRepository.findSavingsSummaryByUserId,
-    ).toHaveBeenCalledWith('user-1');
-    expect(
-      mockDashboardRepository.findSavingsCategorySummaryByUserId,
     ).toHaveBeenCalledWith('user-1');
     expect(
       mockDashboardRepository.findRecentCompletedSavingsTripsByUserId,
@@ -57,13 +46,6 @@ describe('DashboardService', () => {
       totalSavingsWon: 25000,
       localContributionScore: 70,
     });
-    mockDashboardRepository.findSavingsCategorySummaryByUserId.mockResolvedValue(
-      {
-        foodSavingsWon: 12000,
-        transportSavingsWon: 3000,
-        experienceSavingsWon: 10000,
-      },
-    );
     mockDashboardRepository.findRecentCompletedSavingsTripsByUserId.mockResolvedValue(
       [],
     );
@@ -92,9 +74,6 @@ describe('DashboardService', () => {
     );
     expect(
       mockDashboardRepository.findSavingsSummaryByUserId,
-    ).not.toHaveBeenCalled();
-    expect(
-      mockDashboardRepository.findSavingsCategorySummaryByUserId,
     ).not.toHaveBeenCalled();
     expect(
       mockDashboardRepository.findRecentCompletedSavingsTripsByUserId,
