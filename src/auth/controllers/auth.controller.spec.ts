@@ -22,7 +22,9 @@ interface OAuthCallbackParams {
 
 interface MockResponse extends Response {
   cookieMock: jest.Mock;
+  clearCookieMock: jest.Mock;
   redirectMock: jest.Mock<void, [string]>;
+  sendMock: jest.Mock;
 }
 
 type AuthorizationUrlMock = jest.Mock<string, [string, string]>;
@@ -38,6 +40,7 @@ describe('AuthController', () => {
       Promise<{ tokens: { accessToken: string; refreshToken: string } }>,
       [{ email: string; password: string }]
     >(),
+    withdraw: jest.fn<Promise<void>, [string]>(),
   };
   const mockKakaoAuthService: {
     getAuthorizationUrl: AuthorizationUrlMock;
@@ -91,6 +94,7 @@ describe('AuthController', () => {
         refreshToken: 'refresh-token',
       },
     });
+    mockAuthService.withdraw.mockResolvedValue(undefined);
     mockOAuthFlowService.handleSocialCallback.mockResolvedValue(undefined);
     controller = new AuthController(
       mockAuthService as unknown as AuthService,
@@ -301,7 +305,7 @@ describe('AuthController', () => {
       await expect(
         controller.loginWithEmail(
           {
-            email: 'review-admin@oiso.com',
+            email: 'local-admin@example.com',
             password: 'correct-password',
           },
           response,
@@ -312,7 +316,7 @@ describe('AuthController', () => {
       });
 
       expect(mockAuthService.loginWithEmail).toHaveBeenCalledWith({
-        email: 'review-admin@oiso.com',
+        email: 'local-admin@example.com',
         password: 'correct-password',
       });
       expect(response.cookieMock).toHaveBeenCalledWith(
@@ -323,6 +327,29 @@ describe('AuthController', () => {
           maxAge: 1209600000,
         },
       );
+    });
+  });
+
+  describe('withdraw', () => {
+    it('deactivates the current user and clears auth cookies', async () => {
+      const response = createResponse();
+
+      await controller.withdraw({ id: 'user-id' } as User, response);
+
+      expect(mockAuthService.withdraw).toHaveBeenCalledWith('user-id');
+      expect(response.clearCookieMock).toHaveBeenCalledWith(
+        'oiso_access_token',
+        {
+          httpOnly: true,
+        },
+      );
+      expect(response.clearCookieMock).toHaveBeenCalledWith(
+        'oiso_refresh_token',
+        {
+          httpOnly: true,
+        },
+      );
+      expect(response.sendMock).toHaveBeenCalledWith();
     });
   });
 });
@@ -349,13 +376,19 @@ function createRailwayRequest(): Request {
 
 function createResponse(): MockResponse {
   const cookieMock = jest.fn();
+  const clearCookieMock = jest.fn();
   const redirectMock = jest.fn<void, [string]>();
+  const sendMock = jest.fn();
 
   return {
     cookie: cookieMock,
     cookieMock,
+    clearCookie: clearCookieMock,
+    clearCookieMock,
     redirect: redirectMock,
     redirectMock,
+    send: sendMock,
+    sendMock,
   } as unknown as MockResponse;
 }
 

@@ -137,6 +137,10 @@ export class AuthService {
     }
   }
 
+  async withdraw(userId: string): Promise<void> {
+    await this.authRepository.deactivateUser(userId);
+  }
+
   private async loginWithSocialProvider(
     provider: SocialProvider,
     profile: SocialUserProfile,

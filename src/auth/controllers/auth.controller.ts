@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   InternalServerErrorException,
@@ -30,6 +31,7 @@ import {
   ApiRedirectToGoogleDocs,
   ApiRedirectToKakaoDocs,
   ApiRefreshAccessTokenDocs,
+  ApiWithdrawDocs,
 } from '@/auth/docs/auth-swagger.docs';
 import { AuthSessionResponseDto } from '@/auth/dto/auth-session-response.dto';
 import { AuthTokenResponseDto } from '@/auth/dto/auth-token-response.dto';
@@ -182,6 +184,24 @@ export class AuthController {
   @HttpCode(204)
   @ApiLogoutDocs()
   logout(@Res() response: Response): void {
+    this.clearAuthCookies(response);
+    response.send();
+  }
+
+  @Delete('auth/withdraw')
+  @UseGuards(AuthGuard)
+  @HttpCode(204)
+  @ApiWithdrawDocs()
+  async withdraw(
+    @CurrentUser() user: User,
+    @Res() response: Response,
+  ): Promise<void> {
+    await this.authService.withdraw(user.id);
+    this.clearAuthCookies(response);
+    response.send();
+  }
+
+  private clearAuthCookies(response: Response): void {
     response.clearCookie(
       ACCESS_TOKEN_COOKIE,
       this.authCookieService.getBaseCookieOptions(),
@@ -190,7 +210,6 @@ export class AuthController {
       REFRESH_TOKEN_COOKIE,
       this.authCookieService.getBaseCookieOptions(),
     );
-    response.send();
   }
 
   private redirectToProvider(

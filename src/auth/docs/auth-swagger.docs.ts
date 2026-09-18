@@ -392,3 +392,22 @@ export const ApiLogoutDocs = () =>
       description: '인증 쿠키를 삭제하고 본문 없이 응답합니다.',
     }),
   );
+
+export const ApiWithdrawDocs = () =>
+  applyDecorators(
+    ApiBearerAuth(),
+    ApiOperation({
+      summary: 'Withdraw current user account',
+      description: [
+        'Deactivates the currently authenticated user account with a soft-delete flag.',
+        '',
+        'Authentication: Authorization: Bearer <accessToken>',
+        'Response: clears auth cookies and returns 204 with no body.',
+      ].join('\n'),
+    }),
+    ApiNoContentResponse({
+      description:
+        'The authenticated user account is deactivated and auth cookies are cleared.',
+    }),
+    ApiAccessTokenUnauthorizedResponseDocs(),
+  );
