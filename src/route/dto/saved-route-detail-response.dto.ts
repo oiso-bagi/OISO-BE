@@ -83,8 +83,7 @@ export class SavedRouteStopDetailDto {
   closeTime: string | null = null;
 
   @ApiProperty({
-    description:
-      '이전 경유지부터 현재 경유지까지의 이동 수단 (첫 경유지는 WALKING 또는 null)',
+    description: '이전 경유지부터 현재 경유지까지의 이동 수단',
     enum: TransitType,
     example: 'BUS',
     nullable: true,
@@ -92,8 +91,7 @@ export class SavedRouteStopDetailDto {
   nextTransportType: TransitType | null = null;
 
   @ApiProperty({
-    description:
-      '이전 경유지부터 현재 경유지까지의 예상 이동 시간(분) (첫 경유지는 0 또는 null)',
+    description: '이전 경유지부터 현재 경유지까지의 예상 이동 시간(분)',
     example: 15,
     nullable: true,
     type: Number,
