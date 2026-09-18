@@ -148,6 +148,15 @@ export class RouteStopResponseDto {
 
   @ApiProperty({
     description:
+      '장소 주소 (도로명 주소 우선, 없으면 지번 주소, 둘 다 없으면 null)',
+    example: '부산광역시 해운대구 우동 123',
+    nullable: true,
+    type: String,
+  })
+  address!: string | null;
+
+  @ApiProperty({
+    description:
       '장소 카테고리 (FOOD: 식당 | CAFE: 카페 | MARKET: 전통시장 | CULTURE: 문화 | NATURE: 자연 | EXPERIENCE: 체험 | VIEWPOINT: 전망대 | ETC: 기타)',
     enum: PlaceCategory,
     example: PlaceCategory.NATURE,
@@ -188,7 +197,8 @@ export class RouteStopResponseDto {
   longitude!: number | null;
 
   @ApiProperty({
-    description: '다음 경유지까지 이동 수단',
+    description:
+      '이전 경유지부터 현재 경유지까지의 이동 수단 (첫 경유지는 WALKING 또는 null)',
     enum: TransitType,
     example: 'BUS',
     nullable: true,
@@ -196,7 +206,8 @@ export class RouteStopResponseDto {
   nextTransportType!: TransitType | null;
 
   @ApiProperty({
-    description: '다음 경유지까지 예상 이동 시간(분)',
+    description:
+      '이전 경유지부터 현재 경유지까지의 예상 이동 시간(분) (첫 경유지는 0 또는 null)',
     example: 15,
     nullable: true,
     type: Number,
@@ -274,6 +285,7 @@ export class RouteStopResponseDto {
     dto.placeId =
       stop.placeId ?? (stop.place as { id?: string } | null)?.id ?? null;
     dto.placeName = stop.place?.name ?? '';
+    dto.address = stop.place?.roadAddress || stop.place?.address || null;
     dto.category = (stop.place?.category as PlaceCategory) ?? null;
 
     dto.openTime = stop.place?.openTime ?? null;

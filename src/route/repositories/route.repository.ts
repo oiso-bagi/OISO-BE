@@ -32,6 +32,8 @@ const routeWithStopsAndPlaceSelect = Prisma.validator<Prisma.RouteSelect>()({
         select: {
           name: true,
           category: true,
+          address: true,
+          roadAddress: true,
           openTime: true,
           closeTime: true,
           latitude: true,
