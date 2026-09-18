@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
-import { APP_FILTER } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { ScheduleModule } from '@nestjs/schedule';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+
 import { AppController } from '@/app.controller';
 import { AppService } from '@/app.service';
 import { AuthModule } from '@/auth/auth.module';
@@ -11,11 +13,16 @@ import { HomeModule } from '@/home/home.module';
 import { PrismaModule } from '@/prisma/prisma.module';
 import { RecommendationModule } from '@/recommendation/recommendation.module';
 import { RouteModule } from '@/route/route.module';
-
 import { AdminModule } from '@/admin/admin.module';
 
 @Module({
   imports: [
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60_000,
+        limit: 100,
+      },
+    ]),
     ScheduleModule.forRoot(),
     RouteModule,
     PrismaModule,
@@ -32,6 +39,10 @@ import { AdminModule } from '@/admin/admin.module';
     {
       provide: APP_FILTER,
       useClass: HttpExceptionFilter,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
     },
   ],
 })
