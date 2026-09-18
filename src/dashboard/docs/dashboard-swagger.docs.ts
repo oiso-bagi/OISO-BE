@@ -4,13 +4,17 @@ import {
   ApiBearerAuth,
   ApiOkResponse,
   ApiOperation,
+  ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
 import {
   ApiAccessTokenUnauthorizedResponseDocs,
   ApiJwtAccessTokenInternalServerErrorResponseDocs,
 } from '@/common/docs/auth-error-swagger.docs';
-import { SavingsDashboardResponseDto } from '@/dashboard/dto/savings-dashboard-response.dto';
+import {
+  SavingsDashboardResponseDto,
+  SavingsHistoriesPageResponseDto,
+} from '@/dashboard/dto/savings-dashboard-response.dto';
 
 export const ApiDashboardControllerDocs = () => ApiTags('Dashboard');
 
@@ -55,5 +59,47 @@ export const ApiGetSavingsDashboardDocs = () =>
     }),
     ApiJwtAccessTokenInternalServerErrorResponseDocs(
       'JWT 액세스 토큰 설정이 누락되었거나 DB 조회 중 예상하지 못한 오류가 발생하면 500 응답을 반환할 수 있습니다.',
+    ),
+  );
+
+export const ApiGetSavingsHistoriesDocs = () =>
+  applyDecorators(
+    ApiBearerAuth(),
+    ApiOperation({
+      summary: 'Savings history page lookup',
+      description: [
+        'Returns completed savings histories for the current user in page units.',
+        '',
+        'Query parameters:',
+        '- page: page number starting from 1. default 1',
+        '- size: item count per page. default 10, max 100',
+        '',
+        'Auth:',
+        '1. Send Authorization: Bearer <accessToken> header.',
+      ].join('\n'),
+    }),
+    ApiQuery({
+      name: 'page',
+      required: false,
+      description: 'Page number. Starts from 1.',
+      example: 1,
+    }),
+    ApiQuery({
+      name: 'size',
+      required: false,
+      description: 'Number of items per page. Max 100.',
+      example: 10,
+    }),
+    ApiOkResponse({
+      description: 'Returns paginated completed savings history items.',
+      type: SavingsHistoriesPageResponseDto,
+    }),
+    ApiAccessTokenUnauthorizedResponseDocs(),
+    ApiBadRequestResponse({
+      description:
+        'Returns 400 when user id is empty or page/size query values are invalid.',
+    }),
+    ApiJwtAccessTokenInternalServerErrorResponseDocs(
+      'Returns 500 when JWT access token configuration is missing or an unexpected database lookup error occurs.',
     ),
   );

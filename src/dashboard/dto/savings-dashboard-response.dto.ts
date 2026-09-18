@@ -1,4 +1,6 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
+import { IsInt, IsOptional, Max, Min } from 'class-validator';
 
 export type SavingsDashboardTripRawData = {
   id: string;
@@ -89,6 +91,74 @@ export class SavingsHistoryDto {
     dto.routeName = trip.route.name;
     dto.trippedAt = trip.startedAt;
     dto.savedAmountWon = getTripSavingsWon(trip);
+
+    return dto;
+  }
+}
+
+export class SavingsHistoriesQueryDto {
+  @ApiPropertyOptional({
+    description: 'Page number. Starts from 1.',
+    default: 1,
+    minimum: 1,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page: number = 1;
+
+  @ApiPropertyOptional({
+    description: 'Number of history items per page.',
+    default: 10,
+    minimum: 1,
+    maximum: 100,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  size: number = 10;
+}
+
+export class SavingsHistoriesPageResponseDto {
+  @ApiProperty({
+    description: 'Savings history items.',
+    type: [SavingsHistoryDto],
+  })
+  items!: SavingsHistoryDto[];
+
+  @ApiProperty({
+    description: 'Current page number. Starts from 1.',
+    example: 1,
+  })
+  page!: number;
+
+  @ApiProperty({ description: 'Number of items per page.', example: 10 })
+  size!: number;
+
+  @ApiProperty({
+    description: 'Total number of savings histories.',
+    example: 25,
+  })
+  totalCount!: number;
+
+  @ApiProperty({ description: 'Total number of pages.', example: 3 })
+  totalPages!: number;
+
+  static of(
+    trips: SavingsDashboardTripRawData[],
+    page: number,
+    size: number,
+    totalCount: number,
+  ): SavingsHistoriesPageResponseDto {
+    const dto = new SavingsHistoriesPageResponseDto();
+    dto.items = trips.map((trip) => SavingsHistoryDto.from(trip));
+    dto.page = page;
+    dto.size = size;
+    dto.totalCount = totalCount;
+    dto.totalPages = Math.ceil(totalCount / size) || 1;
 
     return dto;
   }

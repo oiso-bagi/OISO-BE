@@ -1,5 +1,9 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { SavingsDashboardResponseDto } from '@/dashboard/dto/savings-dashboard-response.dto';
+import {
+  SavingsDashboardResponseDto,
+  SavingsHistoriesPageResponseDto,
+  SavingsHistoriesQueryDto,
+} from '@/dashboard/dto/savings-dashboard-response.dto';
 import { DashboardRepository } from '@/dashboard/repositories/dashboard.repository';
 
 @Injectable()
@@ -24,6 +28,26 @@ export class DashboardService {
       summary,
       categorySummary,
       recentTrips,
+    );
+  }
+
+  async getSavingsHistories(
+    userId: string,
+    query: SavingsHistoriesQueryDto,
+  ): Promise<SavingsHistoriesPageResponseDto> {
+    const normalizedUserId = this.validateUserId(userId);
+    const { items, totalCount } =
+      await this.dashboardRepository.findCompletedSavingsTripsByUserId(
+        normalizedUserId,
+        query.page,
+        query.size,
+      );
+
+    return SavingsHistoriesPageResponseDto.of(
+      items,
+      query.page,
+      query.size,
+      totalCount,
     );
   }
 
