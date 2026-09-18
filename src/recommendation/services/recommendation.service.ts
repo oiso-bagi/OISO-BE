@@ -559,8 +559,37 @@ export class RecommendationService {
       });
     });
 
-    const leadRouteName = String(routes[0]?.name || '부산 여행');
+    const spotNames = routes.map((r) => {
+      const firstStopPlaceName = r.stops?.[0]?.place?.name;
+      if (firstStopPlaceName) return firstStopPlaceName.trim();
+      if (r.name) {
+        return r.name
+          .replace(/\[.*?\]/g, '')
+          .replace(/릴레이\s*코스/g, '')
+          .replace(/패키지(\s*\d+호)?/g, '')
+          .replace(/코스/g, '')
+          .trim();
+      }
+      return '부산';
+    });
+
+    const spot1 = spotNames[0] || '부산';
+    let spot2 = spotNames[1] || '부산';
+    if (spot1 === spot2 && routes[1]?.stops?.[1]?.place?.name) {
+      spot2 = routes[1].stops[1].place.name.trim();
+    }
+
     const durationText = `${targetDurationDays - 1}박 ${targetDurationDays}일`;
+    let packageName: string;
+    if (targetDurationDays <= 1) {
+      packageName = String(routes[0]?.name || `${spot1} 코스`);
+    } else if (targetDurationDays === 2) {
+      packageName = `[${durationText}] ${spot1} · ${spot2} 패키지`;
+    } else {
+      const extraCount = targetDurationDays - 2;
+      packageName = `[${durationText}] ${spot1} · ${spot2} 외 ${extraCount}곳 패키지`;
+    }
+
     const avgScore = totalScoreSum / routes.length;
     // 체이닝 과정의 패널티(이동거리/중복)를 감안한 명시적 다일 패키지 종합 점수 연산 (0~100점 백분율 스케일: 최대 -6점 감점 상한, 하한 0점 방어, 다일 우대 +1.0점)
     const penaltyDeduction = Math.max(
@@ -580,7 +609,7 @@ export class RecommendationService {
 
     return {
       id: `stitched-${routeIdsKey || String(routes[0]?.id || 'multi')}`,
-      name: `[${durationText}] ${leadRouteName} 패키지 ${packageIdx}호`,
+      name: packageName,
       totalDistanceMeters,
       estimatedSavingsWon,
       estimatedCostWon,

@@ -121,10 +121,39 @@ export class RouteService {
     );
     const durationDays = targetRoutes.length;
     const durationText = `${durationDays - 1}박 ${durationDays}일`;
+    const spotNames = targetRoutes.map((r) => {
+      const firstStopPlaceName = r.stops?.[0]?.place?.name;
+      if (firstStopPlaceName) return firstStopPlaceName.trim();
+      if (r.name) {
+        return r.name
+          .replace(/\[.*?\]/g, '')
+          .replace(/릴레이\s*코스/g, '')
+          .replace(/패키지(\s*\d+호)?/g, '')
+          .replace(/코스/g, '')
+          .trim();
+      }
+      return '부산';
+    });
+
+    const spot1 = spotNames[0] || '부산';
+    let spot2 = spotNames[1] || '부산';
+    if (spot1 === spot2 && targetRoutes[1]?.stops?.[1]?.place?.name) {
+      spot2 = targetRoutes[1].stops[1].place.name.trim();
+    }
+
+    let packageName: string;
+    if (durationDays <= 1) {
+      packageName = String(leadRoute?.name || `${spot1} 코스`);
+    } else if (durationDays === 2) {
+      packageName = `[${durationText}] ${spot1} · ${spot2} 패키지`;
+    } else {
+      const extraCount = durationDays - 2;
+      packageName = `[${durationText}] ${spot1} · ${spot2} 외 ${extraCount}곳 패키지`;
+    }
 
     const combinedRouteRawData = {
       id: stitchedId,
-      name: `[${durationText}] ${leadRoute?.name || '부산 여행'} 패키지 코스`,
+      name: packageName,
       totalDistanceMeters,
       estimatedSavingsWon,
       score: new Prisma.Decimal(avgScore),

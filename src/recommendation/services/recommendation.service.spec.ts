@@ -276,7 +276,7 @@ describe('RecommendationService', () => {
     });
 
     expect(results.length).toBeGreaterThan(0);
-    const day1Result = results.find((r) => r.name.includes('Day 1'));
+    const day1Result = results.find((r) => r.name.includes('Place 1'));
     expect(day1Result).toBeDefined();
     const placeNames = (day1Result?.stopLocations || []).map(
       (s) => s.placeName,
