@@ -28,8 +28,14 @@ describe('DashboardService', () => {
     mockDashboardRepository.findSavingsCategorySummaryByUserId.mockResolvedValue(
       {
         foodSavingsWon: 0,
+        foodBudgetWon: 0,
+        foodEstimatedCostWon: 0,
         transportSavingsWon: 0,
+        transportBudgetWon: 0,
+        transportEstimatedCostWon: 0,
         experienceSavingsWon: 0,
+        experienceBudgetWon: 0,
+        experienceEstimatedCostWon: 0,
       },
     );
     mockDashboardRepository.findRecentCompletedSavingsTripsByUserId.mockResolvedValue(

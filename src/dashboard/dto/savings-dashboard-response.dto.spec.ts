@@ -71,16 +71,40 @@ describe('SavingsDashboardResponseDto', () => {
       }),
       createCategorySummary({
         foodSavingsWon: 10000,
+        foodBudgetWon: 21000,
+        foodEstimatedCostWon: 11000,
         transportSavingsWon: 2700,
+        transportBudgetWon: 24000,
+        transportEstimatedCostWon: 21300,
         experienceSavingsWon: 9000,
+        experienceBudgetWon: 15000,
+        experienceEstimatedCostWon: 6000,
       }),
       [],
     );
 
     expect(result.savingsByCategory).toEqual([
-      { label: '식비', amountWon: 10000 },
-      { label: '교통비', amountWon: 2700 },
-      { label: '체험비', amountWon: 9000 },
+      {
+        label: '식비',
+        amountWon: 10000,
+        budgetWon: 21000,
+        estimatedCostWon: 11000,
+        status: 'SAVED',
+      },
+      {
+        label: '교통비',
+        amountWon: 2700,
+        budgetWon: 24000,
+        estimatedCostWon: 21300,
+        status: 'SAVED',
+      },
+      {
+        label: '체험비',
+        amountWon: 9000,
+        budgetWon: 15000,
+        estimatedCostWon: 6000,
+        status: 'SAVED',
+      },
     ]);
     expect(result.localContribution).toEqual({
       scorePercent: 70,
@@ -101,9 +125,27 @@ describe('SavingsDashboardResponseDto', () => {
       tripCount: 0,
       averageSavingsWon: 0,
       savingsByCategory: [
-        { label: '식비', amountWon: 0 },
-        { label: '교통비', amountWon: 0 },
-        { label: '체험비', amountWon: 0 },
+        {
+          label: '식비',
+          amountWon: 0,
+          budgetWon: 0,
+          estimatedCostWon: 0,
+          status: 'NO_DATA',
+        },
+        {
+          label: '교통비',
+          amountWon: 0,
+          budgetWon: 0,
+          estimatedCostWon: 0,
+          status: 'NO_DATA',
+        },
+        {
+          label: '체험비',
+          amountWon: 0,
+          budgetWon: 0,
+          estimatedCostWon: 0,
+          status: 'NO_DATA',
+        },
       ],
       localContribution: {
         scorePercent: 0,
@@ -112,6 +154,48 @@ describe('SavingsDashboardResponseDto', () => {
       },
       histories: [],
     });
+  });
+
+  it('classifies category savings status for frontend message mapping', () => {
+    const result = SavingsDashboardResponseDto.from(
+      createSummary(),
+      createCategorySummary({
+        foodSavingsWon: 500,
+        foodBudgetWon: 21000,
+        foodEstimatedCostWon: 20500,
+        transportSavingsWon: 0,
+        transportBudgetWon: 24000,
+        transportEstimatedCostWon: 26000,
+        experienceSavingsWon: 0,
+        experienceBudgetWon: 15000,
+        experienceEstimatedCostWon: 0,
+      }),
+      [],
+    );
+
+    expect(result.savingsByCategory).toEqual([
+      {
+        label: '식비',
+        amountWon: 500,
+        budgetWon: 21000,
+        estimatedCostWon: 20500,
+        status: 'NO_SAVINGS',
+      },
+      {
+        label: '교통비',
+        amountWon: 0,
+        budgetWon: 24000,
+        estimatedCostWon: 26000,
+        status: 'OVER_BUDGET',
+      },
+      {
+        label: '체험비',
+        amountWon: 0,
+        budgetWon: 15000,
+        estimatedCostWon: 0,
+        status: 'NO_DATA',
+      },
+    ]);
   });
 
   it('builds savings history page metadata and items', () => {
@@ -174,8 +258,14 @@ function createCategorySummary(
 ): SavingsDashboardCategoryRawData {
   return {
     foodSavingsWon: 0,
+    foodBudgetWon: 0,
+    foodEstimatedCostWon: 0,
     transportSavingsWon: 0,
+    transportBudgetWon: 0,
+    transportEstimatedCostWon: 0,
     experienceSavingsWon: 0,
+    experienceBudgetWon: 0,
+    experienceEstimatedCostWon: 0,
     ...overrides,
   };
 }

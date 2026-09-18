@@ -122,11 +122,15 @@ export class DashboardRepository {
         COUNT(*)::int AS "tripCount",
         COALESCE(
           SUM(
-            GREATEST(
-              0,
-              (${DEFAULT_DAILY_BUDGET_WON} * "dayCount")
-                - ("foodCostWon" + "transportCostWon" + "experienceCostWon")
-            )
+            CASE
+              WHEN "foodCostWon" + "transportCostWon" + "experienceCostWon" > 0
+                THEN GREATEST(
+                  0,
+                  (${DEFAULT_DAILY_BUDGET_WON} * "dayCount")
+                    - ("foodCostWon" + "transportCostWon" + "experienceCostWon")
+                )
+              ELSE 0
+            END
           ),
           0
         )::int AS "totalSavingsWon",
@@ -216,33 +220,51 @@ export class DashboardRepository {
           route."experienceCostWon"
       )
       SELECT
+        COALESCE(SUM(ROUND(${DEFAULT_DAILY_BUDGET_WON} * "dayCount" * ${DEFAULT_FOOD_BUDGET_RATIO})::int), 0)::int AS "foodBudgetWon",
+        COALESCE(SUM("foodCostWon"), 0)::int AS "foodEstimatedCostWon",
         COALESCE(
           SUM(
-            GREATEST(
-              0,
-              ROUND(${DEFAULT_DAILY_BUDGET_WON} * "dayCount" * ${DEFAULT_FOOD_BUDGET_RATIO})::int
-                - "foodCostWon"
-            )
+            CASE
+              WHEN "foodCostWon" > 0
+                THEN GREATEST(
+                  0,
+                  ROUND(${DEFAULT_DAILY_BUDGET_WON} * "dayCount" * ${DEFAULT_FOOD_BUDGET_RATIO})::int
+                    - "foodCostWon"
+                )
+              ELSE 0
+            END
           ),
           0
         )::int AS "foodSavingsWon",
+        COALESCE(SUM(ROUND(${DEFAULT_DAILY_BUDGET_WON} * "dayCount" * ${DEFAULT_TRANSPORT_BUDGET_RATIO})::int), 0)::int AS "transportBudgetWon",
+        COALESCE(SUM("transportCostWon"), 0)::int AS "transportEstimatedCostWon",
         COALESCE(
           SUM(
-            GREATEST(
-              0,
-              ROUND(${DEFAULT_DAILY_BUDGET_WON} * "dayCount" * ${DEFAULT_TRANSPORT_BUDGET_RATIO})::int
-                - "transportCostWon"
-            )
+            CASE
+              WHEN "transportCostWon" > 0
+                THEN GREATEST(
+                  0,
+                  ROUND(${DEFAULT_DAILY_BUDGET_WON} * "dayCount" * ${DEFAULT_TRANSPORT_BUDGET_RATIO})::int
+                    - "transportCostWon"
+                )
+              ELSE 0
+            END
           ),
           0
         )::int AS "transportSavingsWon",
+        COALESCE(SUM(ROUND(${DEFAULT_DAILY_BUDGET_WON} * "dayCount" * ${DEFAULT_EXPERIENCE_BUDGET_RATIO})::int), 0)::int AS "experienceBudgetWon",
+        COALESCE(SUM("experienceCostWon"), 0)::int AS "experienceEstimatedCostWon",
         COALESCE(
           SUM(
-            GREATEST(
-              0,
-              ROUND(${DEFAULT_DAILY_BUDGET_WON} * "dayCount" * ${DEFAULT_EXPERIENCE_BUDGET_RATIO})::int
-                - "experienceCostWon"
-            )
+            CASE
+              WHEN "experienceCostWon" > 0
+                THEN GREATEST(
+                  0,
+                  ROUND(${DEFAULT_DAILY_BUDGET_WON} * "dayCount" * ${DEFAULT_EXPERIENCE_BUDGET_RATIO})::int
+                    - "experienceCostWon"
+                )
+              ELSE 0
+            END
           ),
           0
         )::int AS "experienceSavingsWon"
@@ -252,8 +274,14 @@ export class DashboardRepository {
     return (
       rows[0] ?? {
         foodSavingsWon: 0,
+        foodBudgetWon: 0,
+        foodEstimatedCostWon: 0,
         transportSavingsWon: 0,
+        transportBudgetWon: 0,
+        transportEstimatedCostWon: 0,
         experienceSavingsWon: 0,
+        experienceBudgetWon: 0,
+        experienceEstimatedCostWon: 0,
       }
     );
   }

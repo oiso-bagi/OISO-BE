@@ -31,11 +31,24 @@ export type SavingsDashboardSummaryRawData = {
 
 export type SavingsDashboardCategoryRawData = {
   foodSavingsWon: number;
+  foodBudgetWon: number;
+  foodEstimatedCostWon: number;
   transportSavingsWon: number;
+  transportBudgetWon: number;
+  transportEstimatedCostWon: number;
   experienceSavingsWon: number;
+  experienceBudgetWon: number;
+  experienceEstimatedCostWon: number;
 };
 
 const DEFAULT_DAILY_BUDGET_WON = 60000;
+const SAVINGS_STATUS_THRESHOLD_RATIO = 0.05;
+
+export type SavingsCategoryStatus =
+  | 'SAVED'
+  | 'NO_SAVINGS'
+  | 'OVER_BUDGET'
+  | 'NO_DATA';
 
 export class SavingsCategoryDto {
   @ApiProperty({ description: '절약 카테고리 라벨', example: '식비' })
@@ -47,10 +60,38 @@ export class SavingsCategoryDto {
   })
   amountWon!: number;
 
-  static of(label: string, amountWon: number): SavingsCategoryDto {
+  @ApiProperty({
+    description: '카테고리별 기준 예산 금액(원)',
+    example: 21000,
+  })
+  budgetWon!: number;
+
+  @ApiProperty({
+    description: '카테고리별 추천 코스 예상 비용(원)',
+    example: 15000,
+  })
+  estimatedCostWon!: number;
+
+  @ApiProperty({
+    description:
+      '카테고리별 예상 절약 효과 상태. 프론트에서 문구 매핑에 사용합니다.',
+    enum: ['SAVED', 'NO_SAVINGS', 'OVER_BUDGET', 'NO_DATA'],
+    example: 'SAVED',
+  })
+  status!: SavingsCategoryStatus;
+
+  static of(
+    label: string,
+    amountWon: number,
+    budgetWon: number,
+    estimatedCostWon: number,
+  ): SavingsCategoryDto {
     const dto = new SavingsCategoryDto();
     dto.label = label;
     dto.amountWon = amountWon;
+    dto.budgetWon = budgetWon;
+    dto.estimatedCostWon = estimatedCostWon;
+    dto.status = getSavingsCategoryStatus(budgetWon, estimatedCostWon);
 
     return dto;
   }
@@ -245,6 +286,10 @@ function getTripSavingsWon(trip: SavingsDashboardTripRawData): number {
   const costs = getTripEstimatedCosts(trip);
   const estimatedCostWon = costs.food + costs.transport + costs.experience;
 
+  if (estimatedCostWon <= 0) {
+    return 0;
+  }
+
   return Math.max(0, totalBudgetWon - estimatedCostWon);
 }
 
@@ -307,12 +352,55 @@ function getTripDayCount(trip: SavingsDashboardTripRawData): number {
 
 function buildSavingsByCategory({
   foodSavingsWon,
+  foodBudgetWon,
+  foodEstimatedCostWon,
   transportSavingsWon,
+  transportBudgetWon,
+  transportEstimatedCostWon,
   experienceSavingsWon,
+  experienceBudgetWon,
+  experienceEstimatedCostWon,
 }: SavingsDashboardCategoryRawData): SavingsCategoryDto[] {
   return [
-    SavingsCategoryDto.of('식비', foodSavingsWon),
-    SavingsCategoryDto.of('교통비', transportSavingsWon),
-    SavingsCategoryDto.of('체험비', experienceSavingsWon),
+    SavingsCategoryDto.of(
+      '식비',
+      foodSavingsWon,
+      foodBudgetWon,
+      foodEstimatedCostWon,
+    ),
+    SavingsCategoryDto.of(
+      '교통비',
+      transportSavingsWon,
+      transportBudgetWon,
+      transportEstimatedCostWon,
+    ),
+    SavingsCategoryDto.of(
+      '체험비',
+      experienceSavingsWon,
+      experienceBudgetWon,
+      experienceEstimatedCostWon,
+    ),
   ];
+}
+
+function getSavingsCategoryStatus(
+  budgetWon: number,
+  estimatedCostWon: number,
+): SavingsCategoryStatus {
+  if (estimatedCostWon <= 0) {
+    return 'NO_DATA';
+  }
+
+  const diffWon = budgetWon - estimatedCostWon;
+  const thresholdWon = budgetWon * SAVINGS_STATUS_THRESHOLD_RATIO;
+
+  if (diffWon > thresholdWon) {
+    return 'SAVED';
+  }
+
+  if (diffWon < -thresholdWon) {
+    return 'OVER_BUDGET';
+  }
+
+  return 'NO_SAVINGS';
 }

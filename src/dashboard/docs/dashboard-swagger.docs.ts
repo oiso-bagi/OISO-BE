@@ -33,6 +33,7 @@ export const ApiGetSavingsDashboardDocs = () =>
         '- 교통비 예산 비율: 40%',
         '- 체험비 예산 비율: 25%',
         '- 항목별 예상 절약 효과 = max(0, 항목별 기준 예산 - 항목별 추천 코스 예상 비용)',
+        '- 카테고리별 status: SAVED, NO_SAVINGS, OVER_BUDGET, NO_DATA 중 하나를 반환하며 프론트 문구 매핑에 사용합니다.',
         '',
         '요청 파라미터: 없음',
         '요청 바디: 없음',

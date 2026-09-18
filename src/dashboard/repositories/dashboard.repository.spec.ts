@@ -151,8 +151,14 @@ describe('DashboardRepository', () => {
     prismaService.$queryRaw.mockResolvedValue([
       {
         foodSavingsWon: 3000,
+        foodBudgetWon: 21000,
+        foodEstimatedCostWon: 18000,
         transportSavingsWon: 1000,
+        transportBudgetWon: 24000,
+        transportEstimatedCostWon: 23000,
         experienceSavingsWon: 6000,
+        experienceBudgetWon: 15000,
+        experienceEstimatedCostWon: 9000,
       },
     ]);
 
@@ -161,8 +167,14 @@ describe('DashboardRepository', () => {
 
     expect(result).toEqual({
       foodSavingsWon: 3000,
+      foodBudgetWon: 21000,
+      foodEstimatedCostWon: 18000,
       transportSavingsWon: 1000,
+      transportBudgetWon: 24000,
+      transportEstimatedCostWon: 23000,
       experienceSavingsWon: 6000,
+      experienceBudgetWon: 15000,
+      experienceEstimatedCostWon: 9000,
     });
     expect(getLastRawQueryText()).toContain('FROM "RouteTrip" trip');
     expect(getLastRawQueryText()).toContain('trip."isCompleted" = true');
@@ -266,8 +278,14 @@ describePostgresAggregations(
 
       expect(result).toEqual({
         foodSavingsWon: 10000,
+        foodBudgetWon: 42000,
+        foodEstimatedCostWon: 32000,
         transportSavingsWon: 36000,
+        transportBudgetWon: 48000,
+        transportEstimatedCostWon: 12000,
         experienceSavingsWon: 8000,
+        experienceBudgetWon: 30000,
+        experienceEstimatedCostWon: 22000,
       });
     });
 
