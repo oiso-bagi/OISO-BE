@@ -76,6 +76,13 @@ export class AuthRepository {
     });
   }
 
+  async deactivateUser(id: string): Promise<void> {
+    await this.prisma.user.update({
+      where: { id },
+      data: { isActive: false },
+    });
+  }
+
   async createSocialUser(
     provider: SocialProvider,
     profile: SocialUserProfile,

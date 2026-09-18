@@ -20,6 +20,7 @@ describe('AuthService', () => {
     updateSocialUser: jest.fn(),
     findUserById: jest.fn(),
     findLocalUserByEmail: jest.fn(),
+    deactivateUser: jest.fn(),
   };
   const mockAuthTokenService = {
     issueAccessToken: jest.fn(),
@@ -61,7 +62,7 @@ describe('AuthService', () => {
 
       await expect(
         service.loginWithEmail({
-          email: ' REVIEW-ADMIN@OISO.COM ',
+          email: ' local-admin@example.com ',
           password: 'correct-password',
         }),
       ).resolves.toEqual({
@@ -71,7 +72,7 @@ describe('AuthService', () => {
         },
       });
       expect(mockAuthRepository.findLocalUserByEmail).toHaveBeenCalledWith(
-        'review-admin@oiso.com',
+        'local-admin@example.com',
       );
       expect(mockPasswordHashService.verifyPassword).toHaveBeenCalledWith(
         'correct-password',
@@ -98,7 +99,7 @@ describe('AuthService', () => {
 
       await expect(
         service.loginWithEmail({
-          email: 'review-admin@oiso.com',
+          email: 'local-admin@example.com',
           password: 'wrong-password',
         }),
       ).rejects.toThrow(UnauthorizedException);
@@ -117,7 +118,7 @@ describe('AuthService', () => {
 
       await expect(
         service.loginWithEmail({
-          email: 'review-admin@oiso.com',
+          email: 'local-admin@example.com',
           password: 'correct-password',
         }),
       ).rejects.toThrow(UnauthorizedException);
@@ -676,5 +677,13 @@ describe('AuthService', () => {
     await expect(
       service.hasAuthenticatedSession('invalid-refresh-token'),
     ).resolves.toBe(false);
+  });
+
+  it('deactivates a user during withdrawal', async () => {
+    mockAuthRepository.deactivateUser.mockResolvedValue(undefined);
+
+    await expect(service.withdraw('user-id')).resolves.toBeUndefined();
+
+    expect(mockAuthRepository.deactivateUser).toHaveBeenCalledWith('user-id');
   });
 });

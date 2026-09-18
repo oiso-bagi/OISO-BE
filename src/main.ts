@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { RequestMethod, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import helmet from 'helmet';
 import { AppModule } from '@/app.module';
 import { REFRESH_TOKEN_COOKIE } from '@/auth/auth.constants';
 import {
@@ -21,6 +22,8 @@ async function bootstrap() {
     process.env.FRONTEND_ORIGIN,
     process.env.NODE_ENV,
   );
+
+  app.use(helmet());
 
   app.enableCors({
     origin: (
