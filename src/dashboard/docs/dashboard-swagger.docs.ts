@@ -35,8 +35,33 @@ export const ApiGetSavingsDashboardDocs = () =>
     }),
     ApiOkResponse({
       description:
-        '총 절약 금액, 카테고리별 절약 금액, 지역 기여 정보, 최근 여행 절약 내역을 반환합니다.',
+        '총 절약 금액, 카테고리별 절약률(%), 지역 기여 정보, 최근 여행 절약 내역을 반환합니다.',
       type: SavingsDashboardResponseDto,
+      schema: {
+        example: {
+          totalSavingsWon: 48000,
+          tripCount: 3,
+          averageSavingsWon: 16000,
+          savingsByCategory: [
+            { label: '식비', savingRatePercent: 35 },
+            { label: '교통비', savingRatePercent: 45 },
+            { label: '체험비', savingRatePercent: 30 },
+          ],
+          localContribution: {
+            scorePercent: 72,
+            label: '외곽·원도심 상권 방문',
+            message: '관광 수요 분산에 기여하고 있어요',
+          },
+          histories: [
+            {
+              routeId: 'route_001',
+              routeName: '부산 영도 흰여울 & 깡깡이 예술마을 코스',
+              trippedAt: '2026-07-31T03:00:00.000Z',
+              savedAmountWon: 15000,
+            },
+          ],
+        },
+      },
     }),
     ApiAccessTokenUnauthorizedResponseDocs(),
     ApiBadRequestResponse({

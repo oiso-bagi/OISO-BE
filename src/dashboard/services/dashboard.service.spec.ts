@@ -48,6 +48,42 @@ describe('DashboardService', () => {
       mockDashboardRepository.findRecentCompletedSavingsTripsByUserId,
     ).toHaveBeenCalledWith('user-1');
     expect(result.totalSavingsWon).toBe(0);
+    expect(result.savingsByCategory[0].savingRatePercent).toBe(0);
+  });
+
+  it('computes category saving rates for completed trips', async () => {
+    mockDashboardRepository.findSavingsSummaryByUserId.mockResolvedValue({
+      tripCount: 2,
+      totalSavingsWon: 25000,
+      localContributionScore: 70,
+    });
+    mockDashboardRepository.findSavingsCategorySummaryByUserId.mockResolvedValue(
+      {
+        foodSavingsWon: 12000,
+        transportSavingsWon: 3000,
+        experienceSavingsWon: 10000,
+      },
+    );
+    mockDashboardRepository.findRecentCompletedSavingsTripsByUserId.mockResolvedValue(
+      [],
+    );
+
+    const result = await service.getSavingsDashboard('user-1');
+
+    expect(result.savingsByCategory).toEqual([
+      {
+        label: '식비',
+        savingRatePercent: 37,
+      },
+      {
+        label: '교통비',
+        savingRatePercent: 45,
+      },
+      {
+        label: '체험비',
+        savingRatePercent: 30,
+      },
+    ]);
   });
 
   it('rejects an empty user id', async () => {

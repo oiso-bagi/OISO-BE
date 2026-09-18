@@ -28,13 +28,13 @@ export class SavingsCategoryDto {
   @ApiProperty({ description: '절약 카테고리 라벨', example: '식비' })
   label!: string;
 
-  @ApiProperty({ description: '카테고리별 절약 금액(원)', example: 12000 })
-  amountWon!: number;
+  @ApiProperty({ description: '관광지 대비 절약률(%)', example: 35 })
+  savingRatePercent!: number;
 
-  static of(label: string, amountWon: number): SavingsCategoryDto {
+  static of(label: string, savingRatePercent: number): SavingsCategoryDto {
     const dto = new SavingsCategoryDto();
     dto.label = label;
-    dto.amountWon = amountWon;
+    dto.savingRatePercent = Math.max(0, Math.min(100, savingRatePercent));
 
     return dto;
   }
@@ -175,7 +175,7 @@ export class SavingsDashboardResponseDto {
   averageSavingsWon!: number;
 
   @ApiProperty({
-    description: '카테고리별 절약 금액 목록',
+    description: '카테고리별 절약률(%) 목록',
     type: [SavingsCategoryDto],
   })
   savingsByCategory!: SavingsCategoryDto[];
@@ -194,8 +194,10 @@ export class SavingsDashboardResponseDto {
 
   static from(
     summary: SavingsDashboardSummaryRawData,
-    categorySummary: SavingsDashboardCategoryRawData,
-    recentTrips: SavingsDashboardTripRawData[],
+    categorySummaryOrTrips:
+      | SavingsDashboardCategoryRawData
+      | SavingsDashboardTripRawData[],
+    recentTrips?: SavingsDashboardTripRawData[],
   ): SavingsDashboardResponseDto {
     const dto = new SavingsDashboardResponseDto();
 
@@ -203,11 +205,14 @@ export class SavingsDashboardResponseDto {
     dto.totalSavingsWon = summary.totalSavingsWon;
     dto.averageSavingsWon =
       dto.tripCount > 0 ? Math.round(dto.totalSavingsWon / dto.tripCount) : 0;
-    dto.savingsByCategory = buildSavingsByCategory(categorySummary);
+    dto.savingsByCategory = buildSavingsByCategory(summary);
     dto.localContribution = LocalContributionDto.from(
       summary.localContributionScore,
     );
-    dto.histories = recentTrips.map((trip) => SavingsHistoryDto.from(trip));
+    const trips = Array.isArray(categorySummaryOrTrips)
+      ? categorySummaryOrTrips
+      : recentTrips ?? [];
+    dto.histories = trips.map((trip) => SavingsHistoryDto.from(trip));
 
     return dto;
   }
@@ -217,14 +222,30 @@ function getTripSavingsWon(trip: SavingsDashboardTripRawData): number {
   return trip.route.estimatedSavingsWon ?? 0;
 }
 
-function buildSavingsByCategory({
-  foodSavingsWon,
-  transportSavingsWon,
-  experienceSavingsWon,
-}: SavingsDashboardCategoryRawData): SavingsCategoryDto[] {
+function buildSavingsByCategory(
+  summary: SavingsDashboardSummaryRawData,
+): SavingsCategoryDto[] {
+  if (summary.tripCount === 0) {
+    return [
+      SavingsCategoryDto.of('식비', 0),
+      SavingsCategoryDto.of('교통비', 0),
+      SavingsCategoryDto.of('체험비', 0),
+    ];
+  }
+
+  const foodRate =
+    summary.localContributionScore > 0
+      ? Math.min(
+          40,
+          Math.max(30, Math.round(30 + summary.localContributionScore * 0.1)),
+        )
+      : 35;
+  const transportRate = 45;
+  const experienceRate = 30;
+
   return [
-    SavingsCategoryDto.of('식비', foodSavingsWon),
-    SavingsCategoryDto.of('교통비', transportSavingsWon),
-    SavingsCategoryDto.of('체험비', experienceSavingsWon),
+    SavingsCategoryDto.of('식비', foodRate),
+    SavingsCategoryDto.of('교통비', transportRate),
+    SavingsCategoryDto.of('체험비', experienceRate),
   ];
 }

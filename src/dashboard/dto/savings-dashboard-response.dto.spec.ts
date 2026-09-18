@@ -72,9 +72,18 @@ describe('SavingsDashboardResponseDto', () => {
     );
 
     expect(result.savingsByCategory).toEqual([
-      { label: '식비', amountWon: 10000 },
-      { label: '교통비', amountWon: 2700 },
-      { label: '체험비', amountWon: 9000 },
+      {
+        label: '식비',
+        savingRatePercent: 37,
+      },
+      {
+        label: '교통비',
+        savingRatePercent: 45,
+      },
+      {
+        label: '체험비',
+        savingRatePercent: 30,
+      },
     ]);
     expect(result.localContribution).toEqual({
       scorePercent: 70,
@@ -95,9 +104,18 @@ describe('SavingsDashboardResponseDto', () => {
       tripCount: 0,
       averageSavingsWon: 0,
       savingsByCategory: [
-        { label: '식비', amountWon: 0 },
-        { label: '교통비', amountWon: 0 },
-        { label: '체험비', amountWon: 0 },
+        {
+          label: '식비',
+          savingRatePercent: 0,
+        },
+        {
+          label: '교통비',
+          savingRatePercent: 0,
+        },
+        {
+          label: '체험비',
+          savingRatePercent: 0,
+        },
       ],
       localContribution: {
         scorePercent: 0,
