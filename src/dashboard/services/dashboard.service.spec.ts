@@ -7,6 +7,7 @@ describe('DashboardService', () => {
     findSavingsSummaryByUserId: jest.fn(),
     findSavingsCategorySummaryByUserId: jest.fn(),
     findRecentCompletedSavingsTripsByUserId: jest.fn(),
+    findCompletedSavingsTripsByUserId: jest.fn(),
   };
 
   let service: DashboardService;
@@ -61,6 +62,57 @@ describe('DashboardService', () => {
     ).not.toHaveBeenCalled();
     expect(
       mockDashboardRepository.findRecentCompletedSavingsTripsByUserId,
+    ).not.toHaveBeenCalled();
+  });
+
+  it('loads paginated savings histories for the normalized user id', async () => {
+    mockDashboardRepository.findCompletedSavingsTripsByUserId.mockResolvedValue(
+      {
+        items: [
+          {
+            id: 'trip-1',
+            startedAt: new Date('2026-07-31T03:00:00.000Z'),
+            route: {
+              id: 'route_001',
+              name: 'Busan sea route',
+              estimatedSavingsWon: 15000,
+            },
+          },
+        ],
+        totalCount: 25,
+      },
+    );
+
+    const result = await service.getSavingsHistories(' user-1 ', {
+      page: 1,
+      size: 10,
+    });
+
+    expect(
+      mockDashboardRepository.findCompletedSavingsTripsByUserId,
+    ).toHaveBeenCalledWith('user-1', 1, 10);
+    expect(result).toEqual({
+      items: [
+        {
+          routeId: 'route_001',
+          routeName: 'Busan sea route',
+          trippedAt: new Date('2026-07-31T03:00:00.000Z'),
+          savedAmountWon: 15000,
+        },
+      ],
+      page: 1,
+      size: 10,
+      totalCount: 25,
+      totalPages: 3,
+    });
+  });
+
+  it('rejects an empty user id when loading paginated savings histories', async () => {
+    await expect(
+      service.getSavingsHistories(' ', { page: 1, size: 10 }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(
+      mockDashboardRepository.findCompletedSavingsTripsByUserId,
     ).not.toHaveBeenCalled();
   });
 });

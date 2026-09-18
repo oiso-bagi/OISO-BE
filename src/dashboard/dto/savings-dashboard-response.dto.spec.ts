@@ -3,6 +3,7 @@ import {
   SavingsDashboardResponseDto,
   SavingsDashboardSummaryRawData,
   SavingsDashboardTripRawData,
+  SavingsHistoriesPageResponseDto,
 } from '@/dashboard/dto/savings-dashboard-response.dto';
 
 describe('SavingsDashboardResponseDto', () => {
@@ -104,6 +105,40 @@ describe('SavingsDashboardResponseDto', () => {
         message: '관광 수요 분산에 기여하고 있어요',
       },
       histories: [],
+    });
+  });
+
+  it('builds savings history page metadata and items', () => {
+    const result = SavingsHistoriesPageResponseDto.of(
+      [
+        createTrip({
+          id: 'trip-1',
+          route: {
+            id: 'route_001',
+            name: 'Busan sea route',
+            estimatedSavingsWon: 15000,
+          },
+          startedAt: new Date('2026-07-31T03:00:00.000Z'),
+        }),
+      ],
+      1,
+      10,
+      25,
+    );
+
+    expect(result).toEqual({
+      items: [
+        {
+          routeId: 'route_001',
+          routeName: 'Busan sea route',
+          trippedAt: new Date('2026-07-31T03:00:00.000Z'),
+          savedAmountWon: 15000,
+        },
+      ],
+      page: 1,
+      size: 10,
+      totalCount: 25,
+      totalPages: 3,
     });
   });
 });

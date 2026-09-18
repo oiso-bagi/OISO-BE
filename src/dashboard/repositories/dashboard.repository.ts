@@ -4,6 +4,7 @@ import { PrismaService } from '@/prisma/prisma.service';
 import {
   SavingsDashboardCategoryRawData,
   SavingsDashboardSummaryRawData,
+  SavingsDashboardTripRawData,
 } from '@/dashboard/dto/savings-dashboard-response.dto';
 
 const savingsDashboardHistorySelect =
@@ -107,5 +108,33 @@ export class DashboardRepository {
       take: 3,
       select: savingsDashboardHistorySelect,
     });
+  }
+
+  async findCompletedSavingsTripsByUserId(
+    userId: string,
+    page: number,
+    size: number,
+  ): Promise<{
+    items: SavingsDashboardTripRawData[];
+    totalCount: number;
+  }> {
+    const where: Prisma.RouteTripWhereInput = {
+      userId,
+      isCompleted: true,
+    };
+    const skip = (page - 1) * size;
+
+    const [totalCount, items] = await Promise.all([
+      this.prisma.routeTrip.count({ where }),
+      this.prisma.routeTrip.findMany({
+        where,
+        skip,
+        take: size,
+        orderBy: [{ startedAt: 'desc' }, { id: 'desc' }],
+        select: savingsDashboardHistorySelect,
+      }),
+    ]);
+
+    return { items, totalCount };
   }
 }
