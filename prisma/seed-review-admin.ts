@@ -3,6 +3,7 @@ import { PasswordHashService } from '../src/auth/services/password-hash.service'
 
 const prisma = new PrismaClient();
 const passwordHashService = new PasswordHashService();
+const REVIEW_ADMIN_NICKNAME = '심사위원';
 
 function getReviewAdminCredentials() {
   const email = process.env.REVIEW_ADMIN_EMAIL?.trim().toLowerCase();
@@ -17,14 +18,29 @@ function getReviewAdminCredentials() {
   return { email, password };
 }
 
+async function assertReviewAdminNicknameAvailable(email: string) {
+  const nicknameOwner = await prisma.user.findUnique({
+    where: { nickname: REVIEW_ADMIN_NICKNAME },
+    select: { email: true },
+  });
+
+  if (nicknameOwner && nicknameOwner.email !== email) {
+    throw new Error(
+      `Cannot seed review admin because nickname "${REVIEW_ADMIN_NICKNAME}" is already owned by another user.`,
+    );
+  }
+}
+
 async function main() {
   const { email, password } = getReviewAdminCredentials();
   const passwordHash = passwordHashService.hashPassword(password);
 
+  await assertReviewAdminNicknameAvailable(email);
+
   await prisma.user.upsert({
     where: { email },
     update: {
-      nickname: 'review-admin',
+      nickname: REVIEW_ADMIN_NICKNAME,
       provider: UserProvider.LOCAL,
       providerId: null,
       role: UserRole.ADMIN,
@@ -33,7 +49,7 @@ async function main() {
     },
     create: {
       email,
-      nickname: 'review-admin',
+      nickname: REVIEW_ADMIN_NICKNAME,
       provider: UserProvider.LOCAL,
       providerId: null,
       role: UserRole.ADMIN,

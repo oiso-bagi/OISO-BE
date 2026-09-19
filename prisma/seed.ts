@@ -41,7 +41,7 @@ async function main() {
       ? await prisma.user.upsert({
           where: { email: reviewAdminEmail },
           update: {
-            nickname: 'review-admin',
+            nickname: '심사위원',
             provider: UserProvider.LOCAL,
             providerId: null,
             role: UserRole.ADMIN,
@@ -50,7 +50,7 @@ async function main() {
           },
           create: {
             email: reviewAdminEmail,
-            nickname: 'review-admin',
+            nickname: '심사위원',
             provider: UserProvider.LOCAL,
             role: UserRole.ADMIN,
             passwordHash: passwordHashService.hashPassword(reviewAdminPassword),
