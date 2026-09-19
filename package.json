@@ -27,6 +27,7 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "db:seed": "ts-node prisma/seed.ts",
+    "prisma:seed:review-admin": "ts-node prisma/seed-review-admin.ts",
     "seed:places": "ts-node scripts/seed-tour-api-test.ts",
     "seed:routes": "ts-node scripts/seed-recommend-routes.ts",
     "seed:all": "pnpm db:seed && pnpm seed:places && pnpm seed:routes"
